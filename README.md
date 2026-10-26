@@ -45,5 +45,5 @@ On the free plan the site sleeps after 15 minutes without visitors, so the first
 - `server/app.js`: the API (auth, sessions, OTP, Google check, progress) plus static files
 - `server/public/js/scene.js`: the street, drawn as layered SVG
 - `server/public/js/app.js`: the camera, Gaju's walk, the envelope and checkpoint, login, the letter and the quiz
-- `server/public/js/content.js`: all city facts and quiz questions (edit here to add more)
+- `server/public/js/content.js`: all city facts and quiz questions (edit here to add more). Every card has a `src` link and each city a `sources` list, shown on the site; add one for any new fact
 - `server/public/assets/`: Gaju (cut out from the supplied elephant art), both stamps and both posters

@@ -465,6 +465,7 @@ function renderCity(id) {
     <div class="sec-tabs" role="tablist">${tabs.map(([tid, icon, label], i) =>
       `<button class="sec-tab" role="tab" data-sec="${tid}" aria-selected="${i === 0}">${icon} ${esc(label)}</button>`).join('')}</div>
     <div id="secBody"></div>
+    ${c.sources ? `<p class="letter-src">Sources for this letter: ${c.sources.map(([t, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)}</a>`).join(' · ')}</p>` : ''}
     <p class="signoff">With love, Gaju <img src="assets/elephant.png" alt=""></p>
     <div class="letter-nav">
       <button class="btn" id="letterBack">← Back to the street</button>
@@ -475,7 +476,7 @@ function renderCity(id) {
     if (sid === 'quiz') return renderQuiz(id);
     const s = c.sections.find((x) => x.id === sid);
     $('#secBody').innerHTML = `<div class="cards">${s.items.map((it, i) =>
-      `<article class="card" style="animation-delay:${i * 60}ms"><h4>${esc(it.title)}</h4><p>${esc(it.text)}</p></article>`).join('')}</div>`;
+      `<article class="card" style="animation-delay:${i * 60}ms"><h4>${esc(it.title)}</h4><p>${esc(it.text)}</p>${it.src ? `<a class="src" href="${esc(it.src)}" target="_blank" rel="noopener">Source</a>` : ''}</article>`).join('')}</div>`;
   };
   $$('.sec-tab').forEach((b) => b.addEventListener('click', () => show(b.dataset.sec)));
   show(tabs[0][0]);
