@@ -36,12 +36,12 @@ INSERT INTO facts (section_id, title, body, source_url, sort_order) VALUES
   ((SELECT id FROM sections WHERE city_id = 'udaipur' AND slug = 'facts'), 'Maharana Pratap', 'Mewar''s most famous ruler fought the Mughal army led by Man Singh at the Battle of Haldighati in 1576, in the hills north of Udaipur.', 'https://en.wikipedia.org/wiki/Battle_of_Haldighati', 1),
   ((SELECT id FROM sections WHERE city_id = 'udaipur' AND slug = 'facts'), 'The sun on the walls', 'The Mewar rulers traced their line to the sun god, so a huge ornamental sun shines in the Surya Chopar (Sun Square) of the City Palace.', 'https://www.lonelyplanet.com/articles/guide-to-city-palace-udaipur', 2),
   ((SELECT id FROM sections WHERE city_id = 'udaipur' AND slug = 'facts'), 'Lakes that talk to each other', 'Lake Pichola and Fateh Sagar are linked through the smaller Swaroop Sagar lake and a canal, so water can flow between them.', 'https://en.wikipedia.org/wiki/Swaroop_Sagar_Lake', 3);
-INSERT INTO quiz_questions (city_id, question, options, answer_index, sort_order) VALUES
-  ('udaipur', 'Who founded Udaipur in 1559?', '["Maharana Pratap","Maharana Udai Singh II","Maharana Sajjan Singh","Akbar"]'::jsonb, 1, 0),
-  ('udaipur', 'Which lake is the Lake Palace (Jag Niwas) built in?', '["Fateh Sagar","Lake Pichola","Dal Lake","Hussain Sagar"]'::jsonb, 1, 1),
-  ('udaipur', 'What is Sajjangarh also called?', '["Monsoon Palace","Wind Palace","Mirror Palace","Water Palace"]'::jsonb, 0, 2),
-  ('udaipur', 'Which James Bond film was shot in Udaipur?', '["Skyfall","Goldfinger","Octopussy","Dr. No"]'::jsonb, 2, 3),
-  ('udaipur', 'Dal Baati Churma: what is the "baati"?', '["A sweet syrup","A baked wheat ball","A lentil soup","A fried chilli"]'::jsonb, 1, 4);
+INSERT INTO quiz_questions (city_id, question, options, answer_index, source_url, sort_order) VALUES
+  ('udaipur', 'Who founded Udaipur in 1559?', '["Maharana Pratap","Maharana Udai Singh II","Maharana Sajjan Singh","Akbar"]'::jsonb, 1, 'https://en.wikipedia.org/wiki/Udaipur', 0),
+  ('udaipur', 'Which lake is the Lake Palace (Jag Niwas) built in?', '["Fateh Sagar","Lake Pichola","Dal Lake","Hussain Sagar"]'::jsonb, 1, 'https://en.wikipedia.org/wiki/Lake_Palace', 1),
+  ('udaipur', 'What is Sajjangarh also called?', '["Monsoon Palace","Wind Palace","Mirror Palace","Water Palace"]'::jsonb, 0, 'https://en.wikipedia.org/wiki/Monsoon_Palace', 2),
+  ('udaipur', 'Which James Bond film was shot in Udaipur?', '["Skyfall","Goldfinger","Octopussy","Dr. No"]'::jsonb, 2, 'https://www.jamesbondlifestyle.com/node/919', 3),
+  ('udaipur', 'Dal Baati Churma: what is the "baati"?', '["A sweet syrup","A baked wheat ball","A lentil soup","A fried chilli"]'::jsonb, 1, 'https://en.wikipedia.org/wiki/Rajasthani_cuisine', 4);
 
 -- ------------------------------------------------------------ Kolkata
 INSERT INTO cities (id, name, native_name, state, nickname, accent, stamp, poster, greeting, greeting_note, from_line, letter, quick_facts, sources, sort_order) VALUES
@@ -77,9 +77,9 @@ INSERT INTO facts (section_id, title, body, source_url, sort_order) VALUES
   ((SELECT id FROM sections WHERE city_id = 'kolkata' AND slug = 'facts'), 'A first for Asia', 'Rabindranath Tagore, born in Kolkata, won the Nobel Prize in Literature in 1913, the first for anyone from outside Europe. He also wrote India''s national anthem.', 'https://www.britannica.com/biography/Rabindranath-Tagore', 2),
   ((SELECT id FROM sections WHERE city_id = 'kolkata' AND slug = 'facts'), 'An Oscar for Ray', 'Kolkata filmmaker Satyajit Ray received an honorary Academy Award in 1992 for his lifetime of work.', 'https://en.wikipedia.org/wiki/Satyajit_Ray', 3),
   ((SELECT id FROM sections WHERE city_id = 'kolkata' AND slug = 'facts'), 'Yellow taxis', 'The yellow Ambassador taxi became a symbol of the city. Old ones are now being retired under a 15-year age limit.', 'https://www.outlooktraveller.com/experiences/culture/after-trams-will-kolkatas-iconic-yellow-ambassador-taxi-ride-into-the-sunset', 4);
-INSERT INTO quiz_questions (city_id, question, options, answer_index, sort_order) VALUES
-  ('kolkata', 'Which river does Kolkata stand on?', '["Yamuna","Hooghly","Godavari","Narmada"]'::jsonb, 1, 0),
-  ('kolkata', 'In which year did UNESCO recognise Durga Puja in Kolkata?', '["2001","2011","2017","2021"]'::jsonb, 3, 1),
-  ('kolkata', 'Howrah Bridge is also called…', '["Vidyasagar Setu","Rabindra Setu","Ram Setu","Bandra Setu"]'::jsonb, 1, 2),
-  ('kolkata', 'Kolkata was the capital of British India until…', '["1857","1911","1947","1950"]'::jsonb, 1, 3),
-  ('kolkata', 'Where did India''s first metro railway open, in 1984?', '["Delhi","Mumbai","Kolkata","Chennai"]'::jsonb, 2, 4);
+INSERT INTO quiz_questions (city_id, question, options, answer_index, source_url, sort_order) VALUES
+  ('kolkata', 'Which river does Kolkata stand on?', '["Yamuna","Hooghly","Godavari","Narmada"]'::jsonb, 1, 'https://www.britannica.com/place/Hugli-River', 0),
+  ('kolkata', 'In which year did UNESCO recognise Durga Puja in Kolkata?', '["2001","2011","2017","2021"]'::jsonb, 3, 'https://ich.unesco.org/en/RL/durga-puja-in-kolkata-00703', 1),
+  ('kolkata', 'Howrah Bridge is also called…', '["Vidyasagar Setu","Rabindra Setu","Ram Setu","Bandra Setu"]'::jsonb, 1, 'https://en.wikipedia.org/wiki/Howrah_Bridge', 2),
+  ('kolkata', 'Kolkata was the capital of British India until…', '["1857","1911","1947","1950"]'::jsonb, 1, 'https://www.newworldencyclopedia.org/entry/kolkata', 3),
+  ('kolkata', 'Where did India''s first metro railway open, in 1984?', '["Delhi","Mumbai","Kolkata","Chennai"]'::jsonb, 2, 'https://en.wikipedia.org/wiki/Kolkata_Metro', 4);

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Virasat · Editor</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="assets/elephant.png">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/">VIRASAT <small>editor</small></a>
+    <div id="who" class="who"></div>
+  </header>
+
+  <main id="app">
+    <p class="muted">Loading…</p>
+  </main>
+
+  <dialog id="dlg">
+    <form method="dialog" id="dlgForm">
+      <h2 id="dlgTitle"></h2>
+      <div id="dlgBody"></div>
+      <p class="form-error" id="dlgError" role="alert"></p>
+      <div class="dlg-actions">
+        <button type="button" class="btn" id="dlgCancel">Cancel</button>
+        <button type="submit" class="btn primary" id="dlgSave">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <script type="module" src="js/admin.js"></script>
+</body>
+</html>

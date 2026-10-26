@@ -1,5 +1,6 @@
 import { buildScene, grain, VB, GATES } from './scene.js';
-import { CITIES } from './content.js';
+// City content comes from the database through the API (/api/cities), loaded in boot().
+let CITIES = {};
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -26,6 +27,11 @@ async function api(path, body) {
   } catch {
     return { ok: false, status: 0, data: { error: 'Could not reach the server. Check your connection.' } };
   }
+}
+
+// Show "+10 points" when the server says something earned points.
+function showEarned(r) {
+  if (r?.ok && r.data.earned > 0) toast(`+${r.data.earned} points · ${r.data.points} in total`);
 }
 
 // ---------------- toast ----------------
@@ -147,7 +153,7 @@ function setupStreet() {
       <div class="gaju-body"><img src="assets/elephant.png" alt="Gaju the elephant" draggable="false"></div>
     </div>`);
   const pins = [['udaipur', 'u', GATES.udaipur, 168, 'Udaipur'], ['kolkata', 'k', GATES.kolkata + 100, 178, 'Kolkata']];
-  layers.buildings.insertAdjacentHTML('beforeend', pins.map(([id, cls, x, y, label]) => `
+  layers.buildings.insertAdjacentHTML('beforeend', pins.filter(([id]) => CITIES[id]).map(([id, cls, x, y, label]) => `
     <button class="pin ${cls}" data-go="${id}" style="left:${(x / VB.w) * 100}%;top:${(y / VB.h) * 100}%" aria-label="Walk to ${label}">
       <span class="pin-face"><img src="${CITIES[id].stamp}" alt=""></span><span class="pin-label">${label}</span>
     </button>`).join(''));
@@ -156,8 +162,8 @@ function setupStreet() {
   const gaju = $('#gaju');
   const tell = () => {
     if (state.busy) return;
-    const all = Object.values(CITIES).flatMap((c) => c.sections.find((s) => s.id === 'facts').items.map((i) => i.title));
-    say(`Fun fact: ${all[Math.floor(Math.random() * all.length)]}! Pick a city to learn more.`, 4200);
+    const all = Object.values(CITIES).flatMap((c) => c.sections.find((s) => s.id === 'facts')?.items.map((i) => i.title) || []);
+    say(all.length ? `Fun fact: ${all[Math.floor(Math.random() * all.length)]}! Pick a city to learn more.` : 'Pick a city and I will walk you there!', 4200);
     gaju.classList.remove('cheer'); void gaju.offsetWidth; gaju.classList.add('cheer');
     sound.toot();
   };
@@ -395,7 +401,7 @@ async function breakSeal(my) {
     await step('opened', 300);
     await step('slide', 1050, sound.paper);
     if (my !== state.seq) throw new Error('cancelled');
-    api('/api/progress/visit', { city });
+    api('/api/progress/visit', { city }).then(showEarned);
 
     // lift the poster out of the envelope and bring it to the front
     const from = $('#envPoster').getBoundingClientRect();
@@ -475,6 +481,11 @@ function renderCity(id) {
     $$('.sec-tab').forEach((b) => b.setAttribute('aria-selected', b.dataset.sec === sid));
     if (sid === 'quiz') return renderQuiz(id);
     const s = c.sections.find((x) => x.id === sid);
+    if (!s.items.length) {
+      $('#secBody').innerHTML = '<p class="empty-note">Our team is still checking the facts for this part. Come back soon!</p>';
+      return;
+    }
+    if (state.user) api('/api/progress/section', { city: id, section: sid }).then(showEarned);
     $('#secBody').innerHTML = `<div class="cards">${s.items.map((it, i) =>
       `<article class="card" style="animation-delay:${i * 60}ms"><h4>${esc(it.title)}</h4><p>${esc(it.text)}</p>${it.src ? `<a class="src" href="${esc(it.src)}" target="_blank" rel="noopener">Source</a>` : ''}</article>`).join('')}</div>`;
   };
@@ -491,8 +502,12 @@ function renderCity(id) {
 
 function renderQuiz(id) {
   const c = CITIES[id];
-  let i = 0, score = 0;
   const box = $('#secBody');
+  if (!c.quiz.length) {
+    box.innerHTML = '<p class="empty-note">The quiz for this city is still being checked by our team. Come back soon!</p>';
+    return;
+  }
+  let i = 0, score = 0, answers = [];
   const draw = () => {
     if (i >= c.quiz.length) return finish();
     const q = c.quiz[i];
@@ -502,25 +517,36 @@ function renderQuiz(id) {
       <h4>${esc(q.q)}</h4>
       <div class="opts">${q.options.map((o, k) => `<button class="opt" data-k="${k}">${esc(o)}</button>`).join('')}</div>
       <p class="quiz-feedback" aria-live="polite"></p></div>`;
-    $$('.opt', box).forEach((b) => b.addEventListener('click', () => {
-      const k = Number(b.dataset.k), right = k === q.answer;
-      $$('.opt', box).forEach((x) => { x.disabled = true; if (Number(x.dataset.k) === q.answer) x.classList.add('right'); });
+    $$('.opt', box).forEach((b) => b.addEventListener('click', async () => {
+      const k = Number(b.dataset.k);
+      $$('.opt', box).forEach((x) => { x.disabled = true; });
+      // The answer lives on the server, so ask it.
+      const r = await api('/api/quiz/check', { id: q.id, choice: k });
+      if (!r.ok) {
+        $('.quiz-feedback', box).textContent = r.data.error || 'Could not check that answer. Try again.';
+        $$('.opt', box).forEach((x) => { x.disabled = false; });
+        return;
+      }
+      answers.push({ id: q.id, choice: k });
+      const right = r.data.correct;
+      $$('.opt', box).forEach((x) => { if (Number(x.dataset.k) === r.data.answer) x.classList.add('right'); });
       if (!right) b.classList.add('wrong');
       if (right) { score++; sound.ding(); } else sound.buzz();
-      $('.quiz-feedback', box).textContent = right ? 'Shabash! That\'s right.' : `Not quite. It's "${q.options[q.answer]}".`;
+      $('.quiz-feedback', box).textContent = right ? 'Shabash! That\'s right.' : `Not quite. It's "${q.options[r.data.answer]}".`;
       setTimeout(() => { i++; draw(); }, 1400);
     }));
   };
   const finish = async () => {
     const total = c.quiz.length;
-    const msg = score === total ? 'Perfect score! Gaju is doing a happy dance.' : score >= 3 ? 'Well done, explorer!' : 'Read the letter again and have another go.';
+    const msg = score === total ? 'Perfect score! Gaju is doing a happy dance.' : score >= total / 2 ? 'Well done, explorer!' : 'Read the letter again and have another go.';
     box.innerHTML = `<div class="quiz quiz-done"><div class="big">${score}/${total}</div><h4>${msg}</h4>
-      <p id="quizSaved">${state.user ? 'Saving to your passport…' : ''}</p>
+      <p id="quizSaved">${state.user ? 'Saving to your passport…' : 'Log in to save your score and earn points.'}</p>
       <button class="btn primary" id="retry">Try again</button></div>`;
-    $('#retry').onclick = () => { i = 0; score = 0; draw(); };
+    $('#retry').onclick = () => { i = 0; score = 0; answers = []; draw(); };
     if (state.user) {
-      const r = await api('/api/progress/quiz', { city: id, score, total });
-      $('#quizSaved').textContent = r.ok ? 'Saved to your Virasat passport.' : 'Could not save this score.';
+      const r = await api('/api/progress/quiz', { city: id, answers });
+      $('#quizSaved').textContent = !r.ok ? 'Could not save this score.'
+        : r.data.earned > 0 ? `Saved to your passport. +${r.data.earned} points!` : 'Saved to your passport.';
     }
   };
   draw();
@@ -756,6 +782,7 @@ async function openJourney() {
   const r = await api('/api/progress');
   const visits = Object.fromEntries((r.data.visits || []).map((v) => [v.city, v]));
   const quizzes = Object.fromEntries((r.data.quizzes || []).map((q) => [q.city, q]));
+  const read = (cityId) => (r.data.covered || []).filter((x) => x.city === cityId).length;
   const u = state.user;
   const joined = new Date((u.createdAt || '').replace(' ', 'T') + 'Z');
   const via = { email: 'Email', phone: 'Phone', google: 'Google' };
@@ -764,16 +791,19 @@ async function openJourney() {
       <div class="av">${u.avatar ? `<img src="${esc(u.avatar)}" alt="">` : esc(u.name[0]?.toUpperCase() || 'V')}</div>
       <div><b>${esc(u.name)}</b><small>${esc(u.email || u.phone || '')}<br>Signed in with ${u.via.map((v) => via[v]).join(', ') || '—'}${isNaN(joined) ? '' : ` · joined ${joined.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`}</small></div>
     </div>
+    <div class="pp-points"><b>${Number(r.data.points || 0)}</b> points
+      <small>10 for each new city · 5 for each part of a letter you read · 10 for each correct answer on your best quiz</small></div>
     <div class="pp-stamps">${Object.values(CITIES).map((c) => {
       const v = visits[c.id], q = quizzes[c.id];
       return `<div class="pp-slot ${v ? '' : 'empty'}">
         <img src="${c.stamp}" alt="${esc(c.name)} stamp">
         <b>${esc(c.name)}</b>
-        <small>${v ? `Opened ${v.count} time${v.count > 1 ? 's' : ''}` : 'Not visited yet'}<br>${q ? `Best quiz: ${q.best}/${q.total}` : 'Quiz not taken'}</small>
+        <small>${v ? `Opened ${v.count} time${v.count > 1 ? 's' : ''}` : 'Not visited yet'}<br>Read ${read(c.id)} of ${c.sections.length} parts<br>${q ? `Best quiz: ${q.best}/${q.total}` : 'Quiz not taken'}</small>
       </div>`;
     }).join('')}</div>
     <div class="pp-actions">
       ${Object.values(CITIES).map((c) => `<button class="btn primary" data-go="${c.id}">Visit ${esc(c.name)}</button>`).join('')}
+      ${['editor', 'admin'].includes(u.role) ? '<a class="btn" href="/admin">Editor page</a>' : ''}
       <button class="btn" id="logoutBtn">Log out</button>
     </div>`;
   $$('[data-go]', body).forEach((b) => b.addEventListener('click', () => closeModal($('#journeyModal')), { capture: true }));
@@ -782,6 +812,12 @@ async function openJourney() {
 
 // ---------------- boot ----------------
 async function boot() {
+  const cities = await api('/api/cities');
+  if (!cities.ok) {
+    document.body.insertAdjacentHTML('afterbegin', '<p class="load-error">Virasat could not load right now. Please refresh the page.</p>');
+    return;
+  }
+  CITIES = Object.fromEntries(cities.data.cities.map((c) => [c.id, c]));
   setupChrome();
   setupStreet();
   setupAuth();

@@ -490,3 +490,11 @@ a { color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* content still being checked, points, load error */
+.empty-note { margin: 8px 0 0; padding: 16px 18px; border: 2px dashed var(--accent); border-radius: 14px; color: var(--ink-soft); background: #fff; }
+.pp-points { margin: 0 0 16px; padding: 12px 16px; border-radius: 14px; background: #fff6dc; color: #2a1c08; font-size: 15px; }
+.pp-points small { color: #5a4a30; }
+.pp-points b { font-size: 28px; margin-right: 4px; }
+.pp-points small { display: block; font-size: 12.5px; margin-top: 2px; }
+.load-error { margin: 0; padding: 14px 16px; background: #b3261e; color: #fff; text-align: center; font-weight: 700; }

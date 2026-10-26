@@ -1,0 +1,388 @@
+// The editor page. Everything here goes through /api/admin/...; the server checks every rule,
+// so this page only has to show things clearly and send what people type.
+
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const when = (t) => (t ? new Date(t).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '');
+
+const state = { me: null, cities: [], city: null, data: null, tab: 'facts', filter: 'needs_check' };
+
+async function api(path, body, method = body ? 'POST' : 'GET') {
+  try {
+    const res = await fetch(path, {
+      method, credentials: 'same-origin',
+      headers: body ? { 'content-type': 'application/json' } : {},
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const data = await res.json().catch(() => ({}));
+    return { ok: res.ok, status: res.status, data };
+  } catch {
+    return { ok: false, status: 0, data: { error: 'Could not reach the server. Check your connection.' } };
+  }
+}
+
+let toastTimer;
+function toast(msg, bad = false) {
+  const t = $('#toast');
+  t.textContent = msg; t.className = 'toast' + (bad ? ' bad' : ''); t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 3200);
+}
+
+// ---------------------------------------------------------------- form dialog
+// fields: [{ name, label, type: 'text'|'textarea'|'select'|'url', value, options, hint }]
+function openForm(title, fields, onSave) {
+  const dlg = $('#dlg');
+  $('#dlgTitle').textContent = title;
+  $('#dlgError').textContent = '';
+  $('#dlgBody').innerHTML = fields.map((f) => {
+    const id = 'f_' + f.name;
+    const hint = f.hint ? ` <small>${esc(f.hint)}</small>` : '';
+    let input;
+    if (f.type === 'textarea') input = `<textarea id="${id}" name="${f.name}">${esc(f.value)}</textarea>`;
+    else if (f.type === 'select') input = `<select id="${id}" name="${f.name}">${f.options.map(([v, l]) => `<option value="${esc(v)}" ${String(v) === String(f.value) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+    else input = `<input id="${id}" name="${f.name}" type="${f.type === 'url' ? 'url' : 'text'}" value="${esc(f.value)}" ${f.type === 'url' ? 'placeholder="https://…"' : ''}>`;
+    return `<label for="${id}">${esc(f.label)}${hint}</label>${input}`;
+  }).join('');
+  $('#dlgCancel').onclick = () => dlg.close();
+  $('#dlgForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const values = Object.fromEntries(fields.map((f) => [f.name, $(`#f_${f.name}`).value]));
+    $('#dlgSave').disabled = true;
+    const error = await onSave(values);
+    $('#dlgSave').disabled = false;
+    if (error) $('#dlgError').textContent = error;
+    else dlg.close();
+  };
+  dlg.showModal();
+}
+
+// ---------------------------------------------------------------- start
+async function boot() {
+  const me = await api('/api/me');
+  state.me = me.data.user || null;
+  renderWho();
+  if (!state.me) return renderLogin();
+  if (!['editor', 'admin'].includes(state.me.role)) return renderNotEditor();
+  const c = await api('/api/admin/cities');
+  state.cities = c.data.cities || [];
+  state.city = state.city || state.cities[0]?.id;
+  await loadCity();
+  render();
+}
+
+function renderWho() {
+  const u = state.me;
+  $('#who').innerHTML = u
+    ? `<span>${esc(u.name)}</span><span class="role">${esc(u.role)}</span><a href="/">Website</a><button class="btn small" id="logout">Log out</button>`
+    : '<a href="/">Back to the website</a>';
+  if (u) $('#logout').onclick = async () => { await api('/api/auth/logout', {}); location.reload(); };
+}
+
+function renderLogin() {
+  $('#app').innerHTML = `
+    <div class="panel" style="max-width:420px">
+      <h1>Editor log in</h1>
+      <p class="muted">Use the email and password of your Virasat account. If you signed up with a phone number,
+        log in on <a href="/">the website</a> first and then come back here.</p>
+      <form id="login">
+        <label for="em">Email</label><input id="em" type="email" autocomplete="email" required>
+        <label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" required>
+        <p class="form-error" id="loginErr"></p>
+        <button class="btn primary">Log in</button>
+      </form>
+    </div>`;
+  $('#login').onsubmit = async (e) => {
+    e.preventDefault();
+    const r = await api('/api/auth/login', { email: $('#em').value, password: $('#pw').value });
+    if (!r.ok) { $('#loginErr').textContent = r.data.error; return; }
+    boot();
+  };
+}
+
+function renderNotEditor() {
+  $('#app').innerHTML = `
+    <div class="panel" style="max-width:560px">
+      <h1>You are not an editor yet</h1>
+      <p>Ask your team's admin to make your account (<b>${esc(state.me.email || state.me.phone)}</b>) an editor on the Team tab.</p>
+      <h3>Setting up the site for the first time?</h3>
+      <p class="muted">The first admin enters the setup code. It only works while the site has no admin.</p>
+      <form id="claim" class="row">
+        <input id="code" placeholder="Setup code" style="max-width:260px" required>
+        <button class="btn primary">Become admin</button>
+      </form>
+      <p class="form-error" id="claimErr"></p>
+    </div>`;
+  $('#claim').onsubmit = async (e) => {
+    e.preventDefault();
+    const r = await api('/api/admin/claim', { code: $('#code').value.trim() });
+    if (!r.ok) { $('#claimErr').textContent = r.data.error; return; }
+    toast('You are now the admin.');
+    boot();
+  };
+}
+
+async function loadCity() {
+  const r = await api(`/api/admin/cities/${encodeURIComponent(state.city)}`);
+  state.data = r.ok ? r.data : null;
+}
+
+async function refresh() {
+  const c = await api('/api/admin/cities');
+  state.cities = c.data.cities || state.cities;
+  await loadCity();
+  render();
+}
+
+// ---------------------------------------------------------------- layout
+function render() {
+  const isAdmin = state.me.role === 'admin';
+  const tabs = [['facts', 'Facts'], ['quiz', 'Quiz'], ['letter', 'City letter'], ...(isAdmin ? [['team', 'Team']] : []), ['log', 'History'], ['help', 'How this works']];
+  $('#app').innerHTML = `
+    <div class="cities">${state.cities.map((c) => `
+      <button class="btn city-btn" data-city="${esc(c.id)}" aria-pressed="${c.id === state.city}">
+        ${esc(c.name)}${c.published ? '' : ' (hidden)'}
+        <small>${c.facts_to_check + c.quiz_to_check} to check · ${c.facts_verified + c.quiz_verified} live</small>
+      </button>`).join('')}</div>
+    <div class="tabs" role="tablist">${tabs.map(([id, label]) =>
+      `<button class="tab" role="tab" data-tab="${id}" aria-selected="${state.tab === id}">${label}</button>`).join('')}</div>
+    <section id="view"></section>`;
+  $$('[data-city]').forEach((b) => b.onclick = async () => { state.city = b.dataset.city; await loadCity(); render(); });
+  $$('[data-tab]').forEach((b) => b.onclick = () => { state.tab = b.dataset.tab; render(); });
+  ({ facts: renderFacts, quiz: renderQuiz, letter: renderLetter, team: renderTeam, log: renderLog, help: renderHelp })[state.tab]();
+}
+
+const people = (x) => [
+  x.created_by_name ? `written by ${esc(x.created_by_name)}` : 'imported from the old site',
+  x.updated_by_name && x.updated_by !== x.created_by ? `last changed by ${esc(x.updated_by_name)}` : '',
+  x.status === 'verified' ? `verified by ${esc(x.verified_by_name || '?')} on ${when(x.verified_at)}` : '',
+].filter(Boolean).join(' · ');
+
+const badge = (x) => (x.status === 'verified' ? '<span class="badge ok">Live</span>' : '<span class="badge">Needs check</span>');
+
+// Why this person cannot verify this item, or '' if they can. The server checks the same rule.
+const cannotVerify = (x) => (!x.source_url ? 'Add a source link first.' : x.updated_by === state.me.id ? 'You made the latest change, so someone else must verify it.' : '');
+
+function filters(items) {
+  const counts = { needs_check: items.filter((x) => x.status === 'needs_check').length, verified: items.filter((x) => x.status === 'verified').length };
+  return `<div class="filters">${[['needs_check', `Needs check (${counts.needs_check})`], ['verified', `Live (${counts.verified})`], ['all', `All (${items.length})`]]
+    .map(([v, l]) => `<button class="chip" data-filter="${v}" aria-pressed="${state.filter === v}">${l}</button>`).join('')}</div>`;
+}
+const shown = (x) => state.filter === 'all' || x.status === state.filter;
+const wireFilters = () => $$('[data-filter]').forEach((b) => b.onclick = () => { state.filter = b.dataset.filter; render(); });
+
+function itemButtons(kind, x) {
+  const why = cannotVerify(x);
+  return `<div class="row">
+    <button class="btn small" data-edit="${x.id}">Edit</button>
+    ${x.status === 'verified'
+      ? `<button class="btn small" data-unverify="${x.id}">Take off the website</button>`
+      : `<button class="btn small ok" data-verify="${x.id}" ${why ? `disabled title="${esc(why)}"` : ''}>I checked the source · Verify</button>${why ? `<span class="muted" style="font-size:13px">${esc(why)}</span>` : ''}`}
+    <span class="spacer"></span>
+    <button class="btn small danger" data-del="${x.id}">Delete</button>
+  </div>`;
+}
+
+function wireItems(kind, list, edit) {
+  const find = (id) => list.find((x) => x.id === Number(id));
+  $$('[data-edit]').forEach((b) => b.onclick = () => edit(find(b.dataset.edit)));
+  $$('[data-verify]').forEach((b) => b.onclick = () => act(`/api/admin/${kind}/${b.dataset.verify}/verify`, {}, 'POST', 'Verified. It is now on the website.'));
+  $$('[data-unverify]').forEach((b) => b.onclick = () => act(`/api/admin/${kind}/${b.dataset.unverify}/unverify`, {}, 'POST', 'Taken off the website. It needs a check again.'));
+  $$('[data-del]').forEach((b) => b.onclick = () => {
+    if (confirm('Delete this for good? It will stay in the History tab.')) act(`/api/admin/${kind}/${b.dataset.del}`, null, 'DELETE', 'Deleted.');
+  });
+}
+
+async function act(path, body, method, okMsg) {
+  const r = await api(path, body, method);
+  if (!r.ok) return toast(r.data.error || 'That did not work.', true);
+  toast(r.data.backToCheck ? 'Saved. Because the words changed, it needs to be checked again.' : okMsg);
+  refresh();
+}
+
+// ---------------------------------------------------------------- facts
+function renderFacts() {
+  const { sections } = state.data;
+  const all = sections.flatMap((s) => s.facts);
+  $('#view').innerHTML = `
+    <div class="row"><p class="muted" style="margin:0">Only <b>Live</b> facts appear on the website. A teammate who did not make the latest change must check the source and verify.</p>
+      <span class="spacer"></span><button class="btn primary" id="addFact">+ Add a fact</button></div>
+    ${filters(all)}
+    ${sections.map((s) => {
+      const list = s.facts.filter(shown);
+      return `<h3>${esc(s.icon)} ${esc(s.label)} <span class="muted" style="font-weight:400">(${s.facts.length})</span></h3>
+        ${list.length ? list.map((f) => `
+          <article class="item ${f.status === 'verified' ? 'verified' : ''}">
+            <h4>${esc(f.title)} ${badge(f)}</h4>
+            <p>${esc(f.body)}</p>
+            ${f.source_url ? `<a class="src" href="${esc(f.source_url)}" target="_blank" rel="noopener">${esc(f.source_url)}</a>` : '<span class="badge">No source yet</span>'}
+            <div class="meta">${people(f)}</div>
+            ${itemButtons('facts', f)}
+          </article>`).join('') : '<p class="muted">Nothing here.</p>'}`;
+    }).join('')}`;
+  wireFilters();
+  $('#addFact').onclick = () => editFact(null);
+  wireItems('facts', all, editFact);
+}
+
+function editFact(f) {
+  const sections = state.data.sections;
+  openForm(f ? 'Edit fact' : 'Add a fact', [
+    { name: 'sectionId', label: 'Section', type: 'select', value: f?.section_id ?? sections[0].id, options: sections.map((s) => [s.id, `${s.icon} ${s.label}`]) },
+    { name: 'title', label: 'Title', type: 'text', value: f?.title ?? '' },
+    { name: 'text', label: 'Text', type: 'textarea', value: f?.body ?? '', hint: 'one or two short sentences' },
+    { name: 'sourceUrl', label: 'Source link', type: 'url', value: f?.source_url ?? '', hint: 'where a teammate can check this' },
+  ], async (v) => {
+    const r = f ? await api(`/api/admin/facts/${f.id}`, v, 'PUT') : await api('/api/admin/facts', v);
+    if (!r.ok) return r.data.error;
+    toast(r.data.backToCheck ? 'Saved. Because the words changed, it needs to be checked again.' : f ? 'Saved.' : 'Added. A teammate now needs to verify it.');
+    refresh();
+  });
+}
+
+// ---------------------------------------------------------------- quiz
+function renderQuiz() {
+  const { quiz } = state.data;
+  $('#view').innerHTML = `
+    <div class="row"><p class="muted" style="margin:0">Quiz questions follow the same check-before-live rule. The right answer is shown in green.</p>
+      <span class="spacer"></span><button class="btn primary" id="addQ">+ Add a question</button></div>
+    ${filters(quiz)}
+    ${quiz.filter(shown).map((q) => `
+      <article class="item ${q.status === 'verified' ? 'verified' : ''}">
+        <h4>${esc(q.question)} ${badge(q)}</h4>
+        <ol>${q.options.map((o, i) => `<li class="${i === q.answer_index ? 'right' : ''}">${esc(o)}${i === q.answer_index ? ' ✓' : ''}</li>`).join('')}</ol>
+        ${q.source_url ? `<a class="src" href="${esc(q.source_url)}" target="_blank" rel="noopener">${esc(q.source_url)}</a>` : '<span class="badge">No source yet</span>'}
+        <div class="meta">${people(q)}</div>
+        ${itemButtons('quiz', q)}
+      </article>`).join('') || '<p class="muted">Nothing here.</p>'}`;
+  wireFilters();
+  $('#addQ').onclick = () => editQuestion(null);
+  wireItems('quiz', quiz, editQuestion);
+}
+
+function editQuestion(q) {
+  const opts = q?.options ?? ['', '', '', ''];
+  openForm(q ? 'Edit question' : 'Add a question', [
+    { name: 'question', label: 'Question', type: 'text', value: q?.question ?? '' },
+    { name: 'options', label: 'Options', type: 'textarea', value: opts.join('\n'), hint: 'one per line, 2 to 6 options' },
+    { name: 'answer', label: 'Which line is the right answer?', type: 'select', value: (q?.answer_index ?? 0) + 1, options: [1, 2, 3, 4, 5, 6].map((n) => [n, `Line ${n}`]) },
+    { name: 'sourceUrl', label: 'Source link', type: 'url', value: q?.source_url ?? '' },
+  ], async (v) => {
+    const body = { cityId: state.city, question: v.question, options: v.options.split('\n').map((s) => s.trim()).filter(Boolean), answerIndex: Number(v.answer) - 1, sourceUrl: v.sourceUrl };
+    const r = q ? await api(`/api/admin/quiz/${q.id}`, body, 'PUT') : await api('/api/admin/quiz', body);
+    if (!r.ok) return r.data.error;
+    toast(r.data.backToCheck ? 'Saved. Because it changed, it needs to be checked again.' : q ? 'Saved.' : 'Added. A teammate now needs to verify it.');
+    refresh();
+  });
+}
+
+// ---------------------------------------------------------------- city letter
+function renderLetter() {
+  const c = state.data.city;
+  const lines = (pairs) => pairs.map(([a, b]) => `${a} | ${b}`).join('\n');
+  const isAdmin = state.me.role === 'admin';
+  $('#view').innerHTML = `
+    <form class="panel" id="letterForm">
+      <p class="muted" style="margin-top:0">This is the opening of the letter visitors read. Changes go live as soon as you save, and are recorded in History.</p>
+      <div class="row">
+        <div style="flex:1;min-width:200px"><label for="l_name">City name</label><input id="l_name" value="${esc(c.name)}"></div>
+        <div style="flex:1;min-width:200px"><label for="l_native">Name in its own script</label><input id="l_native" value="${esc(c.native_name)}"></div>
+      </div>
+      <div class="row">
+        <div style="flex:1;min-width:200px"><label for="l_state">State</label><input id="l_state" value="${esc(c.state)}"></div>
+        <div style="flex:1;min-width:200px"><label for="l_nick">Nickname</label><input id="l_nick" value="${esc(c.nickname)}"></div>
+      </div>
+      <div class="row">
+        <div style="flex:1;min-width:200px"><label for="l_greet">Greeting</label><input id="l_greet" value="${esc(c.greeting)}"></div>
+        <div style="flex:1;min-width:200px"><label for="l_gnote">What the greeting means</label><input id="l_gnote" value="${esc(c.greeting_note)}"></div>
+      </div>
+      <label for="l_from">"From" line on the envelope</label><input id="l_from" value="${esc(c.from_line)}">
+      <label for="l_letter">Letter <small>leave an empty line between paragraphs</small></label>
+      <textarea id="l_letter" style="min-height:160px">${esc(c.letter.join('\n\n'))}</textarea>
+      <label for="l_qf">Quick facts <small>one per line: Label | Value</small></label>
+      <textarea id="l_qf">${esc(lines(c.quick_facts))}</textarea>
+      <label for="l_src">Sources for the letter <small>one per line: What it supports | https://link</small></label>
+      <textarea id="l_src">${esc(lines(c.sources))}</textarea>
+      ${isAdmin ? `<label><input type="checkbox" id="l_pub" ${c.published ? 'checked' : ''} style="width:auto"> Show this city on the website</label>` : ''}
+      <p class="form-error" id="letterErr"></p>
+      <button class="btn primary">Save the letter</button>
+    </form>`;
+  const pairs = (s) => s.split('\n').map((l) => l.split('|').map((x) => x.trim())).filter((p) => p[0]).map((p) => [p[0], p.slice(1).join(' | ')]);
+  $('#letterForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const body = {
+      name: $('#l_name').value, native: $('#l_native').value, state: $('#l_state').value, nickname: $('#l_nick').value,
+      greeting: $('#l_greet').value, greetingNote: $('#l_gnote').value, from: $('#l_from').value,
+      letter: $('#l_letter').value.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean),
+      quickFacts: pairs($('#l_qf').value), sources: pairs($('#l_src').value),
+      ...(isAdmin ? { published: $('#l_pub').checked } : {}),
+    };
+    const r = await api(`/api/admin/cities/${encodeURIComponent(c.id)}`, body, 'PUT');
+    if (!r.ok) { $('#letterErr').textContent = r.data.error; return; }
+    toast('Letter saved. It is live now.');
+    refresh();
+  };
+}
+
+// ---------------------------------------------------------------- team (admins)
+async function renderTeam() {
+  $('#view').innerHTML = '<p class="muted">Loading the team…</p>';
+  const r = await api('/api/admin/users');
+  if (!r.ok) { $('#view').innerHTML = `<p class="form-error">${esc(r.data.error)}</p>`; return; }
+  $('#view').innerHTML = `
+    <p class="muted">Teammates first sign up on the website. Then find them here and make them an <b>editor</b>.
+      Editors write and verify content; admins can also change roles and hide cities.</p>
+    <input id="teamSearch" placeholder="Search by name, email or phone" style="max-width:360px;margin-bottom:10px">
+    <div class="table-wrap"><table>
+      <thead><tr><th>Name</th><th>Email / phone</th><th>Joined</th><th>Role</th></tr></thead>
+      <tbody>${r.data.users.map((u) => `
+        <tr data-q="${esc(`${u.name} ${u.email || ''} ${u.phone || ''}`.toLowerCase())}">
+          <td>${esc(u.name)}${u.id === state.me.id ? ' (you)' : ''}</td>
+          <td>${esc(u.email || u.phone || '')}</td>
+          <td>${esc((u.createdAt || '').slice(0, 10))}</td>
+          <td><select data-user="${u.id}" style="width:auto">${['learner', 'editor', 'admin'].map((x) => `<option ${x === u.role ? 'selected' : ''}>${x}</option>`).join('')}</select></td>
+        </tr>`).join('')}</tbody>
+    </table></div>`;
+  $('#teamSearch').oninput = (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    $$('tbody tr').forEach((tr) => { tr.hidden = q && !tr.dataset.q.includes(q); });
+  };
+  $$('[data-user]').forEach((s) => s.onchange = async () => {
+    const res = await api(`/api/admin/users/${s.dataset.user}/role`, { role: s.value }, 'PUT');
+    if (!res.ok) { toast(res.data.error, true); renderTeam(); return; }
+    toast(`${res.data.user.name} is now ${{ admin: 'an admin', editor: 'an editor', learner: 'a learner' }[res.data.user.role]}.`);
+  });
+}
+
+// ---------------------------------------------------------------- history
+async function renderLog() {
+  $('#view').innerHTML = '<p class="muted">Loading…</p>';
+  const r = await api('/api/admin/log');
+  const words = { create: 'added', update: 'changed', verify: 'verified', unverify: 'took off the website', delete: 'deleted', role: 'changed the role of' };
+  $('#view').innerHTML = `
+    <p class="muted">The last 200 changes, newest first. The database keeps the full before-and-after of each one.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>When</th><th>Who</th><th>What</th></tr></thead>
+      <tbody>${(r.data.log || []).map((l) => `
+        <tr><td>${when(l.at)}</td><td>${esc(l.user_name || '—')}</td>
+        <td>${esc(words[l.action] || l.action)} ${esc(l.entity === 'quiz' ? 'quiz question' : l.entity)}: <b>${esc(l.label || '#' + l.entity_id)}</b></td></tr>`).join('')
+        || '<tr><td colspan="3" class="muted">No changes yet.</td></tr>'}</tbody>
+    </table></div>`;
+}
+
+function renderHelp() {
+  $('#view').innerHTML = `
+    <div class="panel help">
+      <h2>How content gets onto the website</h2>
+      <ol>
+        <li><b>Write it.</b> Add a fact or question, with a link to where you found it. It starts as <i>Needs check</i> and is hidden.</li>
+        <li><b>Check it.</b> A different teammate opens the source link and makes sure it really says that.</li>
+        <li><b>Verify it.</b> They press <i>Verify</i>. It goes live on the website straight away.</li>
+        <li><b>Change it.</b> If anyone changes the words of a live item, it goes back to <i>Needs check</i> until someone else verifies it again.</li>
+      </ol>
+      <p>Every step is saved in <b>History</b>, with who did it and when.</p>
+      <p>Learners earn points: 10 for each new city, 5 for each part of a letter they read, and 10 for each correct answer on their best quiz.</p>
+    </div>`;
+}
+
+boot();
