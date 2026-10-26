@@ -2,14 +2,18 @@
   "name": "virasat",
   "private": true,
   "type": "module",
-  "description": "Netlify deploy of Virasat: static site in server/public, API as a Netlify Function, accounts in Netlify Database.",
+  "description": "Virasat: learn the heritage of Indian cities with Gaju the elephant. Website + API + Postgres database, hosted on Netlify.",
+  "engines": { "node": ">=22" },
   "scripts": {
-    "test:pg": "node netlify/test/run-pg-tests.mjs"
+    "dev": "node --env-file-if-exists=.env server/dev.js",
+    "test": "node --test \"test/*.test.js\""
   },
   "dependencies": {
-    "@netlify/database": "^2.0.1"
+    "@netlify/database": "^2.0.1",
+    "pg": "^8.13.0"
   },
   "devDependencies": {
-    "@netlify/database-dev": "^1.0.1"
+    "@netlify/database-dev": "^1.0.1",
+    "express": "^4.21.0"
   }
 }

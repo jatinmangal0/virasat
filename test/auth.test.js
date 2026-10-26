@@ -1,47 +1,11 @@
+// Signing up and logging in.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { openDb } from '../lib/db.js';
-import { createApp } from '../app.js';
+import { startServer } from './helpers.js';
 
-let server, base;
-const sent = [];
-const sms = { mode: 'demo', async send(phone, text) { sent.push({ phone, text }); } };
-const verifyGoogle = async (tok) => {
-  if (tok === 'good') return { sub: 'g-123', email: 'asha@example.com', name: 'Asha G', picture: 'https://x/p.png' };
-  if (tok === 'neel') return { sub: 'g-456', email: 'neel@example.com', name: 'Neel', picture: null };
-  throw new Error('bad token');
-};
-
-// Runs on in-memory SQLite by default. With VIRASAT_TEST_PG_URL set (see netlify/test/run-pg-tests.mjs)
-// the same tests run on Postgres, the way the live site stores data.
-let pool;
-before(async () => {
-  const pgUrl = process.env.VIRASAT_TEST_PG_URL;
-  let store;
-  if (pgUrl) {
-    const { default: pg } = await import('pg');
-    const { pgStore } = await import('../lib/store-pg.js');
-    pool = new pg.Pool({ connectionString: pgUrl });
-    store = pgStore(pool);
-  }
-  const app = createApp({ db: store ? null : openDb(':memory:'), store, sms, verifyGoogle, googleClientId: 'cid' });
-  await new Promise((r) => { server = app.listen(0, r); });
-  base = `http://127.0.0.1:${server.address().port}`;
-});
-after(async () => { server.close(); await pool?.end(); });
-
-function client() {
-  let cookie = '';
-  return async (path, body, method = body ? 'POST' : 'GET') => {
-    const res = await fetch(base + path, {
-      method, headers: { 'content-type': 'application/json', cookie },
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    const set = res.headers.get('set-cookie');
-    if (set) cookie = set.split(';')[0];
-    return { status: res.status, body: await res.json() };
-  };
-}
+let t, client, sent;
+before(async () => { t = await startServer(); ({ client, sent } = t); });
+after(() => t.stop());
 
 test('email sign up, me, logout, log in', async () => {
   const c = client();
@@ -118,17 +82,8 @@ test('Google takes over a same-email password account and drops the password', a
   assert.equal((await squatter('/api/auth/login', { email: 'neel@example.com', password: 'longenough' })).status, 401);
 });
 
-test('progress needs login and validates input', async () => {
-  const anon = client();
-  assert.equal((await anon('/api/progress')).status, 401);
+test('the browser learns the role of whoever is logged in', async () => {
   const c = client();
   await c('/api/auth/login', { email: 'ravi@example.com', password: 'longenough' });
-  assert.equal((await c('/api/progress/visit', { city: 'paris' })).status, 400);
-  assert.equal((await c('/api/progress/visit', { city: 'udaipur' })).status, 200);
-  await c('/api/progress/visit', { city: 'udaipur' });
-  assert.equal((await c('/api/progress/quiz', { city: 'kolkata', score: 9, total: 5 })).status, 400);
-  assert.equal((await c('/api/progress/quiz', { city: 'kolkata', score: 4, total: 5 })).status, 201);
-  const r = await c('/api/progress');
-  assert.equal(r.body.visits[0].count, 2);
-  assert.equal(r.body.quizzes[0].best, 4);
+  assert.equal((await c('/api/me')).body.user.role, 'learner');
 });
