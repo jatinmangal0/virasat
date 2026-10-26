@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Virasat · Walk into Udaipur and Kolkata</title>
+  <meta name="description" content="Virasat is a playful way to learn the heritage of Udaipur and Kolkata. Pick a city, follow Gaju the elephant, and open a letter from the city.">
+  <meta name="theme-color" content="#f7c744">
+  <link rel="icon" href="assets/elephant.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&family=Baloo+Da+2:wght@500;700&family=Bowlby+One&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- ticker -->
+  <div class="ticker" aria-hidden="true"><div class="ticker-track" id="ticker"></div></div>
+
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="icon-btn" id="menuBtn" aria-label="Open menu"><span class="burger"></span></button>
+      <nav class="topnav">
+        <a href="#" data-go="udaipur">Udaipur</a>
+        <a href="#" data-go="kolkata">Kolkata</a>
+        <a href="#about">Our Story</a>
+      </nav>
+    </div>
+    <a class="logo" href="/" aria-label="Virasat home">VIRASAT</a>
+    <div class="topbar-right">
+      <button class="icon-btn" id="accountBtn" aria-label="Log in or sign up">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3.2"/><path d="M6.2 18.4c1.4-2.2 3.4-3.2 5.8-3.2s4.4 1 5.8 3.2"/></svg>
+        <img id="accountAvatar" alt="" hidden>
+      </button>
+      <button class="icon-btn" id="journeyBtn" aria-label="My journey">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="10" r="3.5"/><path d="M8 17h8"/></svg>
+      </button>
+      <button class="icon-btn" id="soundBtn" aria-label="Turn sound on" aria-pressed="false">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path class="wave" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/><path class="mute" d="M16 9l5 6M21 9l-5 6"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- side drawer -->
+  <aside class="drawer" id="drawer" aria-hidden="true">
+    <button class="drawer-close" id="drawerClose" aria-label="Close menu">×</button>
+    <a class="drawer-logo">VIRASAT</a>
+    <a href="#" data-go="udaipur">Visit Udaipur</a>
+    <a href="#" data-go="kolkata">Visit Kolkata</a>
+    <a href="#" data-open="journey">My Journey</a>
+    <a href="#about" data-close>Our Story</a>
+    <a href="#" data-open="auth" id="drawerAuth">Log in / Sign up</a>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <!-- the street -->
+  <main>
+    <section class="street" id="street" aria-label="An Indian street with two city gates">
+      <div class="stage" id="stage"><div class="rig">
+        <div class="world" id="world"></div></div>
+      </div>
+
+      <h1 class="headline" aria-label="Namaste!">
+        <span class="hl-big">N</span><span>amaste!</span>
+      </h1>
+
+      <div class="callout" id="callout">
+        <p>Two cities are waiting at the end of this street. <strong>Pick one</strong> and Gaju the elephant will walk you there!</p>
+        <div class="callout-btns">
+          <button class="city-btn u" data-go="udaipur"><img src="assets/stamp-udaipur.png" alt="">Udaipur</button>
+          <button class="city-btn k" data-go="kolkata"><img src="assets/stamp-kolkata.png" alt="">Kolkata</button>
+        </div>
+      </div>
+      <div class="drag-hint" id="dragHint">Move your mouse or tilt your phone · the street is 3D</div>
+    </section>
+
+    <section class="about" id="about">
+      <div class="about-inner">
+        <img class="about-gaju" src="assets/elephant.png" alt="Gaju the elephant">
+        <div>
+          <h2>What is Virasat?</h2>
+          <p><em>Virasat</em> means heritage. This is a small, playful place to learn about two great Indian cities. You pick a city, Gaju walks you there, and a letter arrives with that city's stamp on it. Inside are its palaces and bridges, its festivals, its food and its stories, plus a quiz to see what stuck.</p>
+          <p>Students, travellers and curious people of every age are welcome. Make a free account and Virasat keeps your passport: the cities you have opened and your best quiz scores.</p>
+        </div>
+      </div>
+      <div class="about-cards">
+        <article class="mini-card u">
+          <img src="assets/stamp-udaipur.png" alt="Udaipur stamp">
+          <h3>Udaipur</h3><p>Marble palaces on mirror lakes, in the old kingdom of Mewar.</p>
+          <button class="link-btn" data-go="udaipur">Walk there →</button>
+        </article>
+        <article class="mini-card k">
+          <img src="assets/stamp-kolkata.png" alt="Kolkata stamp">
+          <h3>Kolkata</h3><p>Trams, yellow taxis, Durga Puja and the great bridge over the Hooghly.</p>
+          <button class="link-btn" data-go="kolkata">Walk there →</button>
+        </article>
+      </div>
+      <footer class="foot">Made for learning · Virasat <span id="year"></span></footer>
+    </section>
+  </main>
+
+  <!-- post office: envelope + poster -->
+  <section class="post" id="post" hidden aria-live="polite">
+    <div class="post-bg"></div>
+    <button class="post-back" id="postBack">← Back to the street</button>
+    <div class="post-title" id="postTitle"></div>
+    <div class="env-wrap" id="envWrap">
+      <div class="env" id="env">
+        <div class="env-face env-front">
+          <div class="airmail"></div>
+          <div class="env-stamp"><img id="envStamp" alt=""></div>
+          <div class="postmark" id="postmark">
+            <svg viewBox="0 0 220 110"><circle cx="55" cy="55" r="44" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="55" cy="55" r="34" fill="none" stroke="currentColor" stroke-width="1.5"/>
+              <path id="pmArc" d="M21,55 a34,34 0 1,1 68,0" fill="none"/><text font-size="11" font-family="Baloo 2" font-weight="800" fill="currentColor"><textPath href="#pmArc" startOffset="50%" text-anchor="middle" id="pmCity">VIRASAT POST</textPath></text>
+              <text x="55" y="62" text-anchor="middle" font-size="12" font-family="Baloo 2" font-weight="800" fill="currentColor" id="pmDate"></text>
+              <path d="M104,30 q14,-8 28,0 t28,0 t28,0 t28,0 M104,48 q14,-8 28,0 t28,0 t28,0 t28,0 M104,66 q14,-8 28,0 t28,0 t28,0 t28,0 M104,84 q14,-8 28,0 t28,0 t28,0 t28,0" fill="none" stroke="currentColor" stroke-width="3"/></svg>
+          </div>
+          <div class="env-from" id="envFrom"></div>
+          <div class="env-to"><span>To,</span><strong id="envTo">The Curious Explorer</strong><em>Somewhere in India</em></div>
+        </div>
+        <div class="env-face env-back">
+          <div class="env-inside"></div>
+          <div class="env-poster" id="envPoster"><img id="posterImg" alt=""></div>
+          <div class="env-pocket"></div>
+          <div class="env-flap" id="envFlap"></div>
+          <button class="seal" id="seal" aria-label="Break the seal">
+            <span class="seal-v">V</span>
+            <svg class="seal-lock" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff6e0" stroke-width="2.4"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="checkpoint" id="checkpoint" hidden>
+      <div class="cp-badge">Checkpoint</div>
+      <h3>This letter is sealed</h3>
+      <p>Log in or make a free account to break the seal. We'll keep track of the cities you open and your quiz scores.</p>
+      <div class="cp-btns">
+        <button class="btn primary" data-auth="phone">Log in</button>
+        <button class="btn" data-auth="signup">Sign up free</button>
+      </div>
+    </div>
+    <div class="open-hint" id="openHint" hidden>Tap the seal to open your letter</div>
+  </section>
+
+  <!-- flying poster (FLIP from envelope to full view) -->
+  <div class="poster-fly" id="posterFly" hidden><img alt=""></div>
+
+  <!-- city letter -->
+  <section class="city" id="city" hidden>
+    <div class="city-top" id="cityTop">
+      <div class="city-hero" id="cityHero"><img id="cityPoster" alt=""></div>
+      <button class="post-back on-hero" id="cityBack">← Back to the street</button>
+    </div>
+    <article class="letter" id="letter"></article>
+  </section>
+
+  <!-- auth -->
+  <div class="modal" id="authModal" role="dialog" aria-modal="true" aria-labelledby="authTitle" hidden>
+    <div class="modal-card auth-card">
+      <button class="modal-x" data-close-modal aria-label="Close">×</button>
+      <img class="auth-gaju" src="assets/elephant.png" alt="">
+      <h2 id="authTitle">Join the journey</h2>
+      <p class="auth-sub" id="authSub">Log in to open letters and keep your passport.</p>
+
+      <div id="googleSlot" class="google-slot"></div>
+      <button class="btn google-fallback" id="googleFallback" type="button">
+        <svg viewBox="0 0 48 48" width="20" height="20"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>
+        Continue with Google
+      </button>
+
+      <div class="or"><span>or</span></div>
+
+      <div class="tabs" role="tablist">
+        <button role="tab" class="tab" data-tab="phone" aria-selected="true">Phone OTP</button>
+        <button role="tab" class="tab" data-tab="login" aria-selected="false">Email log in</button>
+        <button role="tab" class="tab" data-tab="signup" aria-selected="false">Sign up</button>
+      </div>
+
+      <form class="pane" data-pane="phone" id="phoneForm" novalidate>
+        <div class="step" data-step="number">
+          <label>Mobile number
+            <div class="phone-row"><span class="cc">+91</span><input name="phone" type="tel" aria-label="Mobile number" inputmode="tel" autocomplete="tel-national" placeholder="98765 43210" required></div>
+          </label>
+          <p class="hint">Outside India? Type the full number starting with +, like +1 415 555 0100.</p>
+          <button class="btn primary wide" type="submit">Send OTP</button>
+        </div>
+        <div class="step" data-step="code" hidden>
+          <p class="sent-to">We sent a 6-digit code to <strong id="sentTo"></strong> <button type="button" class="link-btn" id="changeNum">Change</button></p>
+          <div class="otp-boxes" id="otpBoxes">
+            <input inputmode="numeric" maxlength="1" aria-label="Digit 1" autocomplete="one-time-code"><input inputmode="numeric" maxlength="1" aria-label="Digit 2"><input inputmode="numeric" maxlength="1" aria-label="Digit 3"><input inputmode="numeric" maxlength="1" aria-label="Digit 4"><input inputmode="numeric" maxlength="1" aria-label="Digit 5"><input inputmode="numeric" maxlength="1" aria-label="Digit 6">
+          </div>
+          <label class="new-name" hidden>Your name <input name="name" autocomplete="name" placeholder="What should Gaju call you?"></label>
+          <button class="btn primary wide" type="submit">Verify &amp; continue</button>
+          <p class="resend"><button type="button" class="link-btn" id="resendBtn" disabled>Resend code</button> <span id="resendTimer"></span></p>
+        </div>
+      </form>
+
+      <form class="pane" data-pane="login" id="loginForm" hidden novalidate>
+        <label>Email <input name="email" type="email" autocomplete="email" required></label>
+        <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
+        <button class="btn primary wide" type="submit">Log in</button>
+        <p class="switch">New here? <button type="button" class="link-btn" data-tab-go="signup">Make an account</button></p>
+      </form>
+
+      <form class="pane" data-pane="signup" id="signupForm" hidden novalidate>
+        <label>Your name <input name="name" autocomplete="name" required></label>
+        <label>Email <input name="email" type="email" autocomplete="email" required></label>
+        <label>Password <input name="password" type="password" autocomplete="new-password" minlength="8" required placeholder="At least 8 characters"></label>
+        <button class="btn primary wide" type="submit">Create account</button>
+        <p class="switch">Already have one? <button type="button" class="link-btn" data-tab-go="login">Log in</button></p>
+      </form>
+
+      <p class="form-error" id="authError" role="alert"></p>
+    </div>
+  </div>
+
+  <!-- journey / passport -->
+  <div class="modal" id="journeyModal" role="dialog" aria-modal="true" aria-labelledby="journeyTitle" hidden>
+    <div class="modal-card passport">
+      <button class="modal-x" data-close-modal aria-label="Close">×</button>
+      <div class="pp-head"><span>भारत · INDIA</span><h2 id="journeyTitle">Virasat Passport</h2></div>
+      <div id="journeyBody"></div>
+    </div>
+  </div>
+
+  <!-- SMS-style toast for demo OTPs, and general toasts -->
+  <div class="sms" id="sms" hidden>
+    <div class="sms-app"><span class="sms-dot"></span>Messages · now <em>demo SMS</em></div>
+    <div class="sms-from">VIRASAT</div>
+    <div class="sms-body" id="smsBody"></div>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

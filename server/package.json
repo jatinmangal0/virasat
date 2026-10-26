@@ -1,0 +1,17 @@
+{
+  "name": "virasat-server",
+  "version": "1.0.0",
+  "description": "Virasat — learn the heritage of Udaipur and Kolkata. Static site + auth API (email, phone OTP, Google) backed by SQLite.",
+  "type": "module",
+  "main": "index.js",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "test": "node --test test/"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "express": "^4.21.0"
+  }
+}
