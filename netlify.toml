@@ -1,0 +1,9 @@
+# Netlify: the site in server/public is served as static files, and /api/* runs
+# netlify/functions/api.mjs. Accounts live in Netlify Database; the schema is in
+# netlify/database/migrations/ and is applied automatically on each deploy.
+[build]
+  publish = "server/public"
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"

@@ -1,0 +1,15 @@
+{
+  "name": "virasat",
+  "private": true,
+  "type": "module",
+  "description": "Netlify deploy of Virasat: static site in server/public, API as a Netlify Function, accounts in Netlify Database.",
+  "scripts": {
+    "test:pg": "node netlify/test/run-pg-tests.mjs"
+  },
+  "dependencies": {
+    "@netlify/database": "^2.0.1"
+  },
+  "devDependencies": {
+    "@netlify/database-dev": "^1.0.1"
+  }
+}

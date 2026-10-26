@@ -12,12 +12,23 @@ const verifyGoogle = async (tok) => {
   throw new Error('bad token');
 };
 
+// Runs on in-memory SQLite by default. With VIRASAT_TEST_PG_URL set (see netlify/test/run-pg-tests.mjs)
+// the same tests run on Postgres, the way the live site stores data.
+let pool;
 before(async () => {
-  const app = createApp({ db: openDb(':memory:'), sms, verifyGoogle, googleClientId: 'cid' });
+  const pgUrl = process.env.VIRASAT_TEST_PG_URL;
+  let store;
+  if (pgUrl) {
+    const { default: pg } = await import('pg');
+    const { pgStore } = await import('../lib/store-pg.js');
+    pool = new pg.Pool({ connectionString: pgUrl });
+    store = pgStore(pool);
+  }
+  const app = createApp({ db: store ? null : openDb(':memory:'), store, sms, verifyGoogle, googleClientId: 'cid' });
   await new Promise((r) => { server = app.listen(0, r); });
   base = `http://127.0.0.1:${server.address().port}`;
 });
-after(() => server.close());
+after(async () => { server.close(); await pool?.end(); });
 
 function client() {
   let cookie = '';
