@@ -34,15 +34,22 @@ Copy `server/.env.example` to `server/.env`, fill it in, and start the server wi
 ### Real SMS
 Create a Twilio account, buy or verify a sending number, and set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` and `TWILIO_FROM`. Each OTP text costs a small amount. Codes expire after 5 minutes. A new code can be requested every 30 seconds, with at most 5 per number per hour. A code locks after 5 wrong tries.
 
-## Putting it online (Render)
-1. Sign in at https://render.com with GitHub.
-2. Click **New → Blueprint**, pick the `virasat` repo, and click **Apply**. Render reads `render.yaml`, installs everything and starts the site at `https://virasat-xxxx.onrender.com`.
-3. Every push to `main` redeploys the site automatically.
+## Putting it online (Netlify)
+The live site is **https://virasat-gaju.netlify.app** (Netlify project `virasat-gaju`). Netlify builds it from this GitHub repo:
+- `netlify.toml` publishes `server/public` and runs the API from `netlify/functions/api.mjs` at `/api/*`. That file uses the same routes as the local server (`server/core.js`).
+- Accounts and quiz scores live in **Netlify Database** (Postgres), so they survive restarts. The tables are created by `netlify/database/migrations/`, which Netlify applies on every deploy. Never edit a migration that has already run; add a new one.
+- Every push to `main` redeploys the site.
+- Keys (`GOOGLE_CLIENT_ID`, `TWILIO_*`) go in Netlify under **Project configuration → Environment variables**, never in the code.
 
-On the free plan the site sleeps after 15 minutes without visitors, so the first visit after that takes about a minute to wake up. The free plan also has no permanent disk, so saved accounts and scores reset whenever the site restarts or redeploys. To keep them, add a Render disk mounted at `/var/data` and set `DB_FILE=/var/data/virasat.db` (paid), or move the database to a free hosted one.
+Tests: `npm test` in `server/` (SQLite), and `npm install` then `npm run test:pg` at the root (the same tests on a local Postgres).
+
+`render.yaml` is still here if you ever want Render instead. That version uses SQLite and loses accounts on every restart.
 
 ## Files
-- `server/app.js`: the API (auth, sessions, OTP, Google check, progress) plus static files
+- `server/core.js`: the API (auth, sessions, OTP, Google check, progress), with no web framework
+- `server/app.js`: runs `core.js` under Express with SQLite for local use, plus the static files
+- `server/lib/store-sqlite.js`, `server/lib/store-pg.js`: the two storage backends
+- `netlify/functions/api.mjs`: runs `core.js` on Netlify with Postgres
 - `server/public/js/scene.js`: the street, drawn as layered SVG
 - `server/public/js/app.js`: the camera, Gaju's walk, the envelope and checkpoint, login, the letter and the quiz
 - `server/public/js/content.js`: all city facts and quiz questions (edit here to add more). Every card has a `src` link and each city a `sources` list, shown on the site; add one for any new fact
