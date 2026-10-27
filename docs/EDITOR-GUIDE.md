@@ -36,6 +36,10 @@ The **Verify** button is greyed out on anything you changed last. That's on purp
 
 Good sources: official sites (UNESCO, government, museums), encyclopaedias (Britannica), well-known newspapers. Be careful with travel blogs and fan sites.
 
+## Places
+
+**Places** tab. Aksh's list of heritage places (buildings, lakes, crafts, food spots), each with a position on the map. Use the search box to find one. Check the name, the description and the map position against the source, then verify. Many places have no source link yet: find one (Wikipedia, an official site), add it with **Edit**, and ask a teammate to verify. "Aksh's notes" says how sure the original research was; "Low" means it was collected automatically and needs a careful look.
+
 ## Quiz questions
 
 **Quiz** tab. Write the question, put each option on its own line, choose which line is the right answer, and add the source. The same check-and-verify rule applies.
