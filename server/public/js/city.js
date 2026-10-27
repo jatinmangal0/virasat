@@ -28,6 +28,8 @@ export function initCity(shared) {
   $('#pigeon').innerHTML = PIGEON;
   document.body.insertAdjacentHTML('beforeend', `<svg width="0" height="0" style="position:absolute" aria-hidden="true">${GARLAND_DEFS}</svg>`);
   $('#cityBack').onclick = closeCity;
+  // the same switch as the moon in the top bar (night.js), which the city page covers
+  $('#cityNight').onclick = () => document.getElementById('nightBtn')?.click();
   $('#seal').addEventListener('click', () => {
     if (!cur) return;
     if ($('#city').classList.contains('locked')) ctx.openAuth('phone');
