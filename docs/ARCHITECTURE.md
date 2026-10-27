@@ -107,7 +107,7 @@ On every publish, Netlify runs any new files in order and records which ones hav
 | `server/api/` | backend | the rules: `auth.js` (log in), `content.js` (what visitors see), `progress.js` (points), `admin.js` (editing) |
 | `netlify/functions/api.mjs` | backend | connects Netlify to `server/api/` |
 | `netlify/database/migrations/` | database | the history of the database's structure |
-| `test/` | checks | 32 automatic tests of the rules, run on a real Postgres |
+| `test/` | checks | 33 automatic tests of the rules, run on a real Postgres |
 | `server/dev.js` | tools | runs everything on your own computer |
 | `netlify.toml` | hosting | tells Netlify where the website and backend are |
 

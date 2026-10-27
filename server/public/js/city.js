@@ -5,6 +5,7 @@
 //   4. scrolling down follows the twine: it becomes a wave of events, moves to the left as a
 //      timeline while each event is shown in the middle, then swirls off, comes back and draws
 //      the outline of the city.
+//   5. the city's heritage places light up inside the outline, and each one opens a card.
 import { twineSVG, setTwine, Rope, GARLAND_DEFS, placeGarland } from './twine.js';
 import { motifSVG } from './motifs.js';
 
@@ -68,7 +69,8 @@ export async function openCity(id, my) {
   const c = CITIES[id];
   state.city = id;
   const view = $('#city');
-  cur = { id, c, my, opened: false };
+  cur = { id, c, my, opened: false, places: [] };
+  loadPlaces(cur);
   view.className = 'city delivering';
   view.style.setProperty('--accent', c.accent);
   renderLetter(c);
@@ -335,16 +337,20 @@ function buildStory() {
         ${e.images?.[0] || motifSVG(e.motif) ? `<span class="node-year">${esc(e.year)}</span>` : ''}
       </button>`).join('')}</div>
     <div class="ev" id="ev" aria-live="polite"><div class="ev-media" id="evMedia"></div><div class="ev-info" id="evInfo"></div></div>
+    <div class="place-legend" id="placeLegend"></div>
+    <div class="places" id="places"></div>
+    <aside class="place-card" id="placeCard" aria-live="polite" hidden></aside>
     <div class="map-end" id="mapEnd">
       <h3>${esc(c.name)}</h3>
-      <p>Soon, this map will hold ${esc(c.name)}'s landmarks.</p>
+      <p id="mapNote">Soon, this map will hold ${esc(c.name)}'s landmarks.</p>
       <div class="map-btns">
         <button class="btn" data-end="back">← Back to the street</button>
         ${otherId ? `<button class="btn primary" data-end="${otherId}">Visit ${esc(CITIES[otherId].name)} next →</button>` : ''}
       </div>
       ${c.outlineSource ? `<p class="map-src">City outline: ${esc(c.outlineSource.replace(/: https?:\/\/\S+$/, ''))}</p>` : ''}
     </div>`;
-  cur.story = { ev, active: -1, outline: null };
+  cur.story = { ev, active: -1, outline: null, place: null };
+  renderPlaces();
   $$('.node', stage).forEach((b) => b.addEventListener('click', () => jumpTo(Number(b.dataset.i))));
   $$('[data-end]', stage).forEach((b) => b.addEventListener('click', async () => {
     const to = b.dataset.end;
@@ -363,11 +369,13 @@ function measureStory() {
   const total = Object.values(s.seg).reduce((a, b) => a + b, 0) + H * 0.5;
   $('#story').style.height = total + H + 'px';
   $('#storySvg').innerHTML = twineSVG(s.g.w, 'main') + '<g class="garland" id="storyGarland"></g>';
-  s.outline = fitOutline(cur.c.outline || [], s.g);
+  s.outline = fitOutline(cur.c.outline || [], s.g, cur.places.length > 0);
+  placePins();
 }
 
 // The city boundary, [lng, lat], fitted into the middle of the screen and spaced evenly along its edge.
-function fitOutline(ring, { W, H, mob }) {
+// With places to show on a wide screen, the map moves left to make room for the place card.
+function fitOutline(ring, { W, H, mob }, roomForCard) {
   if (ring.length < 3) {
     return Array.from({ length: M }, (_, i) => { const a = (i / (M - 1)) * Math.PI * 2; return [W / 2 + Math.cos(a) * H * 0.25, H * 0.45 + Math.sin(a) * H * 0.25]; });
   }
@@ -376,9 +384,11 @@ function fitOutline(ring, { W, H, mob }) {
   const xy = ring.map(([lng, lat]) => [lng * k, -lat]);
   const xs = xy.map((p) => p[0]), ys = xy.map((p) => p[1]);
   const bw = Math.max(...xs) - Math.min(...xs), bh = Math.max(...ys) - Math.min(...ys);
-  const boxW = mob ? W * 0.8 : Math.min(W * 0.5, 620), boxH = H * (mob ? 0.46 : 0.52);
+  const card = roomForCard && !mob;
+  const boxW = mob ? W * 0.8 : Math.min(W * (card ? 0.46 : 0.5), 620), boxH = H * (mob ? 0.46 : card ? 0.58 : 0.52);
   const sc = Math.min(boxW / bw, boxH / bh);
-  const ox = W / 2 - ((Math.min(...xs) + bw / 2) * sc), oy = H * (mob ? 0.4 : 0.41) - ((Math.min(...ys) + bh / 2) * sc);
+  const cx = card ? W * 0.38 : W / 2, cy = H * (mob ? 0.4 : card ? 0.43 : 0.41);
+  const ox = cx - ((Math.min(...xs) + bw / 2) * sc), oy = cy - ((Math.min(...ys) + bh / 2) * sc);
   const pts = xy.map(([x, y]) => [x * sc + ox, y * sc + oy]);
   if (pts[0][0] !== pts[pts.length - 1][0] || pts[0][1] !== pts[pts.length - 1][1]) pts.push(pts[0]);
   const lens = [0];
@@ -391,6 +401,13 @@ function fitOutline(ring, { W, H, mob }) {
     const t = (d - lens[j]) / (lens[j + 1] - lens[j] || 1);
     out.push([lerp(pts[j][0], pts[j + 1][0], t), lerp(pts[j][1], pts[j + 1][1], t)]);
   }
+  // where a [lng, lat] lands on screen, or null when it is well outside the city
+  const minX = Math.min(...xs), minY = Math.min(...ys);
+  out.project = (lng, lat) => {
+    const x = lng * k, y = -lat;
+    if (x < minX - bw * 0.2 || x > minX + bw * 1.2 || y < minY - bh * 0.2 || y > minY + bh * 1.2) return null;
+    return [x * sc + ox, y * sc + oy];
+  };
   return out;
 }
 
@@ -489,8 +506,11 @@ function drawStory() {
   $('#ev').style.visibility = evOpacity > 0 ? 'visible' : 'hidden';
   if (N && b > 0.5) showEvent(Math.round(eEff));
   const end = clamp((m - 0.7) / 0.25);
-  $('#mapEnd').style.opacity = end;
-  $('#mapEnd').style.visibility = end > 0 ? 'visible' : 'hidden';
+  for (const el of [$('#mapEnd'), $('#placeLegend'), $('#placeCard')]) {
+    el.style.opacity = end;
+    el.style.visibility = end > 0 ? 'visible' : 'hidden';
+  }
+  $('#places').classList.toggle('on', m > 0.8);
 }
 
 function showEvent(i) {
@@ -513,6 +533,88 @@ function showEvent(i) {
       ${motifSVG(e.motif) ? `<figure class="element"><div class="element-disc">${motifSVG(e.motif)}</div></figure>` : ''}
       <figure class="snap ${motifSVG(e.motif) ? 'm1' : 'm0'} stamp"><img src="${c.stamp}" alt=""></figure>`;
   for (const el of [info, media]) el.animate([{ opacity: 0, transform: 'translateY(14px)' }, { opacity: 1, transform: 'none' }], { duration: 420, easing: 'cubic-bezier(.2,.8,.2,1)' });
+}
+
+// ---------------------------------------------------------------- heritage places on the map
+// Places come from the team's research (the Places tab on the editor page): the checked ones, plus
+// drafts in demo mode. Each sits on the outline map as a marigold, coloured by what kind of place it is.
+const PLACE_KINDS = [
+  ['built', 'Buildings', /built|architecture|fortif/i],
+  ['culture', 'Living culture', /living|intangible|culinary|craft|perform/i],
+  ['nature', 'Lakes and nature', /hydro|ecolog|natural|landscape/i],
+  ['civic', 'Institutions', /institution|civic|sport|archive|literary/i],
+];
+const kindOf = (p) => (PLACE_KINDS.find((k) => k[2].test(p.category || '')) || PLACE_KINDS[0])[0];
+
+// Commons "Special:FilePath" links become a sized https image, plus the file's page for the credit.
+function photoOf(url) {
+  const m = /^https?:\/\/commons\.wikimedia\.org\/wiki\/Special:FilePath\/(.+)$/i.exec(url || '');
+  if (m) return { src: `https://commons.wikimedia.org/wiki/Special:FilePath/${m[1]}?width=640`, page: `https://commons.wikimedia.org/wiki/File:${m[1]}` };
+  return /^https:\/\//i.test(url || '') ? { src: url, page: url } : null;
+}
+
+async function loadPlaces(run) {
+  const r = await ctx.api(`/api/cities/${run.id}/places`);
+  const list = [...(r.ok ? r.data.places : []), ...(ctx.state.demo?.places?.[run.id] || [])]
+    .filter((p) => Number.isFinite(p.latitude) && Number.isFinite(p.longitude));
+  if (cur !== run || !list.length) return;
+  // described places are drawn last, so they sit on top
+  run.places = list.sort((a, b) => !!a.description - !!b.description);
+  if (run.story) { renderPlaces(); layoutAfterOpen(); }
+}
+
+function renderPlaces() {
+  const { esc } = ctx, list = cur.places;
+  if (!list.length) return;
+  const count = Object.fromEntries(PLACE_KINDS.map((k) => [k[0], list.filter((p) => kindOf(p) === k[0]).length]));
+  $('#placeLegend').innerHTML = PLACE_KINDS.filter((k) => count[k[0]])
+    .map(([id, label]) => `<button class="chip k-${id}" data-kind="${id}" aria-pressed="true"><i></i>${label} <b>${count[id]}</b></button>`).join('');
+  $('#places').innerHTML = list.map((p, i) => `<button class="pp k-${kindOf(p)}${p.description ? ' big' : ''}" data-i="${i}"
+      style="--d:${(i % 40) * 18}ms" aria-label="${esc(p.name)}"><span class="pp-name">${esc(p.name)}</span></button>`).join('');
+  $$('#places .pp').forEach((b) => b.addEventListener('click', () => showPlace(Number(b.dataset.i))));
+  $$('#placeLegend .chip').forEach((b) => b.addEventListener('click', () => {
+    const on = b.getAttribute('aria-pressed') !== 'true';
+    b.setAttribute('aria-pressed', on);
+    $('#places').classList.toggle('hide-' + b.dataset.kind, !on);
+  }));
+  // wide screens open on a place with a photo and a description, so the card is never empty
+  if (innerWidth >= 720) {
+    const pick = list.findLastIndex((p) => p.description && photoOf(p.image_url));
+    showPlace(pick >= 0 ? pick : list.findLastIndex((p) => p.description));
+  }
+}
+
+function placePins() {
+  const s = cur.story;
+  if (!s?.outline?.project) return;
+  $$('#places .pp').forEach((b) => {
+    const p = cur.places[b.dataset.i], xy = s.outline.project(p.longitude, p.latitude);
+    b.hidden = !xy;
+    if (xy) { b.style.left = xy[0] + 'px'; b.style.top = xy[1] + 'px'; }
+  });
+  const shown = $$('#places .pp:not([hidden])').length, drafts = cur.places.some((p) => p.draft);
+  $('#mapNote').textContent = `${shown} heritage places, researched by our team${drafts ? ' (drafts, not yet checked)' : ''}. Tap a marigold to explore.`;
+}
+
+function showPlace(i) {
+  const { esc } = ctx, p = cur.places[i], card = $('#placeCard');
+  if (!p) return;
+  cur.story.place = i;
+  $$('#places .pp').forEach((b) => b.classList.toggle('sel', Number(b.dataset.i) === i));
+  const photo = photoOf(p.image_url);
+  card.innerHTML = `
+    <button class="pc-close" aria-label="Close">×</button>
+    ${photo ? `<figure class="pc-photo"><img src="${esc(photo.src)}" alt="${esc(p.name)}" loading="lazy">
+      <figcaption><a href="${esc(photo.page)}" target="_blank" rel="noopener">Photo: Wikimedia Commons</a></figcaption></figure>` : ''}
+    <p class="pc-kind k-${kindOf(p)}"><i></i>${esc(p.subcategory || 'Heritage place')}${p.year ? ` · since ${esc(p.year)}` : ''}</p>
+    <h4>${esc(p.name)}</h4>
+    ${p.native_name ? `<p class="pc-native">${esc(p.native_name)}</p>` : ''}
+    <p class="pc-text">${p.description ? esc(p.description) : 'Our team is still writing about this place.'}</p>
+    <p class="pc-foot">${p.source_url ? `<a href="${esc(p.source_url)}" target="_blank" rel="noopener">Source</a>` : ''}${p.draft ? '<span class="draft">draft, not yet checked</span>' : ''}</p>`;
+  card.hidden = false;
+  $('img', card)?.addEventListener('error', (ev) => ev.target.closest('figure').remove());
+  $('.pc-close', card).addEventListener('click', () => { card.hidden = true; $$('#places .pp.sel').forEach((b) => b.classList.remove('sel')); });
+  card.animate([{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }], { duration: 300, easing: 'ease-out' });
 }
 
 // Scroll to where event i is in focus (a little after it arrives, before the glide to the next).

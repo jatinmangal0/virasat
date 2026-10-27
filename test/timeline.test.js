@@ -65,3 +65,12 @@ test('demo mode lists unchecked events and greetings, marked as drafts, with the
   assert.ok(body.greetings.some((g) => g.word === 'Namaste'));
   assert.ok(!body.greetings.some((g) => g.word === 'Vanakkam'), 'verified greetings are not repeated');
 });
+
+test('demo mode also lists unchecked heritage places that have a map position', async () => {
+  const { body } = await t.client()('/api/demo');
+  const u = body.places.udaipur;
+  assert.equal(u.length, 20);
+  assert.ok(u.every((p) => p.draft === true && Number.isFinite(p.latitude) && Number.isFinite(p.longitude)));
+  assert.ok(u.some((p) => p.name === 'City Palace Complex'));
+  assert.ok(body.places.kolkata.length > 200);
+});

@@ -38,15 +38,19 @@ export default function content(r, { db }) {
     return json(200, { greetings: rows });
   });
 
-  // Demo mode (the website with ?demo in its address): timeline events and greetings that are written
+  // Demo mode (the website with ?demo in its address): timeline events, greetings and heritage places that are written
   // but not yet checked, so the team can see the design full. The page labels every one as a draft.
   r.get('/api/demo', async () => {
     const events = (await db.query(
       "SELECT id, city_id, year_label, title, body, images, motif, source_url FROM timeline_events WHERE status = 'needs_check' ORDER BY sort_order, id")).rows;
     const greetings = (await db.query("SELECT word, native, language FROM greetings WHERE status = 'needs_check' ORDER BY sort_order, id")).rows;
-    const timeline = {};
+    const placeRows = (await db.query(`SELECT id, city_id, name, native_name, category, subcategory, description,
+        latitude, longitude, year, image_url, source_url FROM heritage_places
+      WHERE status = 'needs_check' AND latitude IS NOT NULL AND longitude IS NOT NULL ORDER BY sort_order, id`)).rows;
+    const timeline = {}, places = {};
     for (const e of events) (timeline[e.city_id] ||= []).push({ ...publicEvent(e), draft: true });
-    return json(200, { timeline, greetings });
+    for (const { city_id, ...p } of placeRows) (places[city_id] ||= []).push({ ...p, draft: true });
+    return json(200, { timeline, greetings, places });
   });
 
   // Check one answer while someone is playing. Works without logging in.

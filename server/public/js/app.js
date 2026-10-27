@@ -603,7 +603,7 @@ async function boot() {
     return;
   }
   CITIES = Object.fromEntries(cities.data.cities.map((c) => [c.id, c]));
-  // Demo mode (?demo in the address) also shows timeline events and greetings that are not checked yet.
+  // Demo mode (?demo in the address) also shows timeline events, greetings and places that are not checked yet.
   if (new URLSearchParams(location.search).has('demo')) {
     const d = await api('/api/demo');
     if (d.ok) {
