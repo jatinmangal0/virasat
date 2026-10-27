@@ -9,7 +9,7 @@ You need Node.js 22 or newer.
 ```bash
 npm install
 npm run dev      # http://localhost:3024 , editor page at /admin
-npm test         # 24 tests on a real local Postgres; all should pass
+npm test         # 28 tests on a real local Postgres; all should pass
 ```
 
 `npm run dev` starts a local Postgres in `.data/` (git ignores it), applies every migration, and serves the site and API. The first-admin setup code locally is `local-admin`. Delete the `.data/` folder to start again with an empty database.

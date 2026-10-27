@@ -101,6 +101,23 @@ export default function admin(r, { db, adminSetupCode }) {
       columns: ['city_id', 'question', 'options', 'answer_index', 'source_url'],
       wording: ['question', 'options', 'answer_index', 'source_url'],
     },
+    // Heritage places (from Aksh's workbooks): a point on the map with a short description.
+    // Aksh's extra research columns stay in `details`; the editor page changes only these.
+    place: {
+      table: 'heritage_places', path: 'places',
+      read: async (b, c) => {
+        const coord = (v, max) => (v === '' || v == null ? null : Number.isFinite(Number(v)) && Math.abs(Number(v)) <= max ? Number(v) : NaN);
+        const out = { city_id: text(b.cityId, 40), name: text(b.name, 160), subcategory: text(b.subcategory, 120),
+          description: text(b.description, 1500), latitude: coord(b.latitude, 90), longitude: coord(b.longitude, 180),
+          source_url: text(b.sourceUrl, 500) };
+        if (!out.name) return { error: 'A place needs a name.' };
+        if (Number.isNaN(out.latitude) || Number.isNaN(out.longitude)) return { error: 'Latitude and longitude must be numbers, like 24.5764 and 73.6835.' };
+        if (!(await one('SELECT 1 FROM cities WHERE id = $1', [out.city_id], c))) return { error: 'Pick a city.' };
+        return out;
+      },
+      columns: ['city_id', 'name', 'subcategory', 'description', 'latitude', 'longitude', 'source_url'],
+      wording: ['name', 'subcategory', 'description', 'latitude', 'longitude', 'source_url'],
+    },
   };
 
   for (const [entity, k] of Object.entries(kinds)) {
