@@ -446,8 +446,9 @@ function monkey(x, y) {
   </g>`;
 }
 
+// drawn facing left, then mirrored so it faces the way it drives (left to right); the sign stays readable
 function auto(x, y) {
-  return `<g>
+  return `<g><g transform="matrix(-1 0 0 1 ${2 * x + 146} 0)">
     <ellipse cx="${x + 70}" cy="${y + 78}" rx="78" ry="7" fill="#00000030"/>
     <path d="M${x + 10},${y + 16} Q${x + 18},${y - 6} ${x + 70},${y - 6} H${x + 140} V${y + 18} Z" fill="#1d1d1d" stroke="${INK}" stroke-width="2"/>
     <path d="M${x},${y + 70} V${y + 20} Q${x + 2},${y + 14} ${x + 14},${y + 14} H${x + 146} V${y + 70} Z" fill="#f2c230" stroke="${INK}" stroke-width="2.5"/>
@@ -456,10 +457,10 @@ function auto(x, y) {
     <circle cx="${x + 64}" cy="${y + 32}" r="7" fill="#a8693f"/><path d="M${x + 56},${y + 52} q8,-14 16,0" fill="#e0503c"/>
     <path d="M${x + 58},${y + 27} h12" stroke="#fff" stroke-width="3"/>
     ${r(x + 100, y + 30, 40, 20, '#1d6b4f', 'rx="3"')}
-    <text x="${x + 120}" y="${y + 44}" text-anchor="middle" font-family="Baloo 2" font-size="10" font-weight="700" fill="#fff">VIRASAT</text>
     <circle cx="${x + 26}" cy="${y + 72}" r="13" fill="#1d1d1d"/><circle cx="${x + 26}" cy="${y + 72}" r="5" fill="#c0392b"/>
     <circle cx="${x + 120}" cy="${y + 72}" r="13" fill="#1d1d1d"/><circle cx="${x + 120}" cy="${y + 72}" r="5" fill="#c0392b"/>
-    <circle cx="${x + 2}" cy="${y + 40}" r="5" fill="#fff6c4" stroke="${INK}"/>
+    <circle cx="${x + 2}" cy="${y + 40}" r="5" fill="#fff6c4" stroke="${INK}"/></g>
+    <text x="${x + 26}" y="${y + 44}" text-anchor="middle" font-family="Baloo 2" font-size="10" font-weight="700" fill="#fff">VIRASAT</text>
   </g>`;
 }
 
