@@ -10,6 +10,8 @@ export async function loadPublicCities(db) {
     "SELECT id, section_id, title, body, source_url FROM facts WHERE status = 'verified' ORDER BY sort_order, id")).rows;
   const quiz = (await db.query(
     "SELECT id, city_id, question, options FROM quiz_questions WHERE status = 'verified' ORDER BY sort_order, id")).rows;
+  const events = (await db.query(
+    "SELECT id, city_id, year_label, title, body, images, source_url FROM timeline_events WHERE status = 'verified' ORDER BY sort_order, id")).rows;
 
   return cities.map((c) => ({
     id: c.id, name: c.name, native: c.native_name, state: c.state, nickname: c.nickname, accent: c.accent,
@@ -20,11 +22,19 @@ export async function loadPublicCities(db) {
       items: facts.filter((f) => f.section_id === s.id).map((f) => ({ id: f.id, title: f.title, text: f.body, src: f.source_url })),
     })),
     quiz: quiz.filter((q) => q.city_id === c.id).map((q) => ({ id: q.id, q: q.question, options: q.options })),
+    timeline: events.filter((e) => e.city_id === c.id).map((e) => ({ id: e.id, year: e.year_label, title: e.title, text: e.body, images: e.images, src: e.source_url })),
+    outline: c.outline, outlineSource: c.outline_source,
   }));
 }
 
 export default function content(r, { db }) {
   r.get('/api/cities', async () => json(200, { cities: await loadPublicCities(db) }));
+
+  // The greetings that scroll in the top bar.
+  r.get('/api/greetings', async () => {
+    const rows = (await db.query("SELECT word, native, language FROM greetings WHERE status = 'verified' ORDER BY sort_order, id")).rows;
+    return json(200, { greetings: rows });
+  });
 
   // Check one answer while someone is playing. Works without logging in.
   r.post('/api/quiz/check', async ({ body }) => {

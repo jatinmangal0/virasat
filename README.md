@@ -1,6 +1,6 @@
 # Virasat
 
-A playful heritage site for learning about Indian cities, starting with **Udaipur** and **Kolkata**. Visitors pick a city, and Gaju the elephant walks them there. A letter arrives with the city's stamp; they log in to break the seal, then read about landmarks, festivals, food and fun facts, take a quiz and collect points in their Virasat passport.
+A playful heritage site for learning about Indian cities, starting with **Udaipur** and **Kolkata**. Visitors pick a city, and Gaju the elephant walks them there. A pigeon flies in with a sealed scroll; they log in to break the seal, read the city's letter, then follow the scroll's twine down through a timeline of the city's history until it draws the outline of the city. Points are collected in their Virasat passport.
 
 **Live site:** https://virasat-gaju.netlify.app · **Editor page:** https://virasat-gaju.netlify.app/admin
 

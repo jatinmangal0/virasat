@@ -1,4 +1,5 @@
 import { buildScene, grain, VB, GATES } from './scene.js';
+import { initCity, openCity } from './city.js';
 // City content comes from the database through the API (/api/cities), loaded in boot().
 let CITIES = {};
 
@@ -77,11 +78,25 @@ const sound = (() => {
 })();
 
 // ---------------- ticker, drawer, header ----------------
-function setupChrome() {
+// Greetings from across India scroll in the top bar. They come from the database (checked by the
+// team like facts); until some are verified, the bar shows the site's own lines instead.
+async function setupTicker() {
   const star = `<svg viewBox="0 0 32 32"><g fill="#8a4b1c">${Array.from({ length: 8 }, (_, i) => `<path transform="rotate(${i * 45} 16 16)" d="M16 16 L14 4 Q16 1 18 4 Z"/>`).join('')}<circle cx="16" cy="16" r="3.2" fill="#5a2e10"/></g></svg>`;
-  const items = ['Walk into two cities with Gaju the elephant', 'Udaipur · City of Lakes', 'Kolkata · City of Joy', 'Collect stamps in your Virasat passport', 'Learn · Play · Explore'];
-  const run = items.map((t) => `<span>${esc(t)} ${star}</span>`).join('');
-  $('#ticker').innerHTML = run + run;
+  const r = await api('/api/greetings');
+  const greetings = r.ok ? r.data.greetings : [];
+  const items = greetings.length
+    ? greetings.map((g) => `${g.native ? `<b class="native">${esc(g.native)}</b>` : ''}<b>${esc(g.word)}</b><em>${esc(g.language)}</em>`)
+    : ['Walk into two cities with Gaju the elephant', 'Udaipur · City of Lakes', 'Kolkata · City of Joy', 'Collect stamps in your Virasat passport', 'Learn · Play · Explore'].map(esc);
+  const run = items.map((t) => `<span>${t} ${star}</span>`).join('');
+  const track = $('#ticker');
+  track.classList.toggle('greetings', greetings.length > 0);
+  track.innerHTML = run + run;
+  // keep the speed the same however many greetings there are
+  track.style.animationDuration = `${Math.max(30, track.scrollWidth / 2 / 70)}s`;
+}
+
+function setupChrome() {
+  setupTicker();
   $('#year').textContent = new Date().getFullYear();
 
   const drawer = $('#drawer'), scrim = $('#scrim');
@@ -177,7 +192,7 @@ function setupStreet() {
     const r = street.getBoundingClientRect();
     const tx = ((e.clientX - r.left) / r.width) * 2 - 1, ty = ((e.clientY - r.top) / r.height) * 2 - 1;
     scene.ryT = tx * 7; scene.rxT = -ty * 3.5;
-    if (!hinted) { hinted = true; setTimeout(() => hint.classList.add('gone'), 2500); settleHeadline(); }
+    if (!hinted) { hinted = true; setTimeout(() => hint.classList.add('gone'), 2500); }
   });
   street.addEventListener('pointerleave', () => { scene.ryT = 0; scene.rxT = 0; });
   window.addEventListener('deviceorientation', (e) => {
@@ -210,12 +225,6 @@ function setupStreet() {
   layout();
   window.addEventListener('resize', layout);
   startLoop();
-}
-
-// The big Kumarri-style greeting shows first, then tucks itself into the sky so the gates stay clear.
-function settleHeadline() {
-  clearTimeout(settleHeadline.t);
-  settleHeadline.t = setTimeout(() => $('.headline').classList.add('settled'), 2600);
 }
 
 let lastT = 0;
@@ -257,7 +266,17 @@ function frame(t) {
   scene.zoom += (scene.zoomT - scene.zoom) * k(2.4);
   scene.pox += (scene.poxT - scene.pox) * k(2.4);
   scene.poy += (scene.poyT - scene.poy) * k(2.4);
-  $('#stage').style.transform = `translateX(${(W - ww) / 2 + scene.cam}px)`;
+  const stageX = (W - ww) / 2 + scene.cam;
+  $('#stage').style.transform = `translateX(${stageX}px)`;
+  // On narrow screens a gate can be off the edge; keep its pin on screen, pointing the way.
+  for (const pin of $$('.pin')) {
+    pin._half ||= pin.offsetWidth / 2 + 10;
+    const x = stageX + (parseFloat(pin.style.left) / 100) * ww, half = pin._half;
+    const shift = clamp(x, half, W - half) - x;
+    pin.style.marginLeft = shift + 'px';
+    pin.classList.toggle('edge-l', shift > 1);
+    pin.classList.toggle('edge-r', shift < -1);
+  }
   $('#world').style.transform = `translateZ(${scene.zoom}px) rotateX(${scene.rx}deg) rotateY(${scene.ry}deg)`;
   $('.rig').style.perspectiveOrigin = `${scene.pox}% ${scene.poy}%`;
   requestAnimationFrame(frame);
@@ -315,7 +334,8 @@ async function goToCity(city) {
   scene.rxT = scene.ryT = 0;
   await sleep(1250);
   if (my !== state.seq) return;
-  openPost(city, my);
+  scene.running = false; // the street is hidden behind the city; let it rest
+  openCity(city, my);
 }
 
 function resetStreet() {
@@ -329,235 +349,6 @@ function resetStreet() {
   setTimeout(() => say('Where to next?', 3500), 600);
 }
 
-// ---------------- post office: envelope → checkpoint → poster ----------------
-function stampDate() {
-  const d = new Date();
-  return `${String(d.getDate()).padStart(2, '0')} ${d.toLocaleString('en', { month: 'short' }).toUpperCase()} ${String(d.getFullYear()).slice(2)}`;
-}
-
-async function openPost(city, my) {
-  const c = CITIES[city];
-  state.city = city;
-  const post = $('#post');
-  post.className = 'post';
-  post.style.setProperty('--accent', c.accent);
-  $('#envPoster').style.visibility = '';
-  $('#envStamp').src = c.stamp;
-  $('#envStamp').alt = `${c.name} stamp`;
-  $('#posterImg').src = c.poster;
-  $('#posterImg').alt = `${c.name} poster`;
-  $('#envFrom').innerHTML = `<b>From</b>${esc(c.from)}`;
-  $('#envTo').textContent = state.user ? state.user.name : 'The Curious Explorer';
-  $('#pmCity').textContent = `VIRASAT POST · ${c.name.toUpperCase()}`;
-  $('#pmDate').textContent = stampDate();
-  $('#postTitle').innerHTML = `<small>Virasat Post</small>A letter from ${esc(c.name)}`;
-  $('#checkpoint').hidden = true;
-  $('#openHint').hidden = true;
-  post.hidden = false;
-  document.body.classList.add('locked');
-  await Promise.race([Promise.all([$('#posterImg').decode(), $('#envStamp').decode()]).catch(() => {}), sleep(1500)]);
-  await nextFrame();
-  scene.running = false; // the street is hidden; let it rest
-
-  const step = async (cls, ms, fx) => {
-    if (my !== state.seq) throw new Error('cancelled');
-    post.classList.add(...cls.split(' '));
-    fx?.();
-    await sleep(ms);
-  };
-  try {
-    await step('arrive', 1000, sound.whoosh);
-    await step('show-title stamped', 650, sound.tap);
-    await step('marked', 1000, sound.thunk);
-    await step('flip', 1200, sound.whoosh);
-  } catch { return; }
-  if (my !== state.seq) return;
-  if (state.user) breakSeal(my);
-  else {
-    post.classList.add('locked');
-    $('#checkpoint').hidden = false;
-    state.afterAuth = () => { $('#checkpoint').hidden = true; breakSeal(my); };
-  }
-}
-
-// An animation's promise can stall in a background tab, so never wait longer than it should take.
-const settle = (anim) => Promise.race([anim.finished, sleep(anim.effect.getTiming().duration + 250)]);
-
-let opening = false;
-async function breakSeal(my) {
-  if (opening || my !== state.seq) return;
-  opening = true;
-  const post = $('#post'), city = state.city, c = CITIES[city];
-  post.classList.remove('locked');
-  $('#checkpoint').hidden = true;
-  $('#openHint').hidden = true;
-  try {
-    const step = async (cls, ms, fx) => {
-      if (my !== state.seq) throw new Error('cancelled');
-      post.classList.add(cls); fx?.(); await sleep(ms);
-    };
-    await step('broken', 380, sound.crack);
-    await step('flap', 750, sound.paper);
-    await step('opened', 300);
-    await step('slide', 1050, sound.paper);
-    if (my !== state.seq) throw new Error('cancelled');
-    api('/api/progress/visit', { city }).then(showEarned);
-
-    // lift the poster out of the envelope and bring it to the front
-    const from = $('#envPoster').getBoundingClientRect();
-    const fly = $('#posterFly');
-    const tw = Math.min(1100, innerWidth * 0.94, (innerHeight * 0.8 * 16) / 9);
-    const th = (tw * 9) / 16;
-    fly.querySelector('img').src = c.poster;
-    Object.assign(fly.style, { left: '0px', top: '0px', width: tw + 'px', height: th + 'px' });
-    fly.hidden = false;
-    $('#envPoster').style.visibility = 'hidden';
-    post.classList.add('out');
-    const tx = (innerWidth - tw) / 2, ty = (innerHeight - th) / 2;
-    await settle(fly.animate([
-      { transform: `translate(${from.left}px, ${from.top}px) scale(${from.width / tw}) rotate(0deg)` },
-      { transform: `translate(${tx}px, ${ty - 40}px) scale(1.04) rotate(-2deg)`, offset: 0.7 },
-      { transform: `translate(${tx}px, ${ty}px) scale(1) rotate(0deg)` },
-    ], { duration: 1100, easing: 'cubic-bezier(.3,.9,.3,1)', fill: 'forwards' }));
-    await sleep(1300);
-    if (my !== state.seq) throw new Error('cancelled');
-
-    // the letter unfolds underneath and the poster settles into the page header
-    renderCity(city);
-    const view = $('#city');
-    view.hidden = false;
-    view.scrollTop = 0;
-    const heroRect = $('#cityHero').getBoundingClientRect();
-    view.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500, fill: 'both' });
-    post.hidden = true;
-    const sx = heroRect.width / tw, sy = heroRect.height / th;
-    await settle(fly.animate([
-      { transform: `translate(${tx}px, ${ty}px) scale(1)`, padding: '6px', borderRadius: '6px' },
-      { transform: `translate(${heroRect.left}px, ${heroRect.top}px) scale(${sx}, ${sy})`, padding: '0px', borderRadius: '0px' },
-    ], { duration: 700, easing: 'cubic-bezier(.5,0,.2,1)', fill: 'forwards' }));
-    fly.hidden = true;
-    fly.getAnimations().forEach((a) => a.cancel());
-  } catch { /* cancelled by going back */ }
-  opening = false;
-}
-
-function closePost() {
-  state.seq++;
-  state.afterAuth = null;
-  opening = false;
-  $('#post').hidden = true;
-  $('#posterFly').hidden = true;
-  resetStreet();
-}
-
-// ---------------- the city letter ----------------
-function renderCity(id) {
-  const c = CITIES[id];
-  const view = $('#city');
-  view.style.setProperty('--accent', c.accent);
-  $('#cityPoster').src = c.poster;
-  // absolute, because a url() inside a custom property resolves against the stylesheet
-  $('#cityTop').style.setProperty('--poster', `url("${new URL(c.poster, location.href).href}")`);
-  $('#cityPoster').alt = `Scenes from ${c.name}`;
-  const name = state.user ? firstName(state.user.name) : 'Explorer';
-  const tabs = [...c.sections.map((s) => [s.id, s.icon, s.label]), ['quiz', '🏅', 'Quiz']];
-  $('#letter').innerHTML = `
-    <img class="letter-stamp" src="${c.stamp}" alt="${esc(c.name)} stamp">
-    <p class="letter-kicker">${esc(c.state)} · ${esc(c.nickname)}</p>
-    <h2>${esc(c.name)}<small>${esc(c.native)}</small></h2>
-    <p class="greet">${esc(c.greeting.replace(/!$/, ''))}, ${esc(name)}! <span>(${esc(c.greetingNote)})</span></p>
-    <div class="letter-body">${c.letter.map((p) => `<p>${esc(p)}</p>`).join('')}</div>
-    <div class="facts">${c.quickFacts.map(([k, v]) => `<div class="fact"><span>${esc(k)}</span><strong>${esc(v)}</strong></div>`).join('')}</div>
-    <div class="sec-tabs" role="tablist">${tabs.map(([tid, icon, label], i) =>
-      `<button class="sec-tab" role="tab" data-sec="${tid}" aria-selected="${i === 0}">${icon} ${esc(label)}</button>`).join('')}</div>
-    <div id="secBody"></div>
-    ${c.sources ? `<p class="letter-src">Sources for this letter: ${c.sources.map(([t, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)}</a>`).join(' · ')}</p>` : ''}
-    <p class="signoff">With love, Gaju <img src="assets/elephant.png" alt=""></p>
-    <div class="letter-nav">
-      <button class="btn" id="letterBack">← Back to the street</button>
-      <button class="btn primary" data-other="${id === 'udaipur' ? 'kolkata' : 'udaipur'}">Visit ${id === 'udaipur' ? 'Kolkata' : 'Udaipur'} next →</button>
-    </div>`;
-  const show = (sid) => {
-    $$('.sec-tab').forEach((b) => b.setAttribute('aria-selected', b.dataset.sec === sid));
-    if (sid === 'quiz') return renderQuiz(id);
-    const s = c.sections.find((x) => x.id === sid);
-    if (!s.items.length) {
-      $('#secBody').innerHTML = '<p class="empty-note">Our team is still checking the facts for this part. Come back soon!</p>';
-      return;
-    }
-    if (state.user) api('/api/progress/section', { city: id, section: sid }).then(showEarned);
-    $('#secBody').innerHTML = `<div class="cards">${s.items.map((it, i) =>
-      `<article class="card" style="animation-delay:${i * 60}ms"><h4>${esc(it.title)}</h4><p>${esc(it.text)}</p>${it.src ? `<a class="src" href="${esc(it.src)}" target="_blank" rel="noopener">Source</a>` : ''}</article>`).join('')}</div>`;
-  };
-  $$('.sec-tab').forEach((b) => b.addEventListener('click', () => show(b.dataset.sec)));
-  show(tabs[0][0]);
-  $('#letterBack').onclick = closeCity;
-  $('[data-other]').onclick = async (e) => {
-    const next = e.currentTarget.dataset.other;
-    closeCity();
-    await sleep(700);
-    goToCity(next);
-  };
-}
-
-function renderQuiz(id) {
-  const c = CITIES[id];
-  const box = $('#secBody');
-  if (!c.quiz.length) {
-    box.innerHTML = '<p class="empty-note">The quiz for this city is still being checked by our team. Come back soon!</p>';
-    return;
-  }
-  let i = 0, score = 0, answers = [];
-  const draw = () => {
-    if (i >= c.quiz.length) return finish();
-    const q = c.quiz[i];
-    box.innerHTML = `<div class="quiz">
-      <div class="quiz-progress">Question ${i + 1} of ${c.quiz.length} · Score ${score}</div>
-      <div class="quiz-bar"><i style="width:${(i / c.quiz.length) * 100}%"></i></div>
-      <h4>${esc(q.q)}</h4>
-      <div class="opts">${q.options.map((o, k) => `<button class="opt" data-k="${k}">${esc(o)}</button>`).join('')}</div>
-      <p class="quiz-feedback" aria-live="polite"></p></div>`;
-    $$('.opt', box).forEach((b) => b.addEventListener('click', async () => {
-      const k = Number(b.dataset.k);
-      $$('.opt', box).forEach((x) => { x.disabled = true; });
-      // The answer lives on the server, so ask it.
-      const r = await api('/api/quiz/check', { id: q.id, choice: k });
-      if (!r.ok) {
-        $('.quiz-feedback', box).textContent = r.data.error || 'Could not check that answer. Try again.';
-        $$('.opt', box).forEach((x) => { x.disabled = false; });
-        return;
-      }
-      answers.push({ id: q.id, choice: k });
-      const right = r.data.correct;
-      $$('.opt', box).forEach((x) => { if (Number(x.dataset.k) === r.data.answer) x.classList.add('right'); });
-      if (!right) b.classList.add('wrong');
-      if (right) { score++; sound.ding(); } else sound.buzz();
-      $('.quiz-feedback', box).textContent = right ? 'Shabash! That\'s right.' : `Not quite. It's "${q.options[r.data.answer]}".`;
-      setTimeout(() => { i++; draw(); }, 1400);
-    }));
-  };
-  const finish = async () => {
-    const total = c.quiz.length;
-    const msg = score === total ? 'Perfect score! Gaju is doing a happy dance.' : score >= total / 2 ? 'Well done, explorer!' : 'Read the letter again and have another go.';
-    box.innerHTML = `<div class="quiz quiz-done"><div class="big">${score}/${total}</div><h4>${msg}</h4>
-      <p id="quizSaved">${state.user ? 'Saving to your passport…' : 'Log in to save your score and earn points.'}</p>
-      <button class="btn primary" id="retry">Try again</button></div>`;
-    $('#retry').onclick = () => { i = 0; score = 0; answers = []; draw(); };
-    if (state.user) {
-      const r = await api('/api/progress/quiz', { city: id, answers });
-      $('#quizSaved').textContent = !r.ok ? 'Could not save this score.'
-        : r.data.earned > 0 ? `Saved to your passport. +${r.data.earned} points!` : 'Saved to your passport.';
-    }
-  };
-  draw();
-}
-
-function closeCity() {
-  $('#city').hidden = true;
-  state.seq++;
-  resetStreet();
-}
-
 // ---------------- auth ----------------
 function openModal(m) {
   m.hidden = false;
@@ -566,7 +357,7 @@ function openModal(m) {
 }
 function closeModal(m) {
   m.hidden = true;
-  if ($('#post').hidden && $('#city').hidden) document.body.classList.remove('locked');
+  if ($('#city').hidden) document.body.classList.remove('locked');
 }
 
 function setAuthTab(tab) {
@@ -578,8 +369,8 @@ function setAuthTab(tab) {
 
 function openAuth(tab = 'phone', reason) {
   setAuthTab(tab === 'signup' ? 'signup' : tab === 'login' ? 'login' : 'phone');
-  $('#authSub').textContent = reason || (state.city && !$('#post').hidden
-    ? `Log in to break the seal on your letter from ${CITIES[state.city].name}.`
+  $('#authSub').textContent = reason || (state.city && !$('#city').hidden
+    ? `Log in to break the seal on your scroll from ${CITIES[state.city].name}.`
     : 'Log in to open letters and keep your passport.');
   openModal($('#authModal'));
   renderGoogle();
@@ -607,12 +398,6 @@ function setupAuth() {
   $$('[data-close-modal]').forEach((b) => b.addEventListener('click', () => closeModal(b.closest('.modal'))));
   $$('.modal').forEach((m) => m.addEventListener('click', (e) => { if (e.target === m) closeModal(m); }));
   $$('[data-auth]').forEach((b) => b.addEventListener('click', () => openAuth(b.dataset.auth)));
-  $('#seal').addEventListener('click', () => {
-    if ($('#post').classList.contains('locked')) openAuth('phone');
-    else breakSeal(state.seq);
-  });
-  $('#postBack').onclick = closePost;
-  $('#cityBack').onclick = closeCity;
   const err = (m) => { $('#authError').textContent = m || ''; };
 
   $('#loginForm').addEventListener('submit', async (e) => {
@@ -821,11 +606,11 @@ async function boot() {
   setupChrome();
   setupStreet();
   setupAuth();
+  initCity({ state, CITIES, api, sound, esc, firstName, openAuth, showEarned, goToCity, resetStreet });
   const [cfg, me] = await Promise.all([api('/api/config'), api('/api/me')]);
   if (cfg.ok) state.config = cfg.data;
   if (me.ok && me.data.user) state.user = me.data.user;
   renderHeader();
-  settleHeadline();
   setTimeout(() => say(state.user ? `Namaste, ${firstName(state.user.name)}! Where shall we go?` : "Namaste! I'm Gaju. Where shall we go?", 0), 400);
 }
 boot();

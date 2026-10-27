@@ -137,19 +137,19 @@ async function refresh() {
 // ---------------------------------------------------------------- layout
 function render() {
   const isAdmin = state.me.role === 'admin';
-  const tabs = [['facts', 'Facts'], ['quiz', 'Quiz'], ['letter', 'City letter'], ...(isAdmin ? [['team', 'Team']] : []), ['log', 'History'], ['help', 'How this works']];
+  const tabs = [['facts', 'Facts'], ['quiz', 'Quiz'], ['timeline', 'Timeline'], ['letter', 'City letter'], ['greetings', 'Greetings'], ...(isAdmin ? [['team', 'Team']] : []), ['log', 'History'], ['help', 'How this works']];
   $('#app').innerHTML = `
     <div class="cities">${state.cities.map((c) => `
       <button class="btn city-btn" data-city="${esc(c.id)}" aria-pressed="${c.id === state.city}">
         ${esc(c.name)}${c.published ? '' : ' (hidden)'}
-        <small>${c.facts_to_check + c.quiz_to_check} to check · ${c.facts_verified + c.quiz_verified} live</small>
+        <small>${c.facts_to_check + c.quiz_to_check + c.timeline_to_check} to check · ${c.facts_verified + c.quiz_verified + c.timeline_verified} live</small>
       </button>`).join('')}</div>
     <div class="tabs" role="tablist">${tabs.map(([id, label]) =>
       `<button class="tab" role="tab" data-tab="${id}" aria-selected="${state.tab === id}">${label}</button>`).join('')}</div>
     <section id="view"></section>`;
   $$('[data-city]').forEach((b) => b.onclick = async () => { state.city = b.dataset.city; await loadCity(); render(); });
   $$('[data-tab]').forEach((b) => b.onclick = () => { state.tab = b.dataset.tab; render(); });
-  ({ facts: renderFacts, quiz: renderQuiz, letter: renderLetter, team: renderTeam, log: renderLog, help: renderHelp })[state.tab]();
+  ({ facts: renderFacts, quiz: renderQuiz, timeline: renderTimeline, letter: renderLetter, greetings: renderGreetings, team: renderTeam, log: renderLog, help: renderHelp })[state.tab]();
 }
 
 const people = (x) => [
@@ -276,6 +276,82 @@ function editQuestion(q) {
   });
 }
 
+// ---------------------------------------------------------------- timeline
+function renderTimeline() {
+  const { timeline } = state.data;
+  $('#view').innerHTML = `
+    <div class="row"><p class="muted" style="margin:0">The major events shown along the thread under the letter, in the order of their <b>place</b> number. Keep each one to a short paragraph.</p>
+      <span class="spacer"></span><button class="btn primary" id="addEv">+ Add an event</button></div>
+    ${filters(timeline)}
+    ${timeline.filter(shown).map((e) => `
+      <article class="item ${e.status === 'verified' ? 'verified' : ''}">
+        <h4><span class="year">${esc(e.year_label)}</span> ${esc(e.title)} ${badge(e)} <span class="muted" style="font-weight:400;font-size:13px">place ${e.sort_order}</span></h4>
+        <p>${esc(e.body)}</p>
+        ${e.images.length ? `<div class="thumbs">${e.images.map((im) => `<a href="${esc(im.src)}" target="_blank" rel="noopener"><img src="${esc(im.src)}" alt="${esc(im.caption)}" loading="lazy"></a>`).join('')}</div>` : '<span class="badge">No photos yet</span> '}
+        ${e.source_url ? `<a class="src" href="${esc(e.source_url)}" target="_blank" rel="noopener">${esc(e.source_url)}</a>` : '<span class="badge">No source yet</span>'}
+        <div class="meta">${people(e)}</div>
+        ${itemButtons('timeline', e)}
+      </article>`).join('') || '<p class="muted">Nothing here.</p>'}`;
+  wireFilters();
+  $('#addEv').onclick = () => editEvent(null);
+  wireItems('timeline', timeline, editEvent);
+}
+
+function editEvent(e) {
+  const last = Math.max(0, ...state.data.timeline.map((x) => x.sort_order));
+  openForm(e ? 'Edit event' : 'Add an event', [
+    { name: 'year', label: 'Year', type: 'text', value: e?.year_label ?? '', hint: 'as it should appear, e.g. 1559, 1620s or c. 1360' },
+    { name: 'title', label: 'Title', type: 'text', value: e?.title ?? '' },
+    { name: 'text', label: 'Short paragraph', type: 'textarea', value: e?.body ?? '', hint: 'two or three sentences' },
+    { name: 'images', label: 'Photos', type: 'textarea', value: (e?.images ?? []).map((im) => `${im.src} | ${im.caption}`).join('\n'),
+      hint: 'up to 4, one per line: https://link-to-photo | caption. Use photos you may share (e.g. Wikimedia Commons) and put the credit in the caption.' },
+    { name: 'order', label: 'Place on the timeline', type: 'text', value: e?.sort_order ?? last + 1, hint: 'events are shown from the smallest number to the largest' },
+    { name: 'sourceUrl', label: 'Source link', type: 'url', value: e?.source_url ?? '' },
+  ], async (v) => {
+    const images = v.images.split('\n').map((l) => l.split('|').map((x) => x.trim())).filter((p) => p[0]).map((p) => ({ src: p[0], caption: p.slice(1).join(' | ') }));
+    const body = { cityId: state.city, year: v.year, title: v.title, text: v.text, images, order: Number(v.order) || 0, sourceUrl: v.sourceUrl };
+    const r = e ? await api(`/api/admin/timeline/${e.id}`, body, 'PUT') : await api('/api/admin/timeline', body);
+    if (!r.ok) return r.data.error;
+    toast(r.data.backToCheck ? 'Saved. Because the words changed, it needs to be checked again.' : e ? 'Saved.' : 'Added. A teammate now needs to verify it.');
+    refresh();
+  });
+}
+
+// ---------------------------------------------------------------- greetings (whole site)
+async function renderGreetings() {
+  $('#view').innerHTML = '<p class="muted">Loading…</p>';
+  const r = await api('/api/admin/greetings');
+  const list = r.data.greetings || [];
+  $('#view').innerHTML = `
+    <div class="row"><p class="muted" style="margin:0">The greetings that scroll in the yellow bar at the top of the website. They are the same for every city.</p>
+      <span class="spacer"></span><button class="btn primary" id="addGr">+ Add a greeting</button></div>
+    ${filters(list)}
+    ${list.filter(shown).map((g) => `
+      <article class="item ${g.status === 'verified' ? 'verified' : ''}">
+        <h4>${esc(g.word)} <span lang="">${esc(g.native)}</span> <span class="muted" style="font-weight:400">· ${esc(g.language)}</span> ${badge(g)}</h4>
+        ${g.source_url ? `<a class="src" href="${esc(g.source_url)}" target="_blank" rel="noopener">${esc(g.source_url)}</a>` : '<span class="badge">No source yet</span>'}
+        <div class="meta">${people(g)}</div>
+        ${itemButtons('greetings', g)}
+      </article>`).join('') || '<p class="muted">Nothing here.</p>'}`;
+  wireFilters();
+  $('#addGr').onclick = () => editGreeting(null);
+  wireItems('greetings', list, editGreeting);
+}
+
+function editGreeting(g) {
+  openForm(g ? 'Edit greeting' : 'Add a greeting', [
+    { name: 'word', label: 'Greeting in English letters', type: 'text', value: g?.word ?? '', hint: 'e.g. Vanakkam' },
+    { name: 'native', label: 'In its own script', type: 'text', value: g?.native ?? '', hint: 'e.g. வணக்கம்' },
+    { name: 'language', label: 'Language', type: 'text', value: g?.language ?? '' },
+    { name: 'sourceUrl', label: 'Source link', type: 'url', value: g?.source_url ?? '' },
+  ], async (v) => {
+    const r = g ? await api(`/api/admin/greetings/${g.id}`, v, 'PUT') : await api('/api/admin/greetings', v);
+    if (!r.ok) return r.data.error;
+    toast(r.data.backToCheck ? 'Saved. Because it changed, it needs to be checked again.' : g ? 'Saved.' : 'Added. A teammate now needs to verify it.');
+    refresh();
+  });
+}
+
 // ---------------------------------------------------------------- city letter
 function renderLetter() {
   const c = state.data.city;
@@ -365,7 +441,7 @@ async function renderLog() {
       <thead><tr><th>When</th><th>Who</th><th>What</th></tr></thead>
       <tbody>${(r.data.log || []).map((l) => `
         <tr><td>${when(l.at)}</td><td>${esc(l.user_name || '—')}</td>
-        <td>${esc(words[l.action] || l.action)} ${esc(l.entity === 'quiz' ? 'quiz question' : l.entity)}: <b>${esc(l.label || '#' + l.entity_id)}</b></td></tr>`).join('')
+        <td>${esc(words[l.action] || l.action)} ${esc({ quiz: 'quiz question', timeline: 'timeline event' }[l.entity] || l.entity)}: <b>${esc(l.label || '#' + l.entity_id)}</b></td></tr>`).join('')
         || '<tr><td colspan="3" class="muted">No changes yet.</td></tr>'}</tbody>
     </table></div>`;
 }

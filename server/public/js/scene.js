@@ -516,7 +516,7 @@ function lamp(x) {
 
 function foregroundLayer() {
   return svg(`<defs><radialGradient id="lampglow"><stop offset="0" stop-color="#fff2a0" stop-opacity=".95"/><stop offset="1" stop-color="#ffe36b" stop-opacity="0"/></radialGradient></defs>
-    ${lamp(40)}${lamp(800)}${lamp(1560)}
+    ${lamp(40)}${lamp(1560)}
     ${pottedPlant(140, 722, 1.1)}${pottedPlant(1440, 722, 1.1)}`, 'layer-svg');
 }
 
