@@ -8,7 +8,7 @@ const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const when = (t) => (t ? new Date(t).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '');
 
-const state = { me: null, cities: [], city: null, data: null, tab: 'facts', filter: 'needs_check' };
+const state = { me: null, cities: [], city: null, data: null, tab: 'facts', filter: 'needs_check', placeSearch: '' };
 
 async function api(path, body, method = body ? 'POST' : 'GET') {
   try {
@@ -139,7 +139,7 @@ async function refresh() {
 // ---------------------------------------------------------------- layout
 function render() {
   const isAdmin = state.me.role === 'admin';
-  const tabs = [['facts', 'Facts'], ['quiz', 'Quiz'], ['timeline', 'Timeline'], ['letter', 'City letter'], ['greetings', 'Greetings'], ...(isAdmin ? [['team', 'Team']] : []), ['log', 'History'], ['help', 'How this works']];
+  const tabs = [['facts', 'Facts'], ['quiz', 'Quiz'], ['timeline', 'Timeline'], ['places', 'Places'], ['letter', 'City letter'], ['greetings', 'Greetings'], ...(isAdmin ? [['team', 'Team']] : []), ['log', 'History'], ['help', 'How this works']];
   $('#app').innerHTML = `
     <div class="cities">${state.cities.map((c) => `
       <button class="btn city-btn" data-city="${esc(c.id)}" aria-pressed="${c.id === state.city}">
@@ -151,7 +151,7 @@ function render() {
     <section id="view"></section>`;
   $$('[data-city]').forEach((b) => b.onclick = async () => { state.city = b.dataset.city; await loadCity(); render(); });
   $$('[data-tab]').forEach((b) => b.onclick = () => { state.tab = b.dataset.tab; render(); });
-  ({ facts: renderFacts, quiz: renderQuiz, timeline: renderTimeline, letter: renderLetter, greetings: renderGreetings, team: renderTeam, log: renderLog, help: renderHelp })[state.tab]();
+  ({ facts: renderFacts, quiz: renderQuiz, timeline: renderTimeline, places: renderPlaces, letter: renderLetter, greetings: renderGreetings, team: renderTeam, log: renderLog, help: renderHelp })[state.tab]();
 }
 
 const people = (x) => [
@@ -464,6 +464,64 @@ function renderHelp() {
       <p>Every step is saved in <b>History</b>, with who did it and when.</p>
       <p>Learners earn points: 10 for each new city, 5 for each part of a letter they read, and 10 for each correct answer on their best quiz.</p>
     </div>`;
+}
+
+// ---------------------------------------------------------------- places (Aksh's heritage list)
+// There can be hundreds per city, so this tab loads them on its own and has a search box.
+async function renderPlaces() {
+  $('#view').innerHTML = '<p class="muted">Loading places…</p>';
+  const r = await api(`/api/admin/cities/${encodeURIComponent(state.city)}/places`);
+  if (!r.ok) { $('#view').innerHTML = `<p class="form-error">${esc(r.data.error)}</p>`; return; }
+  const all = r.data.places;
+  const words = (p) => `${p.name} ${p.native_name} ${p.subcategory} ${p.description}`.toLowerCase();
+  const match = (p) => shown(p) && (!state.placeSearch || words(p).includes(state.placeSearch));
+  const map = (p) => (p.latitude == null ? '<span class="badge">No map position</span>'
+    : `<a class="src" href="https://www.openstreetmap.org/?mlat=${p.latitude}&mlon=${p.longitude}#map=17/${p.latitude}/${p.longitude}" target="_blank" rel="noopener">Map: ${p.latitude}, ${p.longitude}</a>`);
+  const extra = (p) => Object.entries(p.details || {}).map(([k, v]) => `<tr><th>${esc(k.replace(/_/g, ' '))}</th><td>${esc(v)}</td></tr>`).join('');
+  $('#view').innerHTML = `
+    <div class="row"><p class="muted" style="margin:0">Heritage places from Aksh's research, each with a map position. Check the name, the description and the position against the source, then verify.
+      "Aksh's notes" says how sure the research was.</p>
+      <span class="spacer"></span><button class="btn primary" id="addPlace">+ Add a place</button></div>
+    ${filters(all)}
+    <input id="placeSearch" placeholder="Search by name or type" value="${esc(state.placeSearch)}" style="max-width:360px;margin-bottom:10px">
+    <div id="placeList"></div>`;
+  const list = () => {
+    const items = all.filter(match);
+    $('#placeList').innerHTML = items.map((p) => `
+      <article class="item ${p.status === 'verified' ? 'verified' : ''}">
+        <h4>${esc(p.name)}${p.native_name ? ` <span class="muted" style="font-weight:400">${esc(p.native_name)}</span>` : ''} ${badge(p)}</h4>
+        <div class="meta">${esc([p.subcategory, p.year, p.code].filter(Boolean).join(' · '))}</div>
+        ${p.description ? `<p>${esc(p.description)}</p>` : '<p class="muted">No description yet.</p>'}
+        ${p.source_url ? `<a class="src" href="${esc(p.source_url)}" target="_blank" rel="noopener">${esc(p.source_url)}</a>` : '<span class="badge">No source yet</span>'}
+        ${map(p)}
+        <div class="meta">Aksh's notes: ${esc([p.research_status, p.confidence && `${p.confidence} confidence`].filter(Boolean).join(', ') || 'none')}</div>
+        ${extra(p) ? `<details><summary class="muted">All research columns</summary><div class="table-wrap"><table>${extra(p)}</table></div></details>` : ''}
+        <div class="meta">${people(p).replace('imported from the old site', "imported from Aksh's workbook")}</div>
+        ${itemButtons('places', p)}
+      </article>`).join('') || '<p class="muted">Nothing here.</p>';
+    wireItems('places', items, editPlace);
+  };
+  wireFilters();
+  $('#placeSearch').oninput = (e) => { state.placeSearch = e.target.value.trim().toLowerCase(); list(); };
+  $('#addPlace').onclick = () => editPlace(null);
+  list();
+}
+
+function editPlace(p) {
+  openForm(p ? 'Edit place' : 'Add a place', [
+    { name: 'name', label: 'Name', type: 'text', value: p?.name ?? '' },
+    { name: 'subcategory', label: 'Type', type: 'text', value: p?.subcategory ?? '', hint: 'e.g. Lakes (Jheel), Museums & Galleries' },
+    { name: 'description', label: 'Description', type: 'textarea', value: p?.description ?? '', hint: 'one or two short sentences' },
+    { name: 'latitude', label: 'Latitude', type: 'text', value: p?.latitude ?? '', hint: 'e.g. 24.5764 (right-click the place on openstreetmap.org to copy it)' },
+    { name: 'longitude', label: 'Longitude', type: 'text', value: p?.longitude ?? '', hint: 'e.g. 73.6835' },
+    { name: 'sourceUrl', label: 'Source link', type: 'url', value: p?.source_url ?? '', hint: 'where a teammate can check this' },
+  ], async (v) => {
+    const body = { ...v, cityId: state.city };
+    const r = p ? await api(`/api/admin/places/${p.id}`, body, 'PUT') : await api('/api/admin/places', body);
+    if (!r.ok) return r.data.error;
+    toast(r.data.backToCheck ? 'Saved. Because it changed, it needs to be checked again.' : p ? 'Saved.' : 'Added. A teammate now needs to verify it.');
+    refresh();
+  });
 }
 
 boot();

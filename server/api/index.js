@@ -8,6 +8,7 @@
 //   content.js   cities, facts and quiz questions the public website shows
 //   progress.js  what a learner has covered, quiz scores, points
 //   admin.js     the editor page: writing, checking and verifying content, team roles
+//   places.js    heritage places (map positions), public and editor lists
 import { createRouter, err } from './router.js';
 import { sha256, rateLimiter } from '../lib/security.js';
 import { readSessionToken } from './session.js';
@@ -15,11 +16,12 @@ import auth from './auth.js';
 import content from './content.js';
 import progress from './progress.js';
 import admin from './admin.js';
+import places from './places.js';
 
 export function createApi({ db, sms, verifyGoogle, googleClientId = '', secureCookies = false, adminSetupCode = '' }) {
   const deps = { db, sms, verifyGoogle, googleClientId, secureCookies, adminSetupCode };
   const router = createRouter();
-  for (const area of [auth, content, progress, admin]) area(router, deps);
+  for (const area of [auth, content, progress, admin, places]) area(router, deps);
 
   // Per IP is loose because a whole classroom can share one IP; auth.js adds tighter per-email/phone limits.
   // On Netlify these counters live per function instance, so they are a speed bump, not a hard wall.
