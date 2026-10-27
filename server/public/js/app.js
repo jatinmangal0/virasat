@@ -83,7 +83,7 @@ const sound = (() => {
 async function setupTicker() {
   const star = `<svg viewBox="0 0 32 32"><g fill="#8a4b1c">${Array.from({ length: 8 }, (_, i) => `<path transform="rotate(${i * 45} 16 16)" d="M16 16 L14 4 Q16 1 18 4 Z"/>`).join('')}<circle cx="16" cy="16" r="3.2" fill="#5a2e10"/></g></svg>`;
   const r = await api('/api/greetings');
-  const greetings = r.ok ? r.data.greetings : [];
+  const greetings = [...(r.ok ? r.data.greetings : []), ...(state.demo?.greetings || [])];
   const items = greetings.length
     ? greetings.map((g) => `${g.native ? `<b class="native">${esc(g.native)}</b>` : ''}<b>${esc(g.word)}</b><em>${esc(g.language)}</em>`)
     : ['Walk into two cities with Gaju the elephant', 'Udaipur · City of Lakes', 'Kolkata · City of Joy', 'Collect stamps in your Virasat passport', 'Learn · Play · Explore'].map(esc);
@@ -603,6 +603,17 @@ async function boot() {
     return;
   }
   CITIES = Object.fromEntries(cities.data.cities.map((c) => [c.id, c]));
+  // Demo mode (?demo in the address) also shows timeline events and greetings that are not checked yet.
+  if (new URLSearchParams(location.search).has('demo')) {
+    const d = await api('/api/demo');
+    if (d.ok) {
+      state.demo = d.data;
+      for (const c of Object.values(CITIES)) {
+        c.timeline = [...c.timeline, ...(d.data.timeline[c.id] || [])].sort((a, b) => (parseInt(a.year, 10) || 0) - (parseInt(b.year, 10) || 0));
+      }
+      document.body.insertAdjacentHTML('beforeend', '<div class="demo-badge" title="Shows content the team has not checked yet">Demo · includes drafts not yet checked</div>');
+    }
+  }
   setupChrome();
   setupStreet();
   setupAuth();

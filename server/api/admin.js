@@ -119,14 +119,15 @@ export default function admin(r, { db, adminSetupCode }) {
         const images = (Array.isArray(b.images) ? b.images : []).slice(0, 4)
           .map((im) => ({ src: text(im?.src, 500), caption: text(im?.caption, 160) })).filter((im) => im.src);
         const out = { year_label: text(b.year, 20), title: text(b.title, 120), body: text(b.text, 700), images,
-          source_url: text(b.sourceUrl, 500), city_id: text(b.cityId, 40), sort_order: Number(b.order) || 0 };
+          source_url: text(b.sourceUrl, 500), city_id: text(b.cityId, 40), sort_order: Number(b.order) || 0,
+          motif: /^[a-z]{0,20}$/.test(b.motif || '') ? b.motif || '' : '' };
         if (!out.year_label || !out.title || !out.body) return { error: 'An event needs a year, a title and a short paragraph.' };
         if (images.some((im) => !/^https:\/\/[^\s]+$/i.test(im.src))) return { error: 'Photo links must start with https://' };
         if (!(await one('SELECT 1 FROM cities WHERE id = $1', [out.city_id], c))) return { error: 'Pick a city.' };
         return out;
       },
       // sort_order is set by the editor here (the place on the timeline), and moving an event is not a rewording.
-      columns: ['city_id', 'year_label', 'title', 'body', 'images', 'source_url', 'sort_order'],
+      columns: ['city_id', 'year_label', 'title', 'body', 'images', 'source_url', 'sort_order', 'motif'],
       wording: ['year_label', 'title', 'body', 'images', 'source_url'],
     },
     greeting: {

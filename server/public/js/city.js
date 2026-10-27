@@ -5,7 +5,8 @@
 //   4. scrolling down follows the twine: it becomes a wave of events, moves to the left as a
 //      timeline while each event is shown in the middle, then swirls off, comes back and draws
 //      the outline of the city.
-import { twineSVG, setTwine, smoothPath, Rope } from './twine.js';
+import { twineSVG, setTwine, Rope, GARLAND_DEFS, placeGarland } from './twine.js';
+import { motifSVG } from './motifs.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -24,6 +25,7 @@ let cur = null; // the open city: { id, c, my, rope, story, ... }
 export function initCity(shared) {
   ctx = shared;
   $('#pigeon').innerHTML = PIGEON;
+  document.body.insertAdjacentHTML('beforeend', `<svg width="0" height="0" style="position:absolute" aria-hidden="true">${GARLAND_DEFS}</svg>`);
   $('#cityBack').onclick = closeCity;
   $('#seal').addEventListener('click', () => {
     if (!cur) return;
@@ -58,7 +60,7 @@ const PIGEON = `
     <path d="M120,48 C136,38 150,34 164,34 M114,58 C132,50 148,46 168,46" stroke="#3f4555" stroke-width="3.2" fill="none" stroke-linecap="round"/>
   </g>
 </svg>
-<svg class="tether" viewBox="0 0 20 90">${twineSVG(3)}</svg>`;
+<svg class="tether" viewBox="0 0 20 90">${twineSVG(3.5)}</svg>`;
 
 // ---------------------------------------------------------------- open a city
 export async function openCity(id, my) {
@@ -114,7 +116,7 @@ function drawTie() {
     [[cx, R], [cx + 16, R + 38], [cx + 8, R + 88], [cx + 28, R + 122]],
   ];
   const knot = [[cx - 10, R - 6], [cx + 8, R - 10], [cx + 12, R + 6], [cx - 6, R + 11], [cx - 12, R - 2], [cx + 4, R - 4]];
-  tie.innerHTML = [...strands, ...ends, knot].map(() => twineSVG(3.4)).join('') +
+  tie.innerHTML = [...strands, ...ends, knot].map(() => twineSVG(4)).join('') +
     ends.map((e) => { const [x, y] = e[e.length - 1]; return `<path d="M${x},${y} l-5,9 M${x},${y} l2,10 M${x},${y} l6,7" stroke="#c9a675" stroke-width="1.3" stroke-linecap="round"/>`; }).join('');
   const gs = $$('g.twine', tie);
   [...strands, ...ends, knot].forEach((pts, i) => setTwine(gs[i], pts, true));
@@ -228,7 +230,7 @@ function startRope(L) {
   const layer = $('#ropeLayer'), view = $('#city');
   layer.style.display = '';
   layer.style.height = view.scrollHeight + 'px';
-  layer.innerHTML = twineSVG(innerWidth < 720 ? 4 : 5, 'rope');
+  layer.innerHTML = twineSVG(threadWidth(), 'rope') + '<g class="garland"></g>';
   const g = $('g.rope', layer);
   const A = anchor();
   if (reduced()) { setTwine(g, [A, [A[0], A[1] + L]]); return; }
@@ -260,15 +262,24 @@ function startRope(L) {
       openedAt ||= t;
       const k = clamp((t - openedAt) / 900);
       const rest = restPoints(n);
-      setTwine(g, rope.points().map((q, i) => mixP(q, rest[i], smooth(k))), true);
+      const pts = rope.points().map((q, i) => mixP(q, rest[i], smooth(k)));
+      setTwine(g, pts, true);
+      placeGarland($('g.garland', layer), pts, gardenGap(), gardenScale());
       if (k >= 1) { cur.rope = null; restRope(); return; }
-    } else setTwine(g, rope.points(), true);
+    } else {
+      setTwine(g, rope.points(), true);
+      placeGarland($('g.garland', layer), rope.points(), gardenGap(), gardenScale());
+    }
     requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
 }
 
 // At rest, the twine hangs from the roller to the top of the timeline, with a slight belly.
+const threadWidth = () => (innerWidth < 720 ? 5 : 7);
+const gardenGap = () => (innerWidth < 720 ? 40 : 54);
+const gardenScale = () => (innerWidth < 720 ? 0.85 : 1.1);
+
 function restPoints(n) {
   const A = anchor(), end = $('#story').offsetTop + 2, sway = Math.min(14, (end - A[1]) * 0.03);
   return Array.from({ length: n }, (_, i) => { const t = i / (n - 1); return [A[0] + sway * Math.sin(t * Math.PI), lerp(A[1], end, t)]; });
@@ -276,7 +287,9 @@ function restPoints(n) {
 function restRope() {
   const layer = $('#ropeLayer');
   layer.style.height = $('#city').scrollHeight + 'px';
-  setTwine($('g.rope', layer), restPoints(24), true);
+  const pts = restPoints(24);
+  setTwine($('g.rope', layer), pts, true);
+  placeGarland($('g.garland', layer), pts, gardenGap(), gardenScale());
 }
 
 function layoutAfterOpen() {
@@ -313,13 +326,13 @@ function buildStory() {
   const otherId = Object.keys(CITIES).find((k) => k !== cur.id);
   const stage = $('#storyStage');
   stage.innerHTML = `
-    <svg class="story-svg" id="storySvg" aria-hidden="true">${twineSVG(5, 'main')}</svg>
+    <svg class="story-svg" id="storySvg" aria-hidden="true"></svg>
     <div class="story-head" id="storyHead"><small>The thread of time</small><h3>${esc(c.name)} through the years</h3>
       <p>${ev.length ? 'Keep scrolling to follow the thread' : 'Our team is still checking the events for this timeline. Come back soon!'}</p></div>
     <div class="nodes">${ev.map((e, i) => `
       <button class="node" data-i="${i}" aria-label="${esc(e.year)}: ${esc(e.title)}">
-        <span class="medal">${e.images?.[0] ? `<img src="${esc(e.images[0].src)}" alt="" loading="lazy">` : `<b>${esc(e.year)}</b>`}</span>
-        ${e.images?.[0] ? `<span class="node-year">${esc(e.year)}</span>` : ''}
+        <span class="medal">${e.images?.[0] ? `<img src="${esc(e.images[0].src)}" alt="" loading="lazy">` : motifSVG(e.motif) || `<b>${esc(e.year)}</b>`}</span>
+        ${e.images?.[0] || motifSVG(e.motif) ? `<span class="node-year">${esc(e.year)}</span>` : ''}
       </button>`).join('')}</div>
     <div class="ev" id="ev" aria-live="polite"><div class="ev-media" id="evMedia"></div><div class="ev-info" id="evInfo"></div></div>
     <div class="map-end" id="mapEnd">
@@ -345,11 +358,11 @@ function measureStory() {
   const s = cur.story, stage = $('#storyStage');
   const H = innerHeight, W = stage.clientWidth, N = s.ev.length;
   const mob = W < 720;
-  s.g = { W, H, N, mob, x0: anchor()[0] - stage.getBoundingClientRect().left, w: mob ? 4 : 5 };
+  s.g = { W, H, N, mob, x0: anchor()[0] - stage.getBoundingClientRect().left, w: threadWidth() };
   s.seg = { wave: H * 1.1, left: N ? H * 0.7 : H * 0.2, events: N ? H * 0.75 * N : 0, swirl: H * 1.7, map: H * 1.1 };
   const total = Object.values(s.seg).reduce((a, b) => a + b, 0) + H * 0.5;
   $('#story').style.height = total + H + 'px';
-  $('#storySvg').innerHTML = twineSVG(s.g.w, 'main');
+  $('#storySvg').innerHTML = twineSVG(s.g.w, 'main') + '<g class="garland" id="storyGarland"></g>';
   s.outline = fitOutline(cur.c.outline || [], s.g);
 }
 
@@ -456,6 +469,7 @@ function drawStory() {
   const last = Math.max(1, Math.floor(visible * (M - 1)));
   for (let i = 0; i <= last; i++) pts.push(shape(i / (M - 1), i));
   setTwine($('#storySvg g.twine'), pts);
+  placeGarland($('#storyGarland'), pts, gardenGap(), gardenScale());
 
   // event medallions ride on the thread
   const nodeOpacity = d > 0 ? clamp(1 - d / 0.15) : 1;
@@ -491,11 +505,13 @@ function showEvent(i) {
     <h3>${esc(e.title)}</h3>
     <p class="ev-text">${esc(e.text)}</p>
     ${e.src ? `<a class="ev-src" href="${esc(e.src)}" target="_blank" rel="noopener">Source</a>` : ''}
-    <p class="ev-count">${i + 1} of ${s.ev.length}</p>`;
+    <p class="ev-count">${i + 1} of ${s.ev.length}${e.draft ? ' · <span class="draft">draft, not yet checked</span>' : ''}</p>`;
   const imgs = (e.images || []).slice(0, 4);
   media.innerHTML = imgs.length
     ? imgs.map((im, k) => `<figure class="snap m${k}"><img src="${esc(im.src)}" alt="${esc(im.caption)}" loading="lazy">${im.caption ? `<figcaption>${esc(im.caption)}</figcaption>` : ''}</figure>`).join('')
-    : `<div class="ev-ghost" aria-hidden="true">${esc(e.year)}</div><figure class="snap m0 stamp"><img src="${c.stamp}" alt=""></figure>`;
+    : `<div class="ev-ghost" aria-hidden="true">${esc(e.year)}</div>
+      ${motifSVG(e.motif) ? `<figure class="element"><div class="element-disc">${motifSVG(e.motif)}</div></figure>` : ''}
+      <figure class="snap ${motifSVG(e.motif) ? 'm1' : 'm0'} stamp"><img src="${c.stamp}" alt=""></figure>`;
   for (const el of [info, media]) el.animate([{ opacity: 0, transform: 'translateY(14px)' }, { opacity: 1, transform: 'none' }], { duration: 420, easing: 'cubic-bezier(.2,.8,.2,1)' });
 }
 

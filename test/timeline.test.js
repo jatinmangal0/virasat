@@ -56,3 +56,12 @@ test('a new greeting needs the word and the language', async () => {
   assert.equal(r.status, 201);
   assert.equal(r.body.greeting.status, 'needs_check');
 });
+
+test('demo mode lists unchecked events and greetings, marked as drafts, with their drawings', async () => {
+  const { body } = await t.client()('/api/demo');
+  const k = body.timeline.kolkata;
+  assert.ok(k.length >= 9 && k.every((e) => e.draft === true));
+  assert.equal(k.find((e) => e.year === '1943').motif, 'bridge');
+  assert.ok(body.greetings.some((g) => g.word === 'Namaste'));
+  assert.ok(!body.greetings.some((g) => g.word === 'Vanakkam'), 'verified greetings are not repeated');
+});

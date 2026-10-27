@@ -397,9 +397,14 @@ a { color: inherit; }
 .medal {
   display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; overflow: hidden;
   background: radial-gradient(circle at 40% 35%, #fbf1d8, #e2cb9c); color: #3a2816;
-  box-shadow: 0 0 0 3px #9c7646, 0 0 0 5px #6f4f2a, 0 6px 14px #0007; transition: transform .35s cubic-bezier(.2,.9,.3,1.3), box-shadow .35s;
+  box-shadow: 0 0 0 3px #d8a93b, 0 0 0 5px #7a5310, 0 0 0 7px #e8730c55, 0 6px 14px #0007; transition: transform .35s cubic-bezier(.2,.9,.3,1.3), box-shadow .35s;
 }
+.medal::after { /* a ring of brass dots, like a coin's edge */
+  content: ''; position: absolute; inset: 3px; border-radius: 50%; border: 2px dotted #b98a2e99; pointer-events: none;
+}
+.node .medal { position: relative; }
 .medal img { width: 100%; height: 100%; object-fit: cover; }
+.medal svg { width: 78%; height: 78%; }
 .medal b { font-family: var(--display); font-weight: 400; font-size: calc(var(--s) * .24); letter-spacing: -.02em; }
 .node-year { position: absolute; left: calc(100% + 10px); top: 50%; transform: translateY(-50%); font-weight: 800; font-size: 15px; white-space: nowrap; color: #f6ead2cc; transition: opacity .3s; }
 .node.row .node-year { left: 50%; top: calc(100% + 8px); transform: translateX(-50%); }
@@ -424,10 +429,25 @@ a { color: inherit; }
 /* right and top of the text */
 .snap.m0 { right: 5vw; top: 30%; width: min(30vw, 400px); transform: rotate(3deg); }
 .snap.m1 { left: clamp(200px, 30vw, 460px); top: 5%; width: min(17vw, 230px); transform: rotate(-4deg); }
+.snap.stamp.m1 { left: auto; right: 4vw; top: 8%; width: min(11vw, 140px); z-index: 2; transform: rotate(8deg); }
 .snap.m2 { right: 4vw; top: 6%; width: min(15vw, 210px); transform: rotate(-6deg); }
 .snap.m3 { right: calc(5vw + min(30vw, 400px) - 70px); bottom: 5%; width: min(14vw, 190px); transform: rotate(5deg); }
 .snap.stamp { width: min(18vw, 210px); padding: 10px; top: 24%; right: 9vw; transform: rotate(4deg); background: #fbf6ea; }
 .snap.stamp img { aspect-ratio: auto; background: none; }
+.element { position: absolute; right: 6vw; top: 50%; width: min(30vw, 380px); margin: 0; transform: translateY(-50%); pointer-events: none; }
+.element-disc {
+  aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; position: relative;
+  background:
+    radial-gradient(circle, #fbf1d8 0 58%, #0000 58.5%),
+    repeating-conic-gradient(from 0deg, #e8730c 0 7.5deg, #f7b733 7.5deg 15deg);
+  box-shadow: 0 0 0 6px #d8a93b, 0 0 0 9px #6b4a12, 0 0 0 16px #f6ead214, 0 30px 60px -20px #000c;
+  animation: element-in .7s cubic-bezier(.2,.9,.3,1.2), bob-soft 6s ease-in-out .7s infinite;
+}
+.element-disc::before { content: ''; position: absolute; inset: 21%; border-radius: 50%; border: 2px dashed #b98a2e88; }
+.element-disc svg { width: 54%; height: 54%; position: relative; filter: drop-shadow(0 4px 0 #0001); }
+@keyframes element-in { from { transform: scale(.6) rotate(-20deg); opacity: 0; } }
+@keyframes bob-soft { 50% { transform: translateY(-10px) rotate(2deg); } }
+.ev-count .draft { color: #f7b733; }
 .ev-ghost { position: absolute; right: 2vw; bottom: 4%; font-family: var(--display); font-size: clamp(90px, 18vw, 260px); line-height: .8; color: #f6ead20d; -webkit-text-stroke: 2px #f6ead21f; }
 
 .map-end { position: absolute; left: 0; right: 0; bottom: max(24px, 5vh); text-align: center; padding: 0 16px; transition: opacity .3s; }
@@ -448,6 +468,8 @@ a { color: inherit; }
   .snap.m1 { left: auto; right: 12px; top: 18%; width: 34vw; transform: rotate(5deg); }
   .snap.m2, .snap.m3 { display: none; }
   .snap.stamp { left: auto; right: 16px; top: 10%; width: 32vw; }
+  .snap.stamp.m1 { left: auto; right: 16px; width: 20vw; top: 8%; }
+  .element { right: auto; left: 84px; top: 10%; width: 46vw; transform: none; }
   .ev-ghost { display: none; }
   .node { --s: 42px; }
   .node.row { --s: 38px; }
@@ -567,3 +589,5 @@ a { color: inherit; }
 .pp-points b { font-size: 28px; margin-right: 4px; }
 .pp-points small { display: block; font-size: 12.5px; margin-top: 2px; }
 .load-error { margin: 0; padding: 14px 16px; background: #b3261e; color: #fff; text-align: center; font-weight: 700; }
+
+.demo-badge { position: fixed; right: 12px; bottom: 12px; z-index: 140; background: #1d1714e6; color: #f7c744; font-size: 12px; font-weight: 800; letter-spacing: .04em; padding: 5px 12px; border-radius: 99px; pointer-events: none; }

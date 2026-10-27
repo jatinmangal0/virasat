@@ -1,6 +1,8 @@
 // The editor page. Everything here goes through /api/admin/...; the server checks every rule,
 // so this page only has to show things clearly and send what people type.
 
+import { MOTIF_NAMES, motifSVG } from './motifs.js';
+
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -287,6 +289,7 @@ function renderTimeline() {
       <article class="item ${e.status === 'verified' ? 'verified' : ''}">
         <h4><span class="year">${esc(e.year_label)}</span> ${esc(e.title)} ${badge(e)} <span class="muted" style="font-weight:400;font-size:13px">place ${e.sort_order}</span></h4>
         <p>${esc(e.body)}</p>
+        ${e.motif ? `<span class="motif">${motifSVG(e.motif)}</span>` : ''}
         ${e.images.length ? `<div class="thumbs">${e.images.map((im) => `<a href="${esc(im.src)}" target="_blank" rel="noopener"><img src="${esc(im.src)}" alt="${esc(im.caption)}" loading="lazy"></a>`).join('')}</div>` : '<span class="badge">No photos yet</span> '}
         ${e.source_url ? `<a class="src" href="${esc(e.source_url)}" target="_blank" rel="noopener">${esc(e.source_url)}</a>` : '<span class="badge">No source yet</span>'}
         <div class="meta">${people(e)}</div>
@@ -305,11 +308,13 @@ function editEvent(e) {
     { name: 'text', label: 'Short paragraph', type: 'textarea', value: e?.body ?? '', hint: 'two or three sentences' },
     { name: 'images', label: 'Photos', type: 'textarea', value: (e?.images ?? []).map((im) => `${im.src} | ${im.caption}`).join('\n'),
       hint: 'up to 4, one per line: https://link-to-photo | caption. Use photos you may share (e.g. Wikimedia Commons) and put the credit in the caption.' },
+    { name: 'motif', label: 'Drawing', type: 'select', value: e?.motif ?? '', options: [['', 'None (show the city stamp)'], ...MOTIF_NAMES.map((m) => [m, m])],
+      hint: 'shown when the event has no photo' },
     { name: 'order', label: 'Place on the timeline', type: 'text', value: e?.sort_order ?? last + 1, hint: 'events are shown from the smallest number to the largest' },
     { name: 'sourceUrl', label: 'Source link', type: 'url', value: e?.source_url ?? '' },
   ], async (v) => {
     const images = v.images.split('\n').map((l) => l.split('|').map((x) => x.trim())).filter((p) => p[0]).map((p) => ({ src: p[0], caption: p.slice(1).join(' | ') }));
-    const body = { cityId: state.city, year: v.year, title: v.title, text: v.text, images, order: Number(v.order) || 0, sourceUrl: v.sourceUrl };
+    const body = { cityId: state.city, year: v.year, title: v.title, text: v.text, images, motif: v.motif, order: Number(v.order) || 0, sourceUrl: v.sourceUrl };
     const r = e ? await api(`/api/admin/timeline/${e.id}`, body, 'PUT') : await api('/api/admin/timeline', body);
     if (!r.ok) return r.data.error;
     toast(r.data.backToCheck ? 'Saved. Because the words changed, it needs to be checked again.' : e ? 'Saved.' : 'Added. A teammate now needs to verify it.');
