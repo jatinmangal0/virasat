@@ -1,0 +1,57 @@
+/* Night mode for the street (js/night.js). Everything fades in over about a second and a half. */
+:root { --nt-fade: 1.6s; }
+
+/* day: the street lamps are off */
+.layer-fg .glow { opacity: 0; animation: none; }
+.layer-fg circle[r="10"] { fill: #efe8d2; transition: fill var(--nt-fade); }
+
+/* the daytime drawing dims, a little cooler, as if under moonlight */
+.street { transition: background-color var(--nt-fade); }
+.street.night { background-color: #070b22; }
+.nt-dim { transition: filter var(--nt-fade) ease; filter: brightness(1) saturate(1) contrast(1); }
+.street.night .nt-dim-skyline { filter: brightness(.3) saturate(.55) contrast(1.05); }
+.street.night .nt-dim-buildings { filter: brightness(.34) saturate(.6) contrast(1.08); }
+.street.night .nt-dim-wires { filter: brightness(.3) saturate(.6); }
+.street.night .nt-dim-road { filter: brightness(.36) saturate(.55) contrast(1.05); }
+.street.night .nt-dim-fg { filter: brightness(.38) saturate(.6); }
+.street .gaju-body img { transition: filter var(--nt-fade); }
+.street.night .gaju-body img { filter: brightness(.78) saturate(.85) sepia(.12) drop-shadow(0 6px 0 #00000044); }
+
+/* the night layers */
+.nt { opacity: 0; visibility: hidden; transition: opacity var(--nt-fade) ease, visibility 0s linear var(--nt-fade); pointer-events: none !important; }
+.nt * { pointer-events: none !important; }
+.street.night .nt { opacity: 1; visibility: visible; transition: opacity var(--nt-fade) ease, visibility 0s; }
+.nt-lit { filter: sepia(.22) saturate(1.15) brightness(1.04); }
+
+/* the lamps warm up one after another, with a short flicker like a real street light */
+.nt-lamp { opacity: 0; }
+.street.night .nt-lamp { animation: nt-ignite 1.8s ease-out var(--d) forwards; }
+@keyframes nt-ignite {
+  0% { opacity: 0; } 8% { opacity: .75; } 13% { opacity: .1; } 22% { opacity: .9; } 28% { opacity: .35; }
+  45% { opacity: .85; } 100% { opacity: 1; }
+}
+.street.night .layer-fg circle[r="10"] { fill: #fff3c8; }
+
+.nt-twinkle { animation: nt-twinkle 3.6s ease-in-out infinite; animation-delay: var(--d); animation-play-state: paused; }
+.street.night .nt-twinkle { animation-play-state: running; }
+@keyframes nt-twinkle { 50% { opacity: .25; } }
+.nt-bulb { filter: drop-shadow(0 0 3px #ffd27a); }
+
+/* the toggle in the top bar: a moon by day, a sun by night */
+#nightBtn .nt-sun { display: none; }
+#nightBtn[aria-pressed="true"] .nt-sun { display: inline; }
+#nightBtn[aria-pressed="true"] .nt-moon { display: none; }
+#nightBtn svg { transition: transform .5s ease; }
+#nightBtn:active svg { transform: rotate(-25deg) scale(.9); }
+
+/* with the extra button, give the right-hand icons room on phones */
+@media (max-width: 480px) {
+  .topbar { grid-template-columns: auto 1fr auto; }
+  .topbar .logo { justify-self: center; }
+  .topbar-right { gap: 2px; }
+  .topbar-right .icon-btn { padding: 5px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .street.night .nt-lamp { opacity: 1; }
+}
