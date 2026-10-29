@@ -61,12 +61,15 @@ export default function content(r, { db }) {
     return json(200, { timeline, greetings, places, facts, quiz });
   });
 
-  // Check one answer while someone is playing. Works without logging in.
-  r.post('/api/quiz/check', async ({ body }) => {
+  // Check one answer while someone is playing, and show the right one so the page can teach. Works without
+  // logging in. For a logged-in player the choice is recorded: their round is marked by the first choice on
+  // each question (progress.js), so asking for the answer first cannot buy a perfect score.
+  r.post('/api/quiz/check', async ({ body, user }) => {
     const id = Number(body.id), choice = Number(body.choice);
     if (!Number.isInteger(id) || !Number.isInteger(choice)) return err(400, 'Bad answer.');
     const q = (await db.query("SELECT answer_index FROM quiz_questions WHERE id = $1 AND status = 'verified'", [id])).rows[0];
     if (!q) return err(404, 'That question is not available.');
+    if (user) await db.query('INSERT INTO quiz_checks (user_id, question_id, choice) VALUES ($1, $2, $3)', [user.id, id, choice]);
     return json(200, { correct: choice === q.answer_index, answer: q.answer_index });
   });
 }

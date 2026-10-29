@@ -32,8 +32,11 @@ before(async () => {
 });
 after(() => t.stop());
 
-const seal = (right, n = 5) => me('/api/progress/quiz', { city: 'kolkata',
-  answers: qs.slice(0, n).map((q, i) => ({ id: q.id, choice: i < right ? q.answer_index : (q.answer_index + 1) % 4 })) });
+const seal = async (right, n = 5) => {
+  const answers = qs.slice(0, n).map((q, i) => ({ id: q.id, choice: i < right ? q.answer_index : (q.answer_index + 1) % 4 }));
+  for (const a of answers) await me('/api/quiz/check', a);
+  return me('/api/progress/quiz', { city: 'kolkata', answers });
+};
 const makeDue = () => t.db.query("UPDATE stamps SET due_at = now() - interval '1 day'");
 const recall = async (allRight) => {
   const letter = (await me('/api/recall/kolkata')).body;

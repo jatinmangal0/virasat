@@ -47,7 +47,9 @@ export default function progress(r, { db }) {
     return json(200, { earned, points: await totalPoints(user.id) });
   });
 
-  // body: { city, answers: [{ id, choice }] }. The server marks the answers itself.
+  // body: { city, answers: [{ id, choice }] }. The server marks the answers itself, using the first choice the
+  // player checked on each question since their last round for this city (see /api/quiz/check). A question
+  // they never checked counts as wrong, so answers looked up elsewhere earn nothing.
   r.post('/api/progress/quiz', { role: 'learner' }, async ({ user, body }) => {
     const city = String(body.city || '');
     if (!(await cityExists(city))) return err(400, 'Unknown city.');
@@ -55,11 +57,15 @@ export default function progress(r, { db }) {
     const questions = (await db.query(
       "SELECT id, answer_index FROM quiz_questions WHERE city_id = $1 AND status = 'verified'", [city])).rows;
     if (!questions.length) return err(400, 'This city has no quiz yet.');
-    const chosen = new Map(body.answers.map((a) => [Number(a?.id), Number(a?.choice)]));
+    const sent = new Set(body.answers.map((a) => Number(a?.id)));
     // The website asks up to five of the city's questions at a time, so a round is marked out of the
     // questions actually answered.
-    const asked = questions.filter((q) => chosen.has(q.id));
-    const score = asked.filter((q) => chosen.get(q.id) === q.answer_index).length;
+    const asked = questions.filter((q) => sent.has(q.id));
+    const since = (await db.query('SELECT MAX(at) AS at FROM quiz_results WHERE user_id = $1 AND city = $2', [user.id, city])).rows[0].at;
+    const firstTries = new Map((await db.query(`SELECT DISTINCT ON (question_id) question_id, choice FROM quiz_checks
+      WHERE user_id = $1 AND question_id = ANY($2::int[]) AND at > COALESCE($3, '-infinity'::timestamptz)
+      ORDER BY question_id, at, id`, [user.id, asked.map((q) => q.id), since])).rows.map((x) => [x.question_id, x.choice]));
+    const score = asked.filter((q) => firstTries.get(q.id) === q.answer_index).length;
     const total = asked.length || questions.length;
     await db.query('INSERT INTO quiz_results (user_id, city, score, total) VALUES ($1, $2, $3, $4)', [user.id, city, score, total]);
     const refs = Array.from({ length: score }, (_, i) => `${city}:${i + 1}`);

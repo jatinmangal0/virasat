@@ -163,7 +163,7 @@ const people = (x) => [
 const badge = (x) => (x.status === 'verified' ? '<span class="badge ok">Live</span>' : '<span class="badge">Needs check</span>');
 
 // Why this person cannot verify this item, or '' if they can. The server checks the same rule.
-const cannotVerify = (x) => (!x.source_url ? 'Add a source link first.' : x.updated_by === state.me.id ? 'You made the latest change, so someone else must verify it.' : '');
+const cannotVerify = (x) => (!x.source_url ? 'Add a source link first.' : (x.authors || []).includes(state.me.id) ? 'You wrote or changed these words, so someone else must verify them.' : '');
 
 function filters(items) {
   const counts = { needs_check: items.filter((x) => x.status === 'needs_check').length, verified: items.filter((x) => x.status === 'verified').length };
@@ -188,7 +188,8 @@ function itemButtons(kind, x) {
 function wireItems(kind, list, edit) {
   const find = (id) => list.find((x) => x.id === Number(id));
   $$('[data-edit]').forEach((b) => b.onclick = () => edit(find(b.dataset.edit)));
-  $$('[data-verify]').forEach((b) => b.onclick = () => act(`/api/admin/${kind}/${b.dataset.verify}/verify`, {}, 'POST', 'Verified. It is now on the website.'));
+  // send the version on screen, so a change made meanwhile is never verified unseen
+  $$('[data-verify]').forEach((b) => b.onclick = () => act(`/api/admin/${kind}/${b.dataset.verify}/verify`, { updatedAt: find(b.dataset.verify).updated_at }, 'POST', 'Verified. It is now on the website.'));
   $$('[data-unverify]').forEach((b) => b.onclick = () => act(`/api/admin/${kind}/${b.dataset.unverify}/unverify`, {}, 'POST', 'Taken off the website. It needs a check again.'));
   $$('[data-del]').forEach((b) => b.onclick = () => {
     if (confirm('Delete this for good? It will stay in the History tab.')) act(`/api/admin/${kind}/${b.dataset.del}`, null, 'DELETE', 'Deleted.');
@@ -365,12 +366,15 @@ function editGreeting(g) {
 
 // ---------------------------------------------------------------- city letter
 function renderLetter() {
-  const c = state.data.city;
+  // the form shows the draft when there is one, so the checker sees exactly what would go live
+  const c = { ...state.data.city, ...(state.data.city.draft || {}) };
   const lines = (pairs) => pairs.map(([a, b]) => `${a} | ${b}`).join('\n');
   const isAdmin = state.me.role === 'admin';
   $('#view').innerHTML = `
     <form class="panel" id="letterForm">
-      <p class="muted" style="margin-top:0">This is the opening of the letter visitors read. Changes go live as soon as you save, and are recorded in History.</p>
+      <p class="muted" style="margin-top:0">This is the opening of the letter visitors read. Saving makes a <b>draft</b>: a different teammate checks it against the sources and verifies it, and only then does it go live. Every change is recorded in History.</p>
+      ${c.draft ? `<div class="draft-box"><b>A draft is waiting for a check</b>, saved ${esc(when(c.draft_at))}${c.draft_by === state.me.id ? ' by you' : ''}. The form below shows the draft.
+        ${c.draft_by === state.me.id ? '<span class="muted">Someone else must verify it.</span>' : '<button type="button" class="btn small ok" id="verifyLetter">I checked the sources · Verify the draft</button>'}</div>` : ''}
       <div class="row">
         <div style="flex:1;min-width:200px"><label for="l_name">City name</label><input id="l_name" value="${esc(c.name)}"></div>
         <div style="flex:1;min-width:200px"><label for="l_native">Name in its own script</label><input id="l_native" value="${esc(c.native_name)}"></div>
@@ -406,9 +410,10 @@ function renderLetter() {
     };
     const r = await api(`/api/admin/cities/${encodeURIComponent(c.id)}`, body, 'PUT');
     if (!r.ok) { $('#letterErr').textContent = r.data.error; return; }
-    toast('Letter saved. It is live now.');
+    toast('Draft saved. A teammate now needs to check and verify it.');
     refresh();
   };
+  $('#verifyLetter')?.addEventListener('click', () => act(`/api/admin/cities/${encodeURIComponent(c.id)}/verify`, {}, 'POST', 'Verified. The new letter is live.'));
 }
 
 // ---------------------------------------------------------------- team (admins)

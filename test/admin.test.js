@@ -75,8 +75,9 @@ test('quiz questions follow the same rules', async () => {
   assert.deepEqual(quiz.map((q) => q.q), ['Which lake has Jag Mandir?']);
 });
 
-test('editors can change the letter, but not unpublish a city', async () => {
+test('a letter change is a draft until a different editor verifies it; editors cannot unpublish a city', async () => {
   const city = (await asha('/api/admin/cities/udaipur')).body.city;
+  const live = (await t.client()('/api/cities')).body.cities[0].letter;
   const edit = { name: city.name, native: city.native_name, state: city.state, nickname: city.nickname, greeting: city.greeting,
     greetingNote: city.greeting_note, from: city.from_line, letter: ['One new paragraph.'], quickFacts: city.quick_facts,
     sources: [['Bad', 'nope']], published: false };
@@ -85,7 +86,44 @@ test('editors can change the letter, but not unpublish a city', async () => {
   const r = await asha('/api/admin/cities/udaipur', edit, 'PUT');
   assert.equal(r.status, 200);
   assert.equal(r.body.city.published, true, 'only an admin can hide a city');
+  assert.deepEqual(r.body.city.draft.letter, ['One new paragraph.']);
+  assert.deepEqual((await t.client()('/api/cities')).body.cities[0].letter, live, 'the website still shows the checked letter');
+  assert.equal((await asha('/api/admin/cities/udaipur/verify', {})).status, 403, 'the writer cannot verify their own draft');
+  assert.equal((await neel('/api/admin/cities/udaipur/verify', {})).status, 200);
   assert.deepEqual((await t.client()('/api/cities')).body.cities[0].letter, ['One new paragraph.']);
+  assert.equal((await neel('/api/admin/cities/udaipur/verify', {})).status, 400, 'nothing left to check');
+});
+
+test('four eyes: nobody who wrote any of the words may verify them, even after someone else edits', async () => {
+  let r = await asha('/api/admin/facts', { sectionId, title: 'Bhutta', text: 'Roasted corn by the lake.', sourceUrl: 'https://example.com/b' });
+  const id = r.body.fact.id;
+  r = await neel(`/api/admin/facts/${id}`, { sectionId, title: 'Bhutta', text: 'Roasted corn by Fateh Sagar.', sourceUrl: 'https://example.com/b' }, 'PUT');
+  assert.deepEqual(r.body.fact.authors.sort(), [asha.id, neel.id].sort());
+  assert.equal((await asha(`/api/admin/facts/${id}/verify`, {})).status, 403, 'Asha wrote it');
+  assert.equal((await neel(`/api/admin/facts/${id}/verify`, {})).status, 403, 'Neel changed it');
+  const boss2 = await t.person('Ira', 'editor');
+  r = await boss2(`/api/admin/facts/${id}/verify`, {});
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body.fact.authors, [], 'checked: the list starts again');
+});
+
+test('four eyes: a verifier must be looking at the latest version', async () => {
+  let r = await asha('/api/admin/facts', { sectionId, title: 'Kachori', text: 'Fried and stuffed.', sourceUrl: 'https://example.com/k' });
+  const opened = r.body.fact;
+  await new Promise((done) => setTimeout(done, 5));
+  await asha(`/api/admin/facts/${opened.id}`, { sectionId, title: 'Kachori', text: 'Fried, stuffed with dal.', sourceUrl: 'https://example.com/k' }, 'PUT');
+  assert.equal((await neel(`/api/admin/facts/${opened.id}/verify`, { updatedAt: opened.updated_at })).status, 409, 'it changed after Neel opened it');
+  const latest = (await asha('/api/admin/cities/udaipur')).body.sections.flatMap((s) => s.facts).find((f) => f.id === opened.id);
+  assert.equal((await neel(`/api/admin/facts/${opened.id}/verify`, { updatedAt: latest.updated_at })).status, 200);
+});
+
+test('four eyes: moving a live fact to another city sends it back to be checked', async () => {
+  const kolkataSection = (await t.db.query("SELECT id FROM sections WHERE city_id = 'kolkata' AND slug = 'food'")).rows[0].id;
+  let r = await asha('/api/admin/facts', { sectionId, title: 'Mawa', text: 'Milk cooked down.', sourceUrl: 'https://example.com/m' });
+  const id = r.body.fact.id;
+  assert.equal((await neel(`/api/admin/facts/${id}/verify`, {})).status, 200);
+  r = await neel(`/api/admin/facts/${id}`, { sectionId: kolkataSection, title: 'Mawa', text: 'Milk cooked down.', sourceUrl: 'https://example.com/m' }, 'PUT');
+  assert.equal(r.body.backToCheck, true);
 });
 
 test('admins manage roles, and the last admin cannot step down', async () => {

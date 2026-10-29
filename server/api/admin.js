@@ -1,10 +1,13 @@
 // The editor page (/admin). Editors write and check content; admins also manage the team.
 //
 // The team's rules, enforced here so no page or person can skip them:
-//   - New and edited facts and quiz questions start as 'needs_check' and are hidden from the website.
-//   - Verifying needs a source link, and must be done by someone other than the person who made the
-//     latest change ("four eyes"). Imported content has no author, so any editor may verify it.
-//   - Changing the words or source of a verified item puts it back to 'needs_check'.
+//   - New and edited content starts as 'needs_check' and is hidden from the website.
+//   - Verifying needs a source link, and must be done by someone who has not written any of the words being
+//     checked ("four eyes"): `authors` lists everyone who wrote or changed them since the last check.
+//     Imported content has no authors, so any editor may verify it.
+//   - The verifier must be looking at the latest version: if it changed after they opened it, verify is refused.
+//   - Changing the words, source, or city or section of a live item puts it back to 'needs_check'.
+//   - The city letter is saved as a draft and goes live only when a different editor verifies it.
 //   - Every change is written to content_log with the before and after.
 import { timingSafeEqual } from 'node:crypto';
 import { json, err, transaction } from './router.js';
@@ -73,13 +76,32 @@ export default function admin(r, { db, adminSetupCode }) {
     };
     const bad = next.sources.find(([, u]) => !isUrl(u));
     if (bad) return err(400, `The source "${bad[0]}" needs a link starting with http:// or https://.`);
+    // Showing or hiding the city (admins) takes effect at once; the words wait for a second editor.
+    const { published, ...words } = next;
+    const after = await transaction(db, async (c) => {
+      const row = await one(`UPDATE cities SET draft = $2, draft_by = $3, draft_at = now(), published = $4,
+        updated_by = $3, updated_at = now() WHERE id = $1 RETURNING *`, [before.id, JSON.stringify(words), user.id, published], c);
+      await log(c, user.id, 'update', 'city', before.id, before, row);
+      return row;
+    });
+    return json(200, { city: after });
+  });
+
+  // A different editor checks the draft letter against its sources and puts it live.
+  r.post('/api/admin/cities/:id/verify', { role: 'editor' }, async ({ params, user }) => {
+    const before = await one('SELECT * FROM cities WHERE id = $1', [params.id]);
+    if (!before) return err(404, 'No such city.');
+    const d = before.draft;
+    if (!d) return err(400, 'There is no draft letter to check.');
+    if (before.draft_by === user.id) return err(403, 'You wrote this draft, so a different teammate has to check and verify it.');
+    if (!d.sources?.length) return err(400, 'Add at least one source for the letter before verifying.');
     const after = await transaction(db, async (c) => {
       const row = await one(`UPDATE cities SET name = $2, native_name = $3, state = $4, nickname = $5, greeting = $6,
-        greeting_note = $7, from_line = $8, letter = $9, quick_facts = $10, sources = $11, published = $12,
-        updated_by = $13, updated_at = now() WHERE id = $1 RETURNING *`,
-      [before.id, next.name, next.native_name, next.state, next.nickname, next.greeting, next.greeting_note, next.from_line,
-        JSON.stringify(next.letter), JSON.stringify(next.quick_facts), JSON.stringify(next.sources), next.published, user.id], c);
-      await log(c, user.id, 'update', 'city', before.id, before, row);
+        greeting_note = $7, from_line = $8, letter = $9, quick_facts = $10, sources = $11,
+        draft = NULL, draft_by = NULL, draft_at = NULL, updated_at = now() WHERE id = $1 RETURNING *`,
+      [before.id, d.name, d.native_name, d.state, d.nickname, d.greeting, d.greeting_note, d.from_line,
+        JSON.stringify(d.letter), JSON.stringify(d.quick_facts), JSON.stringify(d.sources)], c);
+      await log(c, user.id, 'verify', 'city', before.id, before, row);
       return row;
     });
     return json(200, { city: after });
@@ -97,7 +119,7 @@ export default function admin(r, { db, adminSetupCode }) {
         return out;
       },
       columns: ['section_id', 'title', 'body', 'source_url'],
-      wording: ['title', 'body', 'source_url'],
+      wording: ['section_id', 'title', 'body', 'source_url'],
     },
     quiz: {
       table: 'quiz_questions', path: 'quiz',
@@ -111,7 +133,7 @@ export default function admin(r, { db, adminSetupCode }) {
         return out;
       },
       columns: ['city_id', 'question', 'options', 'answer_index', 'source_url'],
-      wording: ['question', 'options', 'answer_index', 'source_url'],
+      wording: ['city_id', 'question', 'options', 'answer_index', 'source_url'],
     },
     timeline: {
       table: 'timeline_events', path: 'timeline',
@@ -130,7 +152,7 @@ export default function admin(r, { db, adminSetupCode }) {
       },
       // sort_order is set by the editor here (the place on the timeline), and moving an event is not a rewording.
       columns: ['city_id', 'year_label', 'title', 'body', 'images', 'source_url', 'sort_order', 'motif', 'memory', 'memory_source_url', 'argued'],
-      wording: ['year_label', 'title', 'body', 'images', 'source_url', 'memory', 'memory_source_url', 'argued'],
+      wording: ['city_id', 'year_label', 'title', 'body', 'images', 'source_url', 'memory', 'memory_source_url', 'argued'],
     },
     greeting: {
       table: 'greetings', path: 'greetings',
@@ -157,10 +179,11 @@ export default function admin(r, { db, adminSetupCode }) {
         return out;
       },
       columns: ['city_id', 'name', 'subcategory', 'description', 'latitude', 'longitude', 'source_url'],
-      wording: ['name', 'subcategory', 'description', 'latitude', 'longitude', 'source_url'],
+      wording: ['city_id', 'name', 'subcategory', 'description', 'latitude', 'longitude', 'source_url'],
     },
   };
   const JSON_COLUMNS = ['options', 'images'];
+  const changed = () => err(409, 'This changed after you opened it. Reload the page and check the new version.');
 
   for (const [entity, k] of Object.entries(kinds)) {
     const val = (row, col) => (JSON_COLUMNS.includes(col) ? JSON.stringify(row[col]) : row[col]);
@@ -173,8 +196,8 @@ export default function admin(r, { db, adminSetupCode }) {
       const row = await transaction(db, async (c) => {
         // New items go to the end, unless the kind lets the editor choose the place (timeline events).
         const own = k.columns.includes('sort_order') && out.sort_order;
-        const cols = [...k.columns.filter((col) => col !== 'sort_order' || own), 'created_by', 'updated_by', ...(own ? [] : ['sort_order'])];
-        const vals = [...cols.filter((col) => k.columns.includes(col)).map((col) => val(out, col)), user.id, user.id];
+        const cols = [...k.columns.filter((col) => col !== 'sort_order' || own), 'created_by', 'updated_by', 'authors', ...(own ? [] : ['sort_order'])];
+        const vals = [...cols.filter((col) => k.columns.includes(col)).map((col) => val(out, col)), user.id, user.id, [user.id]];
         const created = await one(`INSERT INTO ${k.table} (${cols.join(', ')})
           VALUES (${vals.map((_, i) => `$${i + 1}`).join(', ')}${own ? '' : `, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM ${k.table})`})
           RETURNING *`, vals, c);
@@ -190,33 +213,42 @@ export default function admin(r, { db, adminSetupCode }) {
       const out = await k.read(body, db);
       if (out.error || check(out)) return err(400, out.error || check(out));
       if (same(before, out, k.columns)) return json(200, { [entity]: before });
-      const reword = !same(before, out, k.wording) && before.status === 'verified';
+      const worded = !same(before, out, k.wording);
+      const reword = worded && before.status === 'verified';
+      // whoever changes the words becomes one of their authors, so they cannot be the one to check them
+      const authors = !worded ? before.authors : reword ? [user.id] : [...new Set([...(before.authors || []), user.id])];
       const row = await transaction(db, async (c) => {
         const sets = k.columns.map((col, i) => `${col} = $${i + 2}`).join(', ');
-        const updated = await one(`UPDATE ${k.table} SET ${sets}, updated_by = $${k.columns.length + 2}, updated_at = now()
+        const n = k.columns.length;
+        const updated = await one(`UPDATE ${k.table} SET ${sets}, updated_by = $${n + 2}, authors = $${n + 3}, updated_at = now()
           ${reword ? ", status = 'needs_check', verified_by = NULL, verified_at = NULL" : ''}
-          WHERE id = $1 RETURNING *`, [before.id, ...k.columns.map((col) => val(out, col)), user.id], c);
+          WHERE id = $1 RETURNING *`, [before.id, ...k.columns.map((col) => val(out, col)), user.id, authors], c);
         await log(c, user.id, 'update', entity, before.id, before, updated);
         return updated;
       });
       return json(200, { [entity]: row, backToCheck: reword });
     });
 
-    r.post(`/api/admin/${k.path}/:id/verify`, { role: 'editor' }, async ({ params, user }) => {
+    // body: { updatedAt } — the version the checker had open. Without it, the version on the server is used.
+    r.post(`/api/admin/${k.path}/:id/verify`, { role: 'editor' }, async ({ params, user, body }) => {
       const before = await one(`SELECT * FROM ${k.table} WHERE id = $1`, [Number(params.id)]);
       if (!before) return err(404, 'Not found.');
       if (before.status === 'verified') return json(200, { [entity]: before });
       if (!before.source_url) return err(400, 'Add a source link before verifying.');
-      if (before.updated_by === user.id) {
-        return err(403, 'You made the latest change to this, so a different teammate has to check and verify it.');
+      if ((before.authors || []).includes(user.id)) {
+        return err(403, 'You wrote or changed some of these words, so a different teammate has to check and verify them.');
       }
+      const seen = body.updatedAt ? new Date(body.updatedAt) : before.updated_at;
+      if (Number.isNaN(seen.getTime()) || Math.abs(seen - before.updated_at) >= 1) return changed();
       const row = await transaction(db, async (c) => {
-        const updated = await one(`UPDATE ${k.table} SET status = 'verified', verified_by = $2, verified_at = now()
-          WHERE id = $1 RETURNING *`, [before.id, user.id], c);
-        await log(c, user.id, 'verify', entity, before.id, before, updated);
+        // only if nobody changed it in between (compared to the millisecond, like the page's copy)
+        const updated = await one(`UPDATE ${k.table} SET status = 'verified', verified_by = $2, verified_at = now(), authors = '{}'
+          WHERE id = $1 AND status = 'needs_check' AND date_trunc('milliseconds', updated_at) = date_trunc('milliseconds', $3::timestamptz)
+          RETURNING *`, [before.id, user.id, before.updated_at], c);
+        if (updated) await log(c, user.id, 'verify', entity, before.id, before, updated);
         return updated;
       });
-      return json(200, { [entity]: row });
+      return row ? json(200, { [entity]: row }) : changed();
     });
 
     r.post(`/api/admin/${k.path}/:id/unverify`, { role: 'editor' }, async ({ params, user }) => {

@@ -58,7 +58,7 @@ Events follow the same check-and-verify rule as facts. The starting events for U
 
 ## The city letter
 
-The **City letter** tab changes the opening of a city's letter: the greeting, paragraphs and quick facts. These save and go live straight away (no verify step), so double-check them. Every save is recorded in History.
+The **City letter** tab changes the opening of a city's letter: the greeting, paragraphs and quick facts. Saving makes a draft; a different teammate checks it against its sources and verifies it, and only then does it go live. Every save is recorded in History.
 
 ## History
 
@@ -79,4 +79,11 @@ Some events are told one way by the sources and remembered another way: Haldigha
 - **Why people disagree**: one line.
 
 The website then shows the record and the memory side by side. Changing any of these sends the event back to "needs check", like any other wording.
+
+## Who may verify
+
+- **Not anyone who wrote the words.** Everyone who wrote or changed an item's words since it was last checked is listed as one of its authors, and none of them can verify it. If you write a fact and a teammate fixes a typo, a third teammate checks it.
+- **Only the version you are looking at.** If someone changes an item after you opened the page, Verify is refused: reload and check the new version.
+- **Moving counts as a change.** Moving a live fact to another section or city sends it back to be checked.
+- **The city letter too.** Saving the letter makes a draft. A different teammate checks it against its sources and presses Verify; only then does it replace the live letter.
 
