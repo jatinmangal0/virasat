@@ -81,3 +81,16 @@ test('demo mode lists places that went back to draft, and only those', async () 
   const live = (await t.client()('/api/cities/udaipur/places')).body.places;
   assert.ok(live.every((p) => p.source_url), 'every live place has a source');
 });
+
+test('the record and the memory: seeded on contested events, needs its own source, and is part of the wording', async () => {
+  const { body } = await asha('/api/demo');
+  const hg = body.timeline.udaipur.find((e) => e.title === 'The Battle of Haldighati');
+  assert.match(hg.memory, /remembered/);
+  assert.match(hg.memorySrc, /^https:/);
+  assert.ok(hg.argued.length > 20);
+  const ev = (await asha('/api/admin/cities/udaipur')).body.timeline.find((e) => e.title === 'The Battle of Haldighati');
+  const save = (over) => asha(`/api/admin/timeline/${ev.id}`, { cityId: 'udaipur', year: ev.year_label, title: ev.title, text: ev.body,
+    images: [], motif: ev.motif, order: ev.sort_order, sourceUrl: ev.source_url, memory: ev.memory, memorySourceUrl: ev.memory_source_url, argued: ev.argued, ...over }, 'PUT');
+  assert.equal((await save({ memorySourceUrl: '' })).status, 400, 'the memory side needs a source');
+  assert.equal((await save({ argued: ev.argued + ' More.' })).status, 200);
+});

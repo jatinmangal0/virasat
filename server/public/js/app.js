@@ -42,7 +42,8 @@ async function api(path, body) {
 
 // Show "+10 points" when the server says something earned points.
 function showEarned(r) {
-  if (r?.ok && r.data.earned > 0) toast(`+${r.data.earned} points · ${r.data.points} in total`);
+  if (r?.ok && r.data.stamp && state.city) toast(`${CITIES[state.city].name} stamp pressed into your passport!${r.data.earned > 0 ? ` +${r.data.earned} points` : ''}`);
+  else if (r?.ok && r.data.earned > 0) toast(`+${r.data.earned} points · ${r.data.points} in total`);
 }
 
 // ---------------- toast ----------------
@@ -196,6 +197,7 @@ function setupStreet() {
   const gaju = $('#gaju');
   const tell = () => {
     if (state.busy) return;
+    if (fadingCity) { const id = fadingCity; fadingCity = null; openRecall(id); return; }
     const all = Object.values(CITIES).flatMap((c) => c.sections.find((s) => s.id === 'facts')?.items.map((i) => i.title) || []);
     say(all.length ? `Fun fact: ${all[Math.floor(Math.random() * all.length)]}! Pick a city to learn more.` : 'Pick a city and I will walk you there!', 4200);
     gaju.classList.remove('cheer'); void gaju.offsetWidth; gaju.classList.add('cheer');
@@ -419,6 +421,7 @@ function onAuthed(user, isNew) {
   renderHeader();
   closeModal($('#authModal'));
   $('#checkpoint').hidden = true;
+  checkFading();
   toast(isNew ? `Welcome to Virasat, ${firstName(user.name)}!` : `Welcome back, ${firstName(user.name)}!`);
   const next = state.afterAuth;
   state.afterAuth = null;
@@ -605,7 +608,7 @@ async function openJourney() {
   const body = $('#journeyBody');
   body.innerHTML = '<p>Loading your passport…</p>';
   openModal($('#journeyModal'));
-  const r = await api('/api/progress');
+  const [r, pass] = await Promise.all([api('/api/progress'), api('/api/passport')]);
   if (!r.ok) {
     body.innerHTML = `<p>${esc(r.data.error || 'Your passport could not load.')}</p><button class="btn" id="ppRetry">Try again</button>`;
     $('#ppRetry').onclick = openJourney;
@@ -614,6 +617,7 @@ async function openJourney() {
   const visits = Object.fromEntries((r.data.visits || []).map((v) => [v.city, v]));
   const quizzes = Object.fromEntries((r.data.quizzes || []).map((q) => [q.city, q]));
   const read = (cityId) => (r.data.covered || []).filter((x) => x.city === cityId).length;
+  const stamps = Object.fromEntries((pass.ok ? pass.data.stamps : []).map((s) => [s.city, s]));
   const u = state.user;
   const joined = new Date((u.createdAt || '').replace(' ', 'T') + 'Z');
   const via = { email: 'Email', phone: 'Phone', google: 'Google' };
@@ -626,13 +630,16 @@ async function openJourney() {
     <div class="pp-points"><b>${Number(r.data.points || 0)}</b> points
       <small>10 for each new city · 5 for each part of a letter you read · 10 for each correct answer on your best Seal the letter</small></div>
     <div class="pp-stamps">${Object.values(CITIES).map((c) => {
-      const v = visits[c.id], q = quizzes[c.id];
-      return `<div class="pp-slot ${v ? '' : 'empty'}">
-        <div class="pp-stamp">${stampHTML(c, `${esc(c.name)} stamp`)}</div>
+      const v = visits[c.id], q = quizzes[c.id], s = stamps[c.id];
+      return `<div class="pp-slot ${s ? (s.due ? 'fading' : '') : 'empty'}">
+        <div class="pp-stamp" style="--ink:${s ? s.ink : 1}">${stampHTML(c, `${esc(c.name)} stamp`)}${s?.box >= 4 ? '<span class="kept">Kept</span>' : ''}</div>
         <b>${esc(c.name)}</b>
+        <small class="ink-line">${inkLine(s)}</small>
+        ${s?.due ? `<button class="btn primary reink" data-reink="${c.id}">Re-ink it</button>` : ''}
         <small>${v ? `Opened ${v.count} time${v.count > 1 ? 's' : ''}` : 'Not visited yet'}<br>Read ${read(c.id)} of ${c.sections.length} parts<br>${q ? `Best seal: ${q.best} of ${q.total} right` : 'Letter not sealed yet'}</small>
       </div>`;
     }).join('')}</div>
+    <p class="pp-how">Stamps fade so you remember. Each time one fades, answer Gaju's three questions to re-ink it: after 2 days, then 7, then 21. After that it is yours for good.</p>
     <div class="pp-actions">
       ${Object.values(CITIES).map((c) => `<button class="btn primary" data-go="${c.id}">Visit ${esc(c.name)}</button>`).join('')}
       ${['editor', 'admin'].includes(u.role) ? '<a class="btn" href="/admin">Editor page</a>' : ''}
@@ -640,6 +647,74 @@ async function openJourney() {
     </div>`;
   $$('[data-go]', body).forEach((b) => b.addEventListener('click', () => closeModal($('#journeyModal')), { capture: true }));
   $('#logoutBtn').onclick = logout;
+  $$('[data-reink]', body).forEach((b) => b.addEventListener('click', () => openRecall(b.dataset.reink)));
+}
+
+const BOX_WORDS = { 1: 'Fresh ink', 2: 'Remembered once', 3: 'Remembered twice' };
+function inkLine(s) {
+  if (!s) return 'Seal the letter to earn this stamp';
+  if (s.box >= 4) return 'Kept for good';
+  if (s.due) return s.ink > 0.6 ? 'Starting to fade' : 'Fading';
+  const days = Math.max(1, Math.ceil((new Date(s.dueAt) - Date.now()) / 86400000));
+  return `${BOX_WORDS[s.box]} · fades in ${days} day${days > 1 ? 's' : ''}`;
+}
+
+// ---------------------------------------------------------------- the memory letter
+// When a stamp fades, Gaju sends three questions about that city. Two or more right re-inks it.
+async function openRecall(cityId) {
+  const c = CITIES[cityId], body = $('#journeyBody');
+  body.innerHTML = '<p>Gaju is writing your letter…</p>';
+  if ($('#journeyModal').hidden) openModal($('#journeyModal'));
+  const r = await api(`/api/recall/${cityId}`);
+  if (!r.ok) {
+    body.innerHTML = `<p>${esc(r.data.error)}</p><button class="btn" id="recallBack">Back to my passport</button>`;
+    $('#recallBack').onclick = openJourney;
+    return;
+  }
+  const qs = r.data.questions, picks = [];
+  const show = (i) => {
+    const q = qs[i];
+    body.innerHTML = `
+      <div class="recall">
+        <div class="recall-head"><div class="pp-stamp small" style="--ink:.5">${stampHTML(c)}</div>
+          <div><b>A memory letter from ${esc(c.name)}</b><small>Question ${i + 1} of ${qs.length}. Two right re-inks your stamp.</small></div></div>
+        <p class="q-text">${esc(q.q)}</p>
+        <div class="q-opts">${q.options.map((o, k) => `<button class="q-opt" data-k="${k}">${esc(o)}</button>`).join('')}</div>
+      </div>`;
+    $$('.q-opt', body).forEach((b) => b.addEventListener('click', () => {
+      picks.push({ id: q.id, choice: Number(b.dataset.k) });
+      if (i + 1 < qs.length) show(i + 1); else finish();
+    }));
+  };
+  // answers are marked only at the end, so the letter tests memory rather than guessing
+  const finish = async () => {
+    body.innerHTML = '<p>Pressing the stamp…</p>';
+    const res = await api(`/api/recall/${cityId}`, { answers: picks });
+    if (!res.ok) { body.innerHTML = `<p>${esc(res.data.error)}</p>`; return; }
+    const d = res.data;
+    body.innerHTML = `
+      <div class="recall done">
+        <div class="pp-stamp big ${d.passed ? 'reinked' : ''}" style="--ink:${d.passed ? 1 : 0.5}">${stampHTML(c)}</div>
+        <b>${d.right} of ${d.asked} right</b>
+        <p>${d.passed ? (d.box >= 4 ? `${esc(c.name)} is yours for good.` : `Re-inked. It will start to fade again in ${{ 2: 7, 3: 21 }[d.box]} days.`)
+          : 'Not this time. Read the letter again and try tomorrow.'}</p>
+        <div class="pp-actions"><button class="btn" id="recallBack">Back to my passport</button>${d.passed ? '' : `<button class="btn primary" data-go="${cityId}">Read ${esc(c.name)} again</button>`}</div>
+      </div>`;
+    if (d.passed) { sound.thunk(); showEarned(res); }
+    $('#recallBack').onclick = openJourney;
+    $$('[data-go]', body).forEach((b) => b.addEventListener('click', () => closeModal($('#journeyModal')), { capture: true }));
+  };
+  show(0);
+}
+
+// On arrival, Gaju mentions a stamp that is fading; tapping him then opens its memory letter.
+let fadingCity = null;
+async function checkFading() {
+  if (!state.user) return;
+  const r = await api('/api/passport');
+  const due = (r.ok ? r.data.stamps : []).find((s) => s.due && CITIES[s.city]);
+  fadingCity = due?.city || null;
+  if (fadingCity) say(`Your ${CITIES[fadingCity].name} stamp is fading! Tap me to re-ink it.`, 0);
 }
 
 // ---------------- boot ----------------
@@ -673,5 +748,6 @@ async function boot() {
   if (me.ok && me.data.user) state.user = me.data.user;
   renderHeader();
   setTimeout(() => say(state.user ? `Namaste, ${firstName(state.user.name)}! Where shall we go?` : "Namaste! I'm Gaju. Where shall we go?", 0), 400);
+  setTimeout(checkFading, 2600);
 }
 boot();

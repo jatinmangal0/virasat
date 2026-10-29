@@ -289,6 +289,7 @@ function renderTimeline() {
       <article class="item ${e.status === 'verified' ? 'verified' : ''}">
         <h4><span class="year">${esc(e.year_label)}</span> ${esc(e.title)} ${badge(e)} <span class="muted" style="font-weight:400;font-size:13px">place ${e.sort_order}</span></h4>
         <p>${esc(e.body)}</p>
+        ${e.memory ? `<p class="memory"><b>Remembered as:</b> ${esc(e.memory)}${e.argued ? `<br><b>Why argued:</b> ${esc(e.argued)}` : ''}</p>` : ''}
         ${e.motif ? `<span class="motif">${motifSVG(e.motif)}</span>` : ''}
         ${e.images.length ? `<div class="thumbs">${e.images.map((im) => `<a href="${esc(im.src)}" target="_blank" rel="noopener"><img src="${esc(im.src)}" alt="${esc(im.caption)}" loading="lazy"></a>`).join('')}</div>` : '<span class="badge">No photos yet</span> '}
         ${e.source_url ? `<a class="src" href="${esc(e.source_url)}" target="_blank" rel="noopener">${esc(e.source_url)}</a>` : '<span class="badge">No source yet</span>'}
@@ -312,9 +313,14 @@ function editEvent(e) {
       hint: 'shown when the event has no photo' },
     { name: 'order', label: 'Place on the timeline', type: 'text', value: e?.sort_order ?? last + 1, hint: 'events are shown from the smallest number to the largest' },
     { name: 'sourceUrl', label: 'Source link', type: 'url', value: e?.source_url ?? '' },
+    { name: 'memory', label: 'How it is remembered (optional)', type: 'textarea', value: e?.memory ?? '',
+      hint: 'only when people remember this event differently from what the sources show. The paragraph above is the record; this is the memory. The page shows them side by side.' },
+    { name: 'memorySourceUrl', label: 'Source for how it is remembered', type: 'url', value: e?.memory_source_url ?? '' },
+    { name: 'argued', label: 'Why people disagree (one line)', type: 'text', value: e?.argued ?? '' },
   ], async (v) => {
     const images = v.images.split('\n').map((l) => l.split('|').map((x) => x.trim())).filter((p) => p[0]).map((p) => ({ src: p[0], caption: p.slice(1).join(' | ') }));
-    const body = { cityId: state.city, year: v.year, title: v.title, text: v.text, images, motif: v.motif, order: Number(v.order) || 0, sourceUrl: v.sourceUrl };
+    const body = { cityId: state.city, year: v.year, title: v.title, text: v.text, images, motif: v.motif, order: Number(v.order) || 0, sourceUrl: v.sourceUrl,
+      memory: v.memory, memorySourceUrl: v.memorySourceUrl, argued: v.argued };
     const r = e ? await api(`/api/admin/timeline/${e.id}`, body, 'PUT') : await api('/api/admin/timeline', body);
     if (!r.ok) return r.data.error;
     toast(r.data.backToCheck ? 'Saved. Because the words changed, it needs to be checked again.' : e ? 'Saved.' : 'Added. A teammate now needs to verify it.');

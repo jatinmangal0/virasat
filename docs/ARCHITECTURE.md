@@ -44,6 +44,7 @@ Each box is a table, like a sheet in Excel. The arrows show which table points t
    ├──< covered_sections       (letter parts read)
    ├──< quiz_results           (every quiz attempt)
    ├──< points_ledger          (every point earned, like a bank statement)
+   ├──< stamps                 (the Fading Passport: one stamp per city, and when it next fades)
    └──< content_log            (every change an editor made)
 
  cities ──< sections ──< facts (the fact cards)
@@ -64,6 +65,7 @@ Each box is a table, like a sheet in Excel. The arrows show which table points t
 | `quiz_questions` | a question | options, right answer (never sent to the browser early), source, status |
 | `heritage_places` | a heritage place from Aksh's research | name, description, **map position** (latitude, longitude), source, status, plus Aksh's other research columns |
 | `points_ledger` | one award of points | how many, why, for what. A learner's total is the sum. |
+| `stamps` | a city stamp in a learner's passport | **box** (1 to 4) and **due_at**: when it starts to fade and Gaju sends a three-question memory letter. Passing moves it up a box (2, 7, then 21 days); failing sends it back to box 1; box 4 is kept for good. |
 | `content_log` | one change | who, when, what, and the full before and after |
 
 ## The rules (all enforced by the backend)
@@ -73,6 +75,7 @@ Each box is a table, like a sheet in Excel. The arrows show which table points t
 - **A source is required.** Nothing can be verified without a source link.
 - **Change means re-check.** If the words of a live item change, it goes back to "needs check" and disappears from the website until someone verifies it again.
 - **Nothing is lost.** Every change is stored in `content_log` with the before and after.
+- **Stamps fade on a schedule.** Sealing a letter (3 in 5 or better) presses the city's stamp. The rules for fading and re-inking are three small functions in `server/api/passport.js`, the Leitner system for spaced practice.
 - **Points can't be faked.** The browser never says "I scored 5". It sends the chosen answers, and the backend marks them. Each award has a unique label (for example "first visit to Udaipur"), so it can only be paid once.
 - **Roles.** Learners use the site. Editors write and verify content. Admins also manage roles and can hide a city.
 
@@ -96,6 +99,8 @@ The database's structure (its tables and columns) is never changed by hand. Each
 | `20261027110100_verify_aksh_places.sql` | made Aksh's places live: a teammate had already checked them |
 | `20261027120000_timeline_greetings_outline.sql` | timeline events, greetings, and each city's outline; starting events and greetings arrive as "needs check" |
 | `20261027130000_timeline_motifs.sql` | a drawing name (`motif`) for each timeline event, shown when it has no photos |
+| `20261030120000_content_fixes.sql` | corrections from the fact check (Udaipur founded 1553, and others); places with no source sent back to "needs check" |
+| `20261030130000_passport_record_memory.sql` | the `stamps` table (Fading Passport), and the record-and-memory fields on timeline events |
 
 On every publish to the live site, Vercel runs `scripts/migrate.js`, which runs any new files in order and records which ones have run. To add a feature (badges, a new city, comments), you **add a new file**. You never edit an old one. This is how real teams change a live database without losing anyone's data.
 

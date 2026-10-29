@@ -69,3 +69,14 @@ The **History** tab lists every change: who, what and when. Nothing is ever trul
 - **Team** tab: find a person and change their role to `editor`, or back to `learner`.
 - **City letter** tab: untick "Show this city on the website" to hide a whole city.
 - There must always be at least one admin.
+
+## The record and the memory (timeline events)
+
+Some events are told one way by the sources and remembered another way: Haldighati, Job Charnock, the year Udaipur was founded. For these, fill in the three extra boxes on the event:
+
+- **How it is remembered**: the popular version, in one or two sentences. The event's main paragraph stays the record.
+- **Source for how it is remembered**: required. The memory needs a source too (a textbook debate, a news report, a page that tells the popular version).
+- **Why people disagree**: one line.
+
+The website then shows the record and the memory side by side. Changing any of these sends the event back to "needs check", like any other wording.
+

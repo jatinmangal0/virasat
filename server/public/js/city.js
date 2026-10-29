@@ -700,11 +700,17 @@ function showEvent(i) {
   const { esc, c } = { esc: ctx.esc, c: cur.c };
   const e = s.ev[i];
   const info = $('#evInfo'), media = $('#evMedia');
+  // When an event is remembered differently from what the sources show, both sides are shown.
+  info.classList.toggle('two-sides', !!e.memory);
   info.innerHTML = `
     <p class="ev-year">${esc(e.year)}</p>
     <h3>${esc(e.title)}</h3>
-    <p class="ev-text">${esc(e.text)}</p>
-    ${e.src ? `<a class="ev-src" href="${esc(e.src)}" target="_blank" rel="noopener">Source</a>` : ''}
+    ${e.memory ? `<div class="sides">
+        <div class="side record"><small>The record</small><p>${esc(e.text)}</p>${e.src ? `<a href="${esc(e.src)}" target="_blank" rel="noopener">Source</a>` : ''}</div>
+        <div class="side memory"><small>The memory</small><p>${esc(e.memory)}</p>${e.memorySrc ? `<a href="${esc(e.memorySrc)}" target="_blank" rel="noopener">Source</a>` : ''}</div>
+      </div>${e.argued ? `<p class="argued"><b>Why it is argued about:</b> ${esc(e.argued)}</p>` : ''}`
+    : `<p class="ev-text">${esc(e.text)}</p>
+    ${e.src ? `<a class="ev-src" href="${esc(e.src)}" target="_blank" rel="noopener">Source</a>` : ''}`}
     <p class="ev-count">${i + 1} of ${s.ev.length}${e.draft ? ' · <span class="draft">draft, not yet checked</span>' : ''}</p>`;
   const imgs = (e.images || []).slice(0, 4);
   media.innerHTML = imgs.length

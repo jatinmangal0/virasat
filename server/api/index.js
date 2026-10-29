@@ -9,6 +9,7 @@
 //   progress.js  what a learner has covered, quiz scores, points
 //   admin.js     the editor page: writing, checking and verifying content, team roles
 //   places.js    heritage places (map positions), public and editor lists
+//   passport.js  the Fading Passport: stamps, and the spaced recall that keeps them inked
 import { createRouter, err } from './router.js';
 import { sha256, rateLimiter } from '../lib/security.js';
 import { readSessionToken } from './session.js';
@@ -17,11 +18,12 @@ import content from './content.js';
 import progress from './progress.js';
 import admin from './admin.js';
 import places from './places.js';
+import passport from './passport.js';
 
 export function createApi({ db, sms, verifyGoogle, googleClientId = '', secureCookies = false, adminSetupCode = '', allowDemoSms = true }) {
   const deps = { db, sms, verifyGoogle, googleClientId, secureCookies, adminSetupCode, allowDemoSms };
   const router = createRouter();
-  for (const area of [auth, content, progress, admin, places]) area(router, deps);
+  for (const area of [auth, content, progress, admin, places, passport]) area(router, deps);
 
   // Per IP is loose because a whole classroom can share one IP; auth.js adds tighter per-email/phone limits.
   // On Vercel these counters live per function instance, so they are a speed bump, not a hard wall.
