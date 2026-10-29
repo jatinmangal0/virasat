@@ -88,6 +88,7 @@ The database's structure (its tables and columns) is never changed by hand. Each
 | `20261027100000_content_roles_points.sql` | content tables, roles, points, change log |
 | `20261027100100_import_udaipur_kolkata.sql` | moved the old Udaipur and Kolkata content in, as "needs check" |
 | `20261027110000_heritage_places.sql` | added Aksh's 325 heritage places (20 Udaipur, 305 Kolkata), as "needs check" |
+| `20261027110100_verify_aksh_places.sql` | made Aksh's places live: a teammate had already checked them |
 
 On every publish, Netlify runs any new files in order and records which ones have run. To add a feature (badges, a new city, comments), you **add a new file**. You never edit an old one. This is how real teams change a live database without losing anyone's data.
 
@@ -100,7 +101,7 @@ On every publish, Netlify runs any new files in order and records which ones hav
 | `server/api/` | backend | the rules: `auth.js` (log in), `content.js` (what visitors see), `progress.js` (points), `admin.js` (editing) |
 | `netlify/functions/api.mjs` | backend | connects Netlify to `server/api/` |
 | `netlify/database/migrations/` | database | the history of the database's structure |
-| `test/` | checks | 28 automatic tests of the rules, run on a real Postgres |
+| `test/` | checks | 27 automatic tests of the rules, run on a real Postgres |
 | `server/dev.js` | tools | runs everything on your own computer |
 | `netlify.toml` | hosting | tells Netlify where the website and backend are |
 
