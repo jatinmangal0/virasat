@@ -47,15 +47,20 @@ Each box is a table, like a sheet in Excel. The arrows show which table points t
    └──< content_log            (every change an editor made)
 
  cities ──< sections ──< facts (the fact cards)
-   └──────< quiz_questions
+   ├──────< quiz_questions
+   └──────< timeline_events    (the city's history, along the thread)
+
+ greetings                     (Namaste, Vanakkam... in the top bar)
 ```
 
 | Table | One row is… | Important columns |
 |---|---|---|
 | `users` | a person | name, email or phone, password (scrambled, never readable), **role**: learner / editor / admin |
-| `cities` | a city | name, letter text, quick facts, stamp and poster images, published yes/no |
+| `cities` | a city | name, letter text, quick facts, stamp and poster images, **outline** (the city's boundary, drawn as a map), published yes/no |
 | `sections` | a tab in a letter | Landmarks, Festivals & Arts, Food, Fun Facts |
 | `facts` | a fact card | title, text, **source link**, **status**: needs_check / verified, who wrote it, who verified it |
+| `timeline_events` | an event in a city's history | year, title, short paragraph, photo links, source, status |
+| `greetings` | a greeting in the top bar | the word, its own script, language, source, status |
 | `quiz_questions` | a question | options, right answer (never sent to the browser early), source, status |
 | `heritage_places` | a heritage place from Aksh's research | name, description, **map position** (latitude, longitude), source, status, plus Aksh's other research columns |
 | `points_ledger` | one award of points | how many, why, for what. A learner's total is the sum. |
@@ -63,7 +68,7 @@ Each box is a table, like a sheet in Excel. The arrows show which table points t
 
 ## The rules (all enforced by the backend)
 
-- **Verified only.** The website only ever receives facts and quiz questions with status `verified`.
+- **Verified only.** The website only ever receives facts, quiz questions, timeline events and greetings with status `verified`.
 - **Four eyes.** The person who made the latest change to an item cannot verify it. Someone else has to check the source.
 - **A source is required.** Nothing can be verified without a source link.
 - **Change means re-check.** If the words of a live item change, it goes back to "needs check" and disappears from the website until someone verifies it again.
@@ -89,6 +94,8 @@ The database's structure (its tables and columns) is never changed by hand. Each
 | `20261027100100_import_udaipur_kolkata.sql` | moved the old Udaipur and Kolkata content in, as "needs check" |
 | `20261027110000_heritage_places.sql` | added Aksh's 325 heritage places (20 Udaipur, 305 Kolkata), as "needs check" |
 | `20261027110100_verify_aksh_places.sql` | made Aksh's places live: a teammate had already checked them |
+| `20261027120000_timeline_greetings_outline.sql` | timeline events, greetings, and each city's outline; starting events and greetings arrive as "needs check" |
+| `20261027130000_timeline_motifs.sql` | a drawing name (`motif`) for each timeline event, shown when it has no photos |
 
 On every publish to the live site, Vercel runs `scripts/migrate.js`, which runs any new files in order and records which ones have run. To add a feature (badges, a new city, comments), you **add a new file**. You never edit an old one. This is how real teams change a live database without losing anyone's data.
 
@@ -96,12 +103,12 @@ On every publish to the live site, Vercel runs `scripts/migrate.js`, which runs 
 
 | Folder / file | Part | What it is |
 |---|---|---|
-| `server/public/` | frontend | the website: `index.html`, `js/app.js` (the story), `js/scene.js` (the street), `css/`, `assets/` (images) |
+| `server/public/` | frontend | the website: `index.html`, `js/app.js` (the street and logging in), `js/scene.js` (the street drawing), `js/city.js` (pigeon, scroll, timeline, map), `js/twine.js` (the twine), `css/`, `assets/` (images) |
 | `server/public/admin.html`, `js/admin.js` | frontend | the editor page |
 | `server/api/` | backend | the rules: `auth.js` (log in), `content.js` (what visitors see), `progress.js` (points), `admin.js` (editing) |
 | `api/index.js` | backend | connects Vercel to `server/api/` |
 | `db/migrations/` | database | the history of the database's structure |
-| `test/` | checks | 27 automatic tests of the rules, run on a real Postgres |
+| `test/` | checks | 33 automatic tests of the rules, run on a real Postgres |
 | `server/dev.js` | tools | runs everything on your own computer |
 | `vercel.json` | hosting | tells Vercel where the website and backend are |
 

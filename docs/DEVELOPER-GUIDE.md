@@ -9,7 +9,7 @@ You need Node.js 22 or newer.
 ```bash
 npm install
 npm run dev      # http://localhost:3024 , editor page at /admin
-npm test         # 27 tests on a real local Postgres; all should pass
+npm test         # 33 tests on a real local Postgres; all should pass
 ```
 
 `npm run dev` starts a local Postgres in `.data/` (git ignores it), applies every migration, and serves the site and API. The first-admin setup code locally is `local-admin`. Delete the `.data/` folder to start again with an empty database.
@@ -36,7 +36,7 @@ r.get('/api/badges', { role: 'learner' }, async ({ user }) => json(200, { badges
 
 ### Add a new city (e.g. Shimla)
 1. Add a migration that inserts the city and its sections (copy the Udaipur part of `20261027100100_import_udaipur_kolkata.sql`). Facts and quiz questions can then be added on the editor page.
-2. Add its stamp and poster images to `server/public/assets/`.
+2. Add its stamp and poster images to `server/public/assets/`, and its outline in the same migration (`UPDATE cities SET outline = '[[lng, lat], ...]'`, plus `outline_source` saying where the shape came from). The thread draws it at the end of the timeline.
 3. The street drawing is code: add a gate in `server/public/js/scene.js` (`GATES`) and a pin in `setupStreet()` in `server/public/js/app.js`.
 
 ### Change colours or layout
