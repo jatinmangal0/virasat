@@ -1,5 +1,5 @@
 // Runs the API under Express on your own computer (server/dev.js) and in the tests.
-// The live site does not use this file: Netlify calls the API through netlify/functions/api.mjs.
+// The live site does not use this file: Vercel calls the API through api/index.js.
 import express from 'express';
 import { fileURLToPath } from 'node:url';
 

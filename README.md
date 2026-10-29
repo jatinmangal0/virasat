@@ -2,11 +2,11 @@
 
 A playful heritage site for learning about Indian cities, starting with **Udaipur** and **Kolkata**. Visitors pick a city, and Gaju the elephant walks them there. A letter arrives with the city's stamp; they log in to break the seal, then read about landmarks, festivals, food and fun facts, take a quiz and collect points in their Virasat passport.
 
-**Live site:** https://virasat-gaju.netlify.app · **Editor page:** https://virasat-gaju.netlify.app/admin
+**Live site:** https://virasat-gaju.vercel.app · **Editor page:** https://virasat-gaju.vercel.app/admin
 
 ## How it is built
 
-A frontend (the website), a backend API (the rules) and a Postgres database (all the content, accounts and points), hosted on Netlify. Facts only appear on the site after a second teammate has checked the source and verified them.
+A frontend (the website), a backend API (the rules) and a Postgres database (all the content, accounts and points), with the site on Vercel and the database on Neon (both free plans). Facts only appear on the site after a second teammate has checked the source and verified them.
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): how the whole thing works, in plain words. Start here, and use it to explain the project.
 - [docs/EDITOR-GUIDE.md](docs/EDITOR-GUIDE.md): for teammates adding and checking facts. No coding needed.
@@ -23,4 +23,4 @@ npm test
 ## Good to know
 
 - **Images:** the elephant artwork, both stamps and both posters came from outside sources (see the original-images pack). The Udaipur stamp carries a "©PSHAIRS" mark. Get permission or replace them, keeping the same file names in `server/public/assets/`, before using the site publicly.
-- **Phone login** runs in demo mode (the code is shown on screen) until Twilio keys are added on Netlify.
+- **Phone login** runs in demo mode (the code is shown on screen) until Twilio keys are added on Vercel.

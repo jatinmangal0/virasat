@@ -1,6 +1,6 @@
 // The Virasat API. Every request from the browser to /api/... ends up here.
 //
-// It has no web framework attached, so the same code runs on Netlify (netlify/functions/api.mjs)
+// It has no web framework attached, so the same code runs on Vercel (api/index.js)
 // and on your own computer (server/dev.js). `db` is a Postgres connection pool.
 //
 // Each area lives in its own file and adds its routes to the router:
@@ -24,7 +24,7 @@ export function createApi({ db, sms, verifyGoogle, googleClientId = '', secureCo
   for (const area of [auth, content, progress, admin, places]) area(router, deps);
 
   // Per IP is loose because a whole classroom can share one IP; auth.js adds tighter per-email/phone limits.
-  // On Netlify these counters live per function instance, so they are a speed bump, not a hard wall.
+  // On Vercel these counters live per function instance, so they are a speed bump, not a hard wall.
   const ipLimit = rateLimiter({ windowMs: 15 * 60_000, max: 300 });
   const ROLE_RANK = { learner: 1, editor: 2, admin: 3 };
 

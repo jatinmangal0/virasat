@@ -7,7 +7,7 @@ This is the explanation to give your professor and teammates. You don't need to 
 Virasat has three parts, like most real websites:
 
 ```
-  Visitor's phone or laptop                Netlify (hosting)
+  Visitor's phone or laptop                Vercel + Neon (hosting)
  ┌──────────────────────────┐      ┌─────────────────────────────────────────┐
  │ 1. FRONTEND              │      │ 2. BACKEND (API)        3. DATABASE      │
  │ The website people see:  │ ───► │ The rules. Answers      Postgres. Holds  │
@@ -20,14 +20,14 @@ Virasat has three parts, like most real websites:
 ```
 
 1. **Frontend:** the pages and pictures that run in the visitor's browser. It holds **no facts of its own**. When it opens, it asks the backend for the cities and shows whatever comes back.
-2. **Backend (the API):** a small program on Netlify's servers. It's the only part allowed to read or change the database, so it is where the rules live: who may edit, what counts as verified, how many points a quiz is worth.
-3. **Database:** a Postgres database (Netlify Database). Everything that changes lives here: content, accounts, progress and history.
+2. **Backend (the API):** a small program on Vercel's servers. It's the only part allowed to read or change the database, so it is where the rules live: who may edit, what counts as verified, how many points a quiz is worth.
+3. **Database:** a Postgres database on Neon. Everything that changes lives here: content, accounts, progress and history.
 
 A browser never talks to the database directly. It always goes through the API, and the API checks every request. That's the main reason real sites are built this way.
 
 ## What happens when someone opens Udaipur
 
-1. The browser loads the website files from Netlify.
+1. The browser loads the website files from Vercel.
 2. It asks the API: `GET /api/cities`.
 3. The API asks the database for published cities and **only verified** facts and quiz questions, then sends them back as JSON (structured text).
 4. The browser draws the letter from that data.
@@ -76,11 +76,11 @@ Each box is a table, like a sheet in Excel. The arrows show which table points t
 - Passwords are stored scrambled (scrypt), never as plain text.
 - Logins use a secure cookie the page's own scripts cannot read (HttpOnly).
 - Login codes expire after 5 minutes and lock after 5 wrong tries. Too many attempts are slowed down.
-- The first admin needs a secret setup code kept in Netlify's settings, and it stops working once an admin exists.
+- The first admin needs a secret setup code kept in Vercel's settings, and it stops working once an admin exists.
 
 ## How the database grows safely: migrations
 
-The database's structure (its tables and columns) is never changed by hand. Each change is a numbered file in `netlify/database/migrations/`:
+The database's structure (its tables and columns) is never changed by hand. Each change is a numbered file in `db/migrations/`:
 
 | File | What it did |
 |---|---|
@@ -90,7 +90,7 @@ The database's structure (its tables and columns) is never changed by hand. Each
 | `20261027110000_heritage_places.sql` | added Aksh's 325 heritage places (20 Udaipur, 305 Kolkata), as "needs check" |
 | `20261027110100_verify_aksh_places.sql` | made Aksh's places live: a teammate had already checked them |
 
-On every publish, Netlify runs any new files in order and records which ones have run. To add a feature (badges, a new city, comments), you **add a new file**. You never edit an old one. This is how real teams change a live database without losing anyone's data.
+On every publish to the live site, Vercel runs `scripts/migrate.js`, which runs any new files in order and records which ones have run. To add a feature (badges, a new city, comments), you **add a new file**. You never edit an old one. This is how real teams change a live database without losing anyone's data.
 
 ## Where the code lives
 
@@ -99,14 +99,15 @@ On every publish, Netlify runs any new files in order and records which ones hav
 | `server/public/` | frontend | the website: `index.html`, `js/app.js` (the story), `js/scene.js` (the street), `css/`, `assets/` (images) |
 | `server/public/admin.html`, `js/admin.js` | frontend | the editor page |
 | `server/api/` | backend | the rules: `auth.js` (log in), `content.js` (what visitors see), `progress.js` (points), `admin.js` (editing) |
-| `netlify/functions/api.mjs` | backend | connects Netlify to `server/api/` |
-| `netlify/database/migrations/` | database | the history of the database's structure |
+| `api/index.js` | backend | connects Vercel to `server/api/` |
+| `db/migrations/` | database | the history of the database's structure |
 | `test/` | checks | 27 automatic tests of the rules, run on a real Postgres |
 | `server/dev.js` | tools | runs everything on your own computer |
-| `netlify.toml` | hosting | tells Netlify where the website and backend are |
+| `vercel.json` | hosting | tells Vercel where the website and backend are |
 
 ## Hosting and cost
 
-- **Netlify** hosts all three parts. Every push to the `main` branch on GitHub publishes a new version within a minute or two.
-- The free plan gives a monthly allowance of **credits**. Publishing, database time and traffic use credits. Netlify's own AI agent also spends credits fast, so the team should not use it.
+- **Vercel** (free Hobby plan) hosts the website and the API. Every merge into `main` on GitHub publishes a new version within a minute or two, and every pull request gets its own preview link. Publishing does not cost anything.
+- **Neon** (free plan, 0.5 GB) hosts the database. It sleeps when nobody visits, so the first request after a quiet spell takes a second or two longer.
+- The site used to be on Netlify. It moved in October 2026 because Netlify's free credits ran out, which paused every publish until the next month.
 - GitHub (`jatinmangal0/virasat`) keeps every version of the code, so any change can be undone.

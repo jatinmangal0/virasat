@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { createApi } from '../server/api/index.js';
 import { createExpressApp } from '../server/express-app.js';
 
-const migrations = fileURLToPath(new URL('../netlify/database/migrations', import.meta.url));
+const migrations = fileURLToPath(new URL('../db/migrations', import.meta.url));
 
 export const SETUP_CODE = 'test-setup-code';
 

@@ -1,6 +1,6 @@
 # Editor guide (no coding needed)
 
-The editor page is at **https://virasat-gaju.netlify.app/admin**.
+The editor page is at **https://virasat-gaju.vercel.app/admin**.
 
 ## Getting access
 

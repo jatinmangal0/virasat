@@ -2,14 +2,17 @@
   "name": "virasat",
   "private": true,
   "type": "module",
-  "description": "Virasat: learn the heritage of Indian cities with Gaju the elephant. Website + API + Postgres database, hosted on Netlify.",
-  "engines": { "node": ">=22" },
+  "description": "Virasat: learn the heritage of Indian cities with Gaju the elephant. Website + API + Postgres database, hosted on Vercel with the database on Neon.",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "node --env-file-if-exists=.env server/dev.js",
-    "test": "node --test \"test/*.test.js\""
+    "test": "node --test \"test/*.test.js\"",
+    "migrate": "node --env-file-if-exists=.env scripts/migrate.js",
+    "copy-data": "node --env-file-if-exists=.env scripts/copy-data.js"
   },
   "dependencies": {
-    "@netlify/database": "^2.0.1",
     "pg": "^8.13.0"
   },
   "devDependencies": {

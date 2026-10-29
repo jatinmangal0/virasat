@@ -1,7 +1,7 @@
 // Run Virasat on your own computer:   npm run dev   then open http://localhost:3024
 //
 // It starts a local Postgres database (saved in the .data/ folder, which git ignores), applies every
-// file in netlify/database/migrations/ that has not run yet, and serves the website and the API.
+// file in db/migrations/ that has not run yet, and serves the website and the API.
 // This is the same database type and the same API code as the live site, just with local data.
 import pg from 'pg';
 import { NetlifyDB } from '@netlify/database-dev';
@@ -17,7 +17,7 @@ const adminSetupCode = process.env.ADMIN_SETUP_CODE || 'local-admin';
 
 const local = new NetlifyDB({ directory: root + '.data/db' });
 const db = new pg.Pool({ connectionString: await local.start() });
-await local.applyMigrations(root + 'netlify/database/migrations');
+await local.applyMigrations(root + 'db/migrations');
 
 const sms = makeSmsSender();
 const app = createExpressApp(createApi({

@@ -230,7 +230,7 @@ export default function admin(r, { db, adminSetupCode }) {
   });
 
   // The very first admin: works only while there is no admin at all, and needs the setup code
-  // stored in the ADMIN_SETUP_CODE environment variable on Netlify.
+  // stored in the ADMIN_SETUP_CODE environment variable on Vercel.
   r.post('/api/admin/claim', { role: 'learner', limit: true }, async ({ body, user }) => {
     const admins = (await one("SELECT COUNT(*)::int AS n FROM users WHERE role = 'admin'", [])).n;
     if (admins > 0) return err(403, 'This site already has an admin. Ask them to give you a role.');
