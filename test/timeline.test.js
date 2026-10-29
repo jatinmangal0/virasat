@@ -57,8 +57,13 @@ test('a new greeting needs the word and the language', async () => {
   assert.equal(r.body.greeting.status, 'needs_check');
 });
 
+test('demo mode is for the team only', async () => {
+  assert.equal((await t.client()('/api/demo')).status, 401);
+  assert.equal((await (await t.person('Lina'))('/api/demo')).status, 403);
+});
+
 test('demo mode lists unchecked events and greetings, marked as drafts, with their drawings', async () => {
-  const { body } = await t.client()('/api/demo');
+  const { body } = await asha('/api/demo');
   const k = body.timeline.kolkata;
   assert.ok(k.length >= 9 && k.every((e) => e.draft === true));
   assert.equal(k.find((e) => e.year === '1943').motif, 'bridge');
@@ -66,9 +71,11 @@ test('demo mode lists unchecked events and greetings, marked as drafts, with the
   assert.ok(!body.greetings.some((g) => g.word === 'Vanakkam'), 'verified greetings are not repeated');
 });
 
-test('demo mode does not repeat heritage places that are already live', async () => {
-  // Aksh's places were verified on import (20261027110100_verify_aksh_places.sql), so the real
-  // map shows them and demo mode has no unchecked ones left to add.
-  const { body } = await t.client()('/api/demo');
-  assert.deepEqual(body.places, {});
+test('demo mode lists places that went back to draft, and only those', async () => {
+  // 20261030120000_content_fixes.sql sends places with no source, or with research notes in their
+  // text, back to "needs check". They show in demo mode as drafts; the rest stay on the real map.
+  const { body } = await asha('/api/demo');
+  assert.ok(body.places.udaipur.length > 0 && body.places.udaipur.every((p) => p.draft === true && !p.source_url));
+  const live = (await t.client()('/api/cities/udaipur/places')).body.places;
+  assert.ok(live.every((p) => p.source_url), 'every live place has a source');
 });

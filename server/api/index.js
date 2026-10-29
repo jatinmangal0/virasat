@@ -18,8 +18,8 @@ import progress from './progress.js';
 import admin from './admin.js';
 import places from './places.js';
 
-export function createApi({ db, sms, verifyGoogle, googleClientId = '', secureCookies = false, adminSetupCode = '' }) {
-  const deps = { db, sms, verifyGoogle, googleClientId, secureCookies, adminSetupCode };
+export function createApi({ db, sms, verifyGoogle, googleClientId = '', secureCookies = false, adminSetupCode = '', allowDemoSms = true }) {
+  const deps = { db, sms, verifyGoogle, googleClientId, secureCookies, adminSetupCode, allowDemoSms };
   const router = createRouter();
   for (const area of [auth, content, progress, admin, places]) area(router, deps);
 

@@ -15,6 +15,8 @@ const handle = createApi({
   verifyGoogle: makeGoogleVerifier(googleClientId),
   secureCookies: true,
   adminSetupCode: env('ADMIN_SETUP_CODE'),
+  // demo SMS shows the login code on screen; allow it on preview links, never on the live site
+  allowDemoSms: env('VERCEL_ENV') !== 'production',
 });
 
 const web = toWebHandler(handle, {

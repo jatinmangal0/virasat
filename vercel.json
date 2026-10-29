@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "npm ci --omit=dev",
-  "buildCommand": "node scripts/migrate.js && node scripts/copy-data.js --once",
+  "buildCommand": "node scripts/migrate.js",
   "outputDirectory": "server/public",
   "cleanUrls": true,
   "regions": ["sin1"],

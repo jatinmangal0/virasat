@@ -38,9 +38,10 @@ export default function content(r, { db }) {
     return json(200, { greetings: rows });
   });
 
-  // Demo mode (the website with ?demo in its address): timeline events, greetings and heritage places that are written
-  // but not yet checked, so the team can see the design full. The page labels every one as a draft.
-  r.get('/api/demo', async () => {
+  // Demo mode (the website with ?demo in its address): everything that is written but not yet checked, so the
+  // team can see the design full. The page labels every one as a draft. Editors only: unchecked text must never
+  // reach the public, and draft quiz answers are included so the team can play the quiz.
+  r.get('/api/demo', { role: 'editor' }, async () => {
     const events = (await db.query(
       "SELECT id, city_id, year_label, title, body, images, motif, source_url FROM timeline_events WHERE status = 'needs_check' ORDER BY sort_order, id")).rows;
     const greetings = (await db.query("SELECT word, native, language FROM greetings WHERE status = 'needs_check' ORDER BY sort_order, id")).rows;

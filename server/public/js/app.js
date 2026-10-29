@@ -368,6 +368,10 @@ function setAuthTab(tab) {
 }
 
 function openAuth(tab = 'phone', reason) {
+  // the live site has no real SMS yet, so phone login is switched off there (smsMode 'off')
+  const phoneOn = state.config.smsMode !== 'off';
+  $('#authModal .tab[data-tab="phone"]').hidden = !phoneOn;
+  if (tab === 'phone' && !phoneOn) tab = 'login';
   setAuthTab(tab === 'signup' ? 'signup' : tab === 'login' ? 'login' : 'phone');
   $('#authSub').textContent = reason || (state.city && !$('#city').hidden
     ? `Log in to break the seal on your scroll from ${CITIES[state.city].name}.`
@@ -523,7 +527,9 @@ function setupAuth() {
 let gisLoaded = null;
 function renderGoogle() {
   const id = state.config.googleClientId;
-  if (!id) { $('#googleFallback').hidden = false; return; }
+  // No Google client ID yet: hide the button rather than offer one that only shows an error.
+  $('#authModal .or').hidden = !id;
+  if (!id) { $('#googleFallback').hidden = true; return; }
   gisLoaded ||= new Promise((res, rej) => {
     const s = document.createElement('script');
     s.src = 'https://accounts.google.com/gsi/client';
