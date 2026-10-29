@@ -38,7 +38,7 @@ Good sources: official sites (UNESCO, government, museums), encyclopaedias (Brit
 
 ## Places
 
-**Places** tab. Aksh's list of heritage places (buildings, lakes, crafts, food spots), each with a position on the map. Use the search box to find one. Check the name, the description and the map position against the source, then verify. Many places have no source link yet: find one (Wikipedia, an official site), add it with **Edit**, and ask a teammate to verify. "Aksh's notes" says how sure the original research was; "Low" means it was collected automatically and needs a careful look.
+**Places** tab. Aksh's list of heritage places (buildings, lakes, crafts, food spots), each with a position on the map. Use the search box to find one. Aksh's places were checked by a teammate before they were imported, so they are already **Live**. If you change one (a better source, a fixed map position), it goes back to **Needs check** and a different teammate verifies it, as with facts. "Aksh's notes" says how sure the original research was.
 
 ## Quiz questions
 
