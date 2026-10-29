@@ -1,5 +1,6 @@
 import { buildScene, grain, VB, GATES } from './scene.js';
 import { initCity, openCity } from './city.js';
+import { stampHTML } from './stamps.js';
 // City content comes from the database through the API (/api/cities), loaded in boot().
 let CITIES = {};
 
@@ -12,7 +13,16 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const firstName = (n) => String(n || '').split(' ')[0] || 'Explorer';
 
-const state = { user: null, config: { googleClientId: null, smsMode: 'demo' }, busy: false, city: null, seq: 0, afterAuth: null, sound: false };
+const state = { user: null, config: { googleClientId: null, smsMode: 'demo' }, busy: false, city: null, seq: 0, afterAuth: null, sound: false, fast: false };
+const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// Cities you have already flown into get the short version of the arrival: same beats, much faster.
+const SEEN_KEY = 'virasat.seen';
+const seen = (() => { try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || '[]')); } catch { return new Set(); } })();
+function markSeen(id) {
+  seen.add(id);
+  try { localStorage.setItem(SEEN_KEY, JSON.stringify([...seen])); } catch { /* private mode: fine */ }
+}
 
 // ---------------- api ----------------
 async function api(path, body) {
@@ -90,6 +100,10 @@ async function setupTicker() {
   const run = items.map((t) => `<span>${t} ${star}</span>`).join('');
   const track = $('#ticker');
   track.classList.toggle('greetings', greetings.length > 0);
+  // the other scripts' fonts load only when greetings in those scripts are live
+  if (greetings.some((g) => g.native) && !$('#scriptFonts')) {
+    document.head.insertAdjacentHTML('beforeend', '<link id="scriptFonts" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anek+Tamil:wght@600&family=Anek+Kannada:wght@600&family=Anek+Telugu:wght@600&family=Anek+Malayalam:wght@600&family=Anek+Gujarati:wght@600&family=Anek+Gurmukhi:wght@600&family=Anek+Odia:wght@600&display=swap">');
+  }
   track.innerHTML = run + run;
   // keep the speed the same however many greetings there are
   track.style.animationDuration = `${Math.max(30, track.scrollWidth / 2 / 70)}s`;
@@ -100,8 +114,10 @@ function setupChrome() {
   $('#year').textContent = new Date().getFullYear();
 
   const drawer = $('#drawer'), scrim = $('#scrim');
-  const open = () => { drawer.classList.add('open'); scrim.classList.add('show'); drawer.setAttribute('aria-hidden', 'false'); };
-  window.closeDrawer = () => { drawer.classList.remove('open'); scrim.classList.remove('show'); drawer.setAttribute('aria-hidden', 'true'); };
+  const open = () => { drawer.classList.add('open'); scrim.classList.add('show'); drawer.inert = false; drawer.setAttribute('aria-hidden', 'false'); };
+  // inert as soon as it starts closing, so a tap meant for the street never lands on a sliding link
+  window.closeDrawer = () => { drawer.classList.remove('open'); scrim.classList.remove('show'); drawer.inert = true; drawer.setAttribute('aria-hidden', 'true'); };
+  drawer.inert = true;
   $('#menuBtn').onclick = open;
   $('#drawerClose').onclick = closeDrawer;
   scrim.onclick = closeDrawer;
@@ -129,7 +145,9 @@ function setupChrome() {
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     const m = $$('.modal').find((x) => !x.hidden);
-    if (m) closeModal(m); else closeDrawer();
+    if (m) closeModal(m);
+    else if (!$('#city').hidden) $('#cityBack').click();
+    else closeDrawer();
   });
 }
 
@@ -170,9 +188,10 @@ function setupStreet() {
   const pins = [['udaipur', 'u', GATES.udaipur, 168, 'Udaipur'], ['kolkata', 'k', GATES.kolkata + 100, 178, 'Kolkata']];
   layers.buildings.insertAdjacentHTML('beforeend', pins.filter(([id]) => CITIES[id]).map(([id, cls, x, y, label]) => `
     <button class="pin ${cls}" data-go="${id}" style="left:${(x / VB.w) * 100}%;top:${(y / VB.h) * 100}%" aria-label="Walk to ${label}">
-      <span class="pin-face"><img src="${CITIES[id].stamp}" alt=""></span><span class="pin-label">${label}</span>
+      <span class="pin-face">${stampHTML(CITIES[id])}</span><span class="pin-label">${label}</span>
     </button>`).join(''));
   $$('.gate', world).forEach((g) => g.addEventListener('click', () => goToCity(g.dataset.city)));
+  $$('[data-stamp]').forEach((el) => { if (CITIES[el.dataset.stamp]) el.innerHTML = stampHTML(CITIES[el.dataset.stamp]); });
 
   const gaju = $('#gaju');
   const tell = () => {
@@ -241,7 +260,7 @@ function frame(t) {
   const gaju = $('#gaju');
   if (scene.walk) {
     const w = scene.walk, dir = Math.sign(w.to - scene.gx) || 1;
-    scene.gx += dir * 230 * dt;
+    scene.gx += dir * 230 * (state.fast ? 5 : 1) * dt;
     if ((dir > 0 && scene.gx >= w.to) || (dir < 0 && scene.gx <= w.to)) {
       scene.gx = w.to; scene.walk = null; gaju.classList.remove('walking'); w.done();
     } else if (t - scene.lastDust > 170) {
@@ -294,6 +313,7 @@ function say(text, ms = 0) {
 function walkTo(x) {
   const gaju = $('#gaju');
   if (Math.abs(x - scene.gx) < 4) return Promise.resolve();
+  if (reduced()) { scene.gx = x; gaju.style.left = (x / VB.w) * 100 + '%'; return Promise.resolve(); }
   // the drawing faces left, so flip it when walking right
   gaju.style.setProperty('--face', x > scene.gx ? -1 : 1);
   gaju.classList.add('walking');
@@ -304,16 +324,28 @@ function walkTo(x) {
     const guard = setTimeout(() => {
       if (scene.walk?.done !== done) return;
       scene.gx = x; scene.walk = null; gaju.classList.remove('walking'); gaju.style.left = (x / VB.w) * 100 + '%'; done();
-    }, (Math.abs(x - scene.gx) / 230) * 1000 + 400);
+    }, (Math.abs(x - scene.gx) / (230 * (state.fast ? 5 : 1))) * 1000 + 400);
     scene.walk = { to: x, done };
   });
 }
+
+// The arrival is one shot: Gaju walks to the gate, the camera pushes in, and the city opens inside the
+// gate's arch. Skip (or a city seen before) runs the same shot at about five times the speed.
+const pace = (ms) => sleep(ms * (state.fast ? 0.18 : 1));
+function speedUp() {
+  state.fast = true;
+  $('#skipBtn').hidden = true;
+  document.getAnimations().forEach((a) => { if (a.playState === 'running') a.playbackRate = 5; });
+}
+function sequenceDone() { state.fast = false; $('#skipBtn').hidden = true; }
 
 async function goToCity(city) {
   if (!CITIES[city] || state.busy) return;
   state.busy = true;
   const my = ++state.seq;
   const c = CITIES[city];
+  state.fast = seen.has(city);
+  $('#skipBtn').hidden = state.fast || reduced();
   if (window.scrollY > 10) { window.scrollTo({ top: 0, behavior: 'smooth' }); await sleep(450); }
   startLoop();
   $('#callout').classList.add('away');
@@ -324,18 +356,21 @@ async function goToCity(city) {
   const gaju = $('#gaju');
   gaju.classList.remove('cheer'); void gaju.offsetWidth; gaju.classList.add('cheer');
   say(`${c.greeting} A letter is waiting for you…`);
-  await sleep(1100);
+  await pace(800);
   if (my !== state.seq) return;
-  // dolly the camera into the gate
+  // push the camera into the gate; the city opens in the arch while the push is still going
   $('#street').classList.add('zooming');
   scene.poxT = (GATES[city] / VB.w) * 100;
   scene.poyT = ((city === 'udaipur' ? 470 : 460) / VB.h) * 100;
   scene.zoomT = 1050;
   scene.rxT = scene.ryT = 0;
-  await sleep(1250);
+  await pace(reduced() ? 300 : 650);
   if (my !== state.seq) return;
-  scene.running = false; // the street is hidden behind the city; let it rest
-  openCity(city, my);
+  const portal = $(`#gate-${city} .portal`)?.getBoundingClientRect();
+  const from = portal && portal.width > 4 ? { x: portal.left, y: portal.top, w: portal.width, h: portal.height } : null;
+  openCity(city, my, from);
+  await pace(1200);
+  if (my === state.seq) scene.running = false; // the street is hidden behind the city; let it rest
 }
 
 function resetStreet() {
@@ -346,6 +381,7 @@ function resetStreet() {
   $('#callout').classList.remove('away');
   document.body.classList.remove('locked');
   state.busy = false;
+  sequenceDone();
   setTimeout(() => say('Where to next?', 3500), 600);
 }
 
@@ -364,7 +400,7 @@ function setAuthTab(tab) {
   $$('#authModal .tab').forEach((t) => t.setAttribute('aria-selected', t.dataset.tab === tab));
   $$('#authModal .pane').forEach((p) => { p.hidden = p.dataset.pane !== tab; });
   $('#authError').textContent = '';
-  $('#authTitle').textContent = tab === 'signup' ? 'Make your passport' : 'Join the journey';
+  $('#authTitle').textContent = tab === 'signup' ? 'Sign your passport' : 'Welcome back';
 }
 
 function openAuth(tab = 'phone', reason) {
@@ -373,9 +409,7 @@ function openAuth(tab = 'phone', reason) {
   $('#authModal .tab[data-tab="phone"]').hidden = !phoneOn;
   if (tab === 'phone' && !phoneOn) tab = 'login';
   setAuthTab(tab === 'signup' ? 'signup' : tab === 'login' ? 'login' : 'phone');
-  $('#authSub').textContent = reason || (state.city && !$('#city').hidden
-    ? `Log in to break the seal on your scroll from ${CITIES[state.city].name}.`
-    : 'Log in to open letters and keep your passport.');
+  $('#authSub').textContent = reason || 'Sign your passport and Virasat keeps your stamps, seals and points on any device.';
   openModal($('#authModal'));
   renderGoogle();
 }
@@ -384,6 +418,7 @@ function onAuthed(user, isNew) {
   state.user = user;
   renderHeader();
   closeModal($('#authModal'));
+  $('#checkpoint').hidden = true;
   toast(isNew ? `Welcome to Virasat, ${firstName(user.name)}!` : `Welcome back, ${firstName(user.name)}!`);
   const next = state.afterAuth;
   state.afterAuth = null;
@@ -571,25 +606,31 @@ async function openJourney() {
   body.innerHTML = '<p>Loading your passport…</p>';
   openModal($('#journeyModal'));
   const r = await api('/api/progress');
+  if (!r.ok) {
+    body.innerHTML = `<p>${esc(r.data.error || 'Your passport could not load.')}</p><button class="btn" id="ppRetry">Try again</button>`;
+    $('#ppRetry').onclick = openJourney;
+    return;
+  }
   const visits = Object.fromEntries((r.data.visits || []).map((v) => [v.city, v]));
   const quizzes = Object.fromEntries((r.data.quizzes || []).map((q) => [q.city, q]));
   const read = (cityId) => (r.data.covered || []).filter((x) => x.city === cityId).length;
   const u = state.user;
   const joined = new Date((u.createdAt || '').replace(' ', 'T') + 'Z');
   const via = { email: 'Email', phone: 'Phone', google: 'Google' };
+  const masked = u.phone ? u.phone.slice(0, 3) + ' ••••• ' + u.phone.slice(-3) : '';
   body.innerHTML = `
     <div class="pp-who">
       <div class="av">${u.avatar ? `<img src="${esc(u.avatar)}" alt="">` : esc(u.name[0]?.toUpperCase() || 'V')}</div>
-      <div><b>${esc(u.name)}</b><small>${esc(u.email || u.phone || '')}<br>Signed in with ${u.via.map((v) => via[v]).join(', ') || '—'}${isNaN(joined) ? '' : ` · joined ${joined.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`}</small></div>
+      <div><b>${esc(u.name)}</b><small>${esc(u.email || masked)}<br>Signed in with ${(u.via || []).map((v) => via[v]).join(', ') || '—'}${isNaN(joined) ? '' : ` · joined ${joined.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`}</small></div>
     </div>
     <div class="pp-points"><b>${Number(r.data.points || 0)}</b> points
-      <small>10 for each new city · 5 for each part of a letter you read · 10 for each correct answer on your best quiz</small></div>
+      <small>10 for each new city · 5 for each part of a letter you read · 10 for each correct answer on your best Seal the letter</small></div>
     <div class="pp-stamps">${Object.values(CITIES).map((c) => {
       const v = visits[c.id], q = quizzes[c.id];
       return `<div class="pp-slot ${v ? '' : 'empty'}">
-        <img src="${c.stamp}" alt="${esc(c.name)} stamp">
+        <div class="pp-stamp">${stampHTML(c, `${esc(c.name)} stamp`)}</div>
         <b>${esc(c.name)}</b>
-        <small>${v ? `Opened ${v.count} time${v.count > 1 ? 's' : ''}` : 'Not visited yet'}<br>Read ${read(c.id)} of ${c.sections.length} parts<br>${q ? `Best quiz: ${q.best}/${q.total}` : 'Quiz not taken'}</small>
+        <small>${v ? `Opened ${v.count} time${v.count > 1 ? 's' : ''}` : 'Not visited yet'}<br>Read ${read(c.id)} of ${c.sections.length} parts<br>${q ? `Best seal: ${q.best} of ${q.total} right` : 'Letter not sealed yet'}</small>
       </div>`;
     }).join('')}</div>
     <div class="pp-actions">
@@ -616,6 +657,8 @@ async function boot() {
       state.demo = d.data;
       for (const c of Object.values(CITIES)) {
         c.timeline = [...c.timeline, ...(d.data.timeline[c.id] || [])].sort((a, b) => (parseInt(a.year, 10) || 0) - (parseInt(b.year, 10) || 0));
+        for (const s of c.sections) s.items.push(...(d.data.facts?.[c.id]?.[s.id] || []));
+        c.quiz.push(...(d.data.quiz?.[c.id] || []));
       }
       document.body.insertAdjacentHTML('beforeend', '<div class="demo-badge" title="Shows content the team has not checked yet">Demo · includes drafts not yet checked</div>');
     }
@@ -623,7 +666,8 @@ async function boot() {
   setupChrome();
   setupStreet();
   setupAuth();
-  initCity({ state, CITIES, api, sound, esc, firstName, openAuth, showEarned, goToCity, resetStreet });
+  initCity({ state, CITIES, api, sound, esc, firstName, openAuth, showEarned, goToCity, resetStreet, markSeen, sequenceDone });
+  $('#skipBtn').onclick = speedUp;
   const [cfg, me] = await Promise.all([api('/api/config'), api('/api/me')]);
   if (cfg.ok) state.config = cfg.data;
   if (me.ok && me.data.user) state.user = me.data.user;

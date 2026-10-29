@@ -69,6 +69,8 @@ test('demo mode lists unchecked events and greetings, marked as drafts, with the
   assert.equal(k.find((e) => e.year === '1943').motif, 'bridge');
   assert.ok(body.greetings.some((g) => g.word === 'Namaste'));
   assert.ok(!body.greetings.some((g) => g.word === 'Vanakkam'), 'verified greetings are not repeated');
+  assert.ok(body.facts.udaipur.landmarks.length > 0 && body.facts.udaipur.landmarks.every((f) => f.draft === true), 'draft fact cards by section');
+  assert.ok(body.quiz.kolkata.length > 0 && body.quiz.kolkata.every((q) => Number.isInteger(q.answer)), 'draft quiz with answers, for the team only');
 });
 
 test('demo mode lists places that went back to draft, and only those', async () => {

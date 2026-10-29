@@ -6,10 +6,12 @@
   <title>Virasat · Walk into Udaipur and Kolkata</title>
   <meta name="description" content="Virasat is a playful way to learn the heritage of Udaipur and Kolkata. Pick a city, follow Gaju the elephant, and open a letter from the city.">
   <meta name="theme-color" content="#f7c744">
-  <link rel="icon" href="assets/elephant.png">
+  <link rel="icon" href="assets/favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&family=Baloo+Da+2:wght@500;700&family=Baloo+Thambi+2:wght@600&family=Baloo+Tamma+2:wght@600&family=Baloo+Tammudu+2:wght@600&family=Baloo+Chettan+2:wght@600&family=Baloo+Bhai+2:wght@600&family=Baloo+Paaji+2:wght@600&family=Baloo+Bhaina+2:wght@600&family=IM+Fell+English:ital@0;1&family=Bowlby+One&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+  <!-- Anek covers Latin, Devanagari and Bengali in one design, so a city's own script sits beside English as an equal.
+       Tiro is for reading the letter; Kalam is Gaju's handwriting (it has Devanagari too). Bowlby One is the logo. -->
+  <link href="https://fonts.googleapis.com/css2?family=Anek+Latin:wdth,wght@100..125,400..800&family=Anek+Devanagari:wdth,wght@100..125,500..800&family=Anek+Bangla:wdth,wght@100..125,500..800&family=Tiro+Devanagari+Hindi:ital@0;1&family=Tiro+Bangla:ital@0;1&family=Kalam:wght@400;700&family=Bowlby+One&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -67,8 +69,8 @@
       <div class="callout" id="callout">
         <p>Two cities are waiting at the end of this street. <strong>Pick one</strong> and Gaju the elephant will walk you there!</p>
         <div class="callout-btns">
-          <button class="city-btn u" data-go="udaipur"><img src="assets/stamp-udaipur.png" alt="">Udaipur</button>
-          <button class="city-btn k" data-go="kolkata"><img src="assets/stamp-kolkata.png" alt="">Kolkata</button>
+          <button class="city-btn u" data-go="udaipur"><span class="btn-stamp" data-stamp="udaipur"></span>Udaipur</button>
+          <button class="city-btn k" data-go="kolkata"><span class="btn-stamp" data-stamp="kolkata"></span>Kolkata</button>
         </div>
       </div>
       <div class="drag-hint" id="dragHint">Move your mouse or tilt your phone · the street is 3D</div>
@@ -79,19 +81,19 @@
         <img class="about-gaju" src="assets/elephant.png" alt="Gaju the elephant">
         <div>
           <h2>What is Virasat?</h2>
-          <p><em>Virasat</em> means heritage. This is a small, playful place to learn about two great Indian cities. You pick a city, Gaju walks you there, and a letter arrives with that city's stamp on it. Inside are its palaces and bridges, its festivals, its food and its stories, plus a quiz to see what stuck.</p>
-          <p>Students, travellers and curious people of every age are welcome. Make a free account and Virasat keeps your passport: the cities you have opened and your best quiz scores.</p>
+          <p><em>Virasat</em> means heritage. This is a small, playful place to learn about two great Indian cities. You pick a city, Gaju walks you there, and a letter arrives with that city's stamp on it. Inside are its palaces and bridges, its festivals, its food and its stories, and a few questions at the end to press your seal into the wax.</p>
+          <p>Students, travellers and curious people of every age are welcome, no account needed. Sign your passport if you want Virasat to keep your stamps and scores.</p>
         </div>
       </div>
       <div class="about-cards">
         <article class="mini-card u">
-          <img src="assets/stamp-udaipur.png" alt="Udaipur stamp">
+          <span class="card-stamp" data-stamp="udaipur"></span>
           <h3>Udaipur</h3><p>Marble palaces on mirror lakes, in the old kingdom of Mewar.</p>
           <button class="link-btn" data-go="udaipur">Walk there →</button>
         </article>
         <article class="mini-card k">
-          <img src="assets/stamp-kolkata.png" alt="Kolkata stamp">
-          <h3>Kolkata</h3><p>Trams, yellow taxis, Durga Puja and the great bridge over the Hooghly.</p>
+          <span class="card-stamp" data-stamp="kolkata"></span>
+          <h3>Kolkata</h3><p>Durga Puja, College Street's books, trams and the great bridge over the Hooghly.</p>
           <button class="link-btn" data-go="kolkata">Walk there →</button>
         </article>
       </div>
@@ -101,7 +103,7 @@
 
   <!-- a city: a pigeon brings a sealed scroll, the scroll opens into the letter, and its twine leads
        down into the timeline and the city's outline -->
-  <section class="city" id="city" hidden>
+  <section class="city" id="city" role="dialog" aria-modal="true" aria-labelledby="letterTitle" tabindex="-1" hidden>
     <div class="city-sky" id="citySky" aria-hidden="true"></div>
     <button class="post-back" id="cityBack">← Back to the street</button>
     <button class="post-night" id="cityNight" aria-label="Switch day or night" title="Day or night">
@@ -109,7 +111,7 @@
     </button>
     <div class="post-title" id="postTitle"></div>
 
-    <div class="city-hero" id="cityHero"><img id="cityPoster" alt=""></div>
+    <div class="city-hero" id="cityHero" aria-hidden="true"></div>
 
     <div class="scroll" id="scroll">
       <div class="roll roll-top"><i class="knob l"></i><i class="knob r"></i></div>
@@ -118,7 +120,7 @@
       <svg class="tie" id="tie" aria-hidden="true"></svg>
       <button class="seal" id="seal" aria-label="Break the seal">
         <span class="seal-half a"></span><span class="seal-half b"></span>
-        <span class="seal-v">V</span>
+        <span class="seal-v" id="sealMark">वि</span>
         <svg class="seal-lock" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff6e0" stroke-width="2.4"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
       </button>
     </div>
@@ -131,17 +133,21 @@
     <svg class="rope-layer" id="ropeLayer" aria-hidden="true"></svg>
     <div class="pigeon" id="pigeon" aria-hidden="true"></div>
 
-    <div class="checkpoint" id="checkpoint" hidden>
-      <div class="cp-badge">Checkpoint</div>
-      <h3>This scroll is sealed</h3>
-      <p>Log in or make a free account to break the seal. We'll keep track of the cities you open and your quiz scores.</p>
+    <div class="checkpoint" id="checkpoint" role="status" hidden>
+      <button class="cp-x" id="cpClose" aria-label="Not now">×</button>
+      <div class="cp-badge">Your passport</div>
+      <h3 id="cpTitle">Sign your passport</h3>
+      <p id="cpText">Your stamp is pressed. Sign your passport and Virasat will keep it, with your points, on any device.</p>
       <div class="cp-btns">
-        <button class="btn primary" data-auth="phone">Log in</button>
-        <button class="btn" data-auth="signup">Sign up free</button>
+        <button class="btn primary" data-auth="signup">Sign it, free</button>
+        <button class="btn" data-auth="login">I have one</button>
       </div>
     </div>
     <div class="open-hint" id="openHint" hidden>Tap the seal to open your scroll</div>
   </section>
+
+  <svg class="arch-frame" id="archFrame" aria-hidden="true"></svg>
+  <button class="skip" id="skipBtn" hidden>Skip ›</button>
 
   <!-- auth -->
   <div class="modal" id="authModal" role="dialog" aria-modal="true" aria-labelledby="authTitle" hidden>
@@ -207,7 +213,7 @@
   <div class="modal" id="journeyModal" role="dialog" aria-modal="true" aria-labelledby="journeyTitle" hidden>
     <div class="modal-card passport">
       <button class="modal-x" data-close-modal aria-label="Close">×</button>
-      <div class="pp-head"><span>भारत · INDIA</span><h2 id="journeyTitle">Virasat Passport</h2></div>
+      <div class="pp-head"><span>विरासत · VIRASAT DAK</span><h2 id="journeyTitle">Virasat Passport</h2></div>
       <div id="journeyBody"></div>
     </div>
   </div>

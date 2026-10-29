@@ -45,13 +45,19 @@ export default function content(r, { db }) {
     const events = (await db.query(
       "SELECT id, city_id, year_label, title, body, images, motif, source_url FROM timeline_events WHERE status = 'needs_check' ORDER BY sort_order, id")).rows;
     const greetings = (await db.query("SELECT word, native, language FROM greetings WHERE status = 'needs_check' ORDER BY sort_order, id")).rows;
+    const factRows = (await db.query(`SELECT f.id, f.title, f.body, f.source_url, s.city_id, s.slug FROM facts f
+      JOIN sections s ON s.id = f.section_id WHERE f.status = 'needs_check' ORDER BY f.sort_order, f.id`)).rows;
+    const quizRows = (await db.query(
+      "SELECT id, city_id, question, options, answer_index FROM quiz_questions WHERE status = 'needs_check' ORDER BY sort_order, id")).rows;
     const placeRows = (await db.query(`SELECT id, city_id, name, native_name, category, subcategory, description,
         latitude, longitude, year, image_url, source_url FROM heritage_places
       WHERE status = 'needs_check' AND latitude IS NOT NULL AND longitude IS NOT NULL ORDER BY sort_order, id`)).rows;
-    const timeline = {}, places = {};
+    const timeline = {}, places = {}, facts = {}, quiz = {};
     for (const e of events) (timeline[e.city_id] ||= []).push({ ...publicEvent(e), draft: true });
+    for (const f of factRows) ((facts[f.city_id] ||= {})[f.slug] ||= []).push({ id: f.id, title: f.title, text: f.body, src: f.source_url, draft: true });
+    for (const q of quizRows) (quiz[q.city_id] ||= []).push({ id: q.id, q: q.question, options: q.options, answer: q.answer_index, draft: true });
     for (const { city_id, ...p } of placeRows) (places[city_id] ||= []).push({ ...p, draft: true });
-    return json(200, { timeline, greetings, places });
+    return json(200, { timeline, greetings, places, facts, quiz });
   });
 
   // Check one answer while someone is playing. Works without logging in.

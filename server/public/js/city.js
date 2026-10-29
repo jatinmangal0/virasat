@@ -1,13 +1,17 @@
 // A city, from delivery to map:
-//   1. a pigeon flies in with a sealed scroll tied to its leg, drops it and flies off
-//   2. breaking the seal (after logging in) lets the twine fall, still tied to the scroll
-//   3. the scroll unrolls under the city's picture, which fills the top half of the screen
+//   0. the camera flies through the gate's arch: the city view opens inside the arch, which grows past the screen
+//   1. a pigeon flies in over the city with a sealed scroll tied to its leg, drops it and flies off
+//   2. the seal breaks (no login needed) and the twine falls, still tied to the scroll
+//   3. the scroll unrolls under the city's picture, which fills the top half of the screen. Inside: the letter,
+//      fact cards by section, and "Seal the letter", a short quiz that presses the city's seal into the wax
 //   4. scrolling down follows the twine: it becomes a wave of events, moves to the left as a
 //      timeline while each event is shown in the middle, then swirls off, comes back and draws
 //      the outline of the city.
 //   5. the city's heritage places light up inside the outline, and each one opens a card.
 import { twineSVG, setTwine, Rope, GARLAND_DEFS, placeGarland } from './twine.js';
 import { motifSVG } from './motifs.js';
+import { stampHTML } from './stamps.js';
+import { heroSVG, archPath } from './hero.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -18,7 +22,14 @@ const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 const smooth = (t) => t * t * (3 - 2 * t);
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 // An animation's promise can stall in a background tab, so never wait longer than it should take.
-const settle = (anim) => Promise.race([anim.finished, sleep(anim.effect.getTiming().duration + 250)]).catch(() => {});
+const settle = (anim) => Promise.race([anim.finished, sleep(anim.effect.getTiming().duration / (anim.playbackRate || 1) + 250)]).catch(() => {});
+// Skipping (the Skip button, or a city seen before) plays the same sequence, just much faster.
+const pace = () => (ctx.state.fast ? 0.18 : 1);
+const wait = (ms) => sleep(ms * pace());
+const speedUp = (anim) => { anim.playbackRate = 1 / pace(); return anim; };
+// The seal on each city's scroll carries Virasat's initial in the city's own script.
+const SEAL_MARK = { udaipur: 'वि', kolkata: 'বি' };
+const LANG = { udaipur: 'hi', kolkata: 'bn' };
 
 let ctx;      // what app.js shares: state, CITIES, api, sound, esc, firstName, openAuth, showEarned, goToCity, resetStreet
 let cur = null; // the open city: { id, c, my, rope, story, ... }
@@ -37,6 +48,51 @@ export function initCity(shared) {
   });
   $('#city').addEventListener('scroll', () => cur?.story && requestStoryFrame());
   addEventListener('resize', () => { if (cur?.opened) layoutAfterOpen(); });
+  $('#cpClose').onclick = () => { $('#checkpoint').hidden = true; };
+  // the arrival scene leans a little with the pointer, each layer by its depth
+  $('#city').addEventListener('pointermove', (e) => {
+    if (reduced() || !cur) return;
+    const dx = e.clientX / innerWidth - 0.5, dy = e.clientY / innerHeight - 0.5;
+    $$('#citySky .hero-layer, #cityHero .hero-layer').forEach((g) => {
+      const d = Number(g.dataset.depth) || 0;
+      g.style.transform = `translate(${-dx * d * 120}px, ${-dy * d * 40}px)`;
+    });
+  });
+}
+
+// ---------------------------------------------------------------- through the arch
+// The city view is clipped to the shape of the gate's opening, starting exactly over the little arch on the
+// street and growing until its edges are far past the screen. The arch's blue border grows with it, so you
+// see yourself pass through the gate. `from` is the opening's box on screen; null means start from the middle.
+let archAnim = 0;
+function archTo(id, from, to, ms) {
+  const view = $('#city'), frame = $('#archFrame');
+  const W = innerWidth, H = innerHeight;
+  const start = from || { x: W * 0.45, y: H * 0.42, w: W * 0.1, h: H * 0.18 };
+  // big enough that every corner of the screen is inside the arch, with its border well outside
+  const big = Math.max(W, H) * 3.2;
+  const end = { x: W / 2 - big / 2, y: H / 2 - big * 0.42, w: big, h: big * 1.2 };
+  const [a, b] = to === 'open' ? [start, end] : [end, start];
+  const ring = id === 'kolkata' ? '#f3e3c3' : '#2b45a6';
+  const my = ++archAnim;
+  return new Promise((done) => {
+    const t0 = performance.now();
+    const step = (t) => {
+      if (my !== archAnim) return done();
+      const k = clamp((t - t0) / (ms * pace()));
+      const e = to === 'open' ? 1 - (1 - k) ** 3 : k * k * k;
+      const r = { x: lerp(a.x, b.x, e), y: lerp(a.y, b.y, e), w: lerp(a.w, b.w, e), h: lerp(a.h, b.h, e) };
+      const d = archPath(id, r.x, r.y, r.w, r.h);
+      view.style.clipPath = `path('${d}')`;
+      const sw = Math.max(4, r.w * 0.06);
+      frame.innerHTML = `<path d="${d}" stroke="${ring}" stroke-width="${sw}"/><path d="${archPath(id, r.x - sw * 0.9, r.y - sw * 0.9, r.w + sw * 1.8, r.h + sw * 0.9)}" stroke="#3a2420" stroke-width="${Math.max(1.5, sw * 0.25)}"/>`;
+      if (k < 1) requestAnimationFrame(step);
+      else { if (to === 'open') { view.style.clipPath = ''; frame.innerHTML = ''; } done(); }
+    };
+    requestAnimationFrame(step);
+    // frames stop in background tabs; never leave the city half-clipped
+    setTimeout(() => { if (my === archAnim && to === 'open') { view.style.clipPath = ''; frame.innerHTML = ''; } done(); }, ms * pace() + 400);
+  });
 }
 
 // ---------------------------------------------------------------- the pigeon
@@ -66,19 +122,20 @@ const PIGEON = `
 <svg class="tether" viewBox="0 0 20 90">${twineSVG(3.5)}</svg>`;
 
 // ---------------------------------------------------------------- open a city
-export async function openCity(id, my) {
+export async function openCity(id, my, from = null) {
   const { state, CITIES, esc } = ctx;
   const c = CITIES[id];
   state.city = id;
   const view = $('#city');
   cur = { id, c, my, opened: false, places: [] };
   loadPlaces(cur);
-  view.className = 'city delivering';
+  view.className = 'city delivering arriving';
   view.style.setProperty('--accent', c.accent);
   renderLetter(c);
-  $('#cityPoster').src = c.poster;
-  $('#cityPoster').alt = `Scenes from ${c.name}`;
-  $('#postTitle').innerHTML = `<small>Virasat Post</small>A scroll from ${esc(c.name)}`;
+  $('#citySky').innerHTML = heroSVG(id);
+  $('#cityHero').innerHTML = heroSVG(id);
+  $('#sealMark').textContent = SEAL_MARK[id] || 'V';
+  $('#postTitle').innerHTML = `<small>Virasat Dak</small>A scroll from ${esc(c.name)}`;
   $('#checkpoint').hidden = true;
   $('#openHint').hidden = true;
   $('#sheet').style.height = '0px';
@@ -90,22 +147,19 @@ export async function openCity(id, my) {
   view.hidden = false;
   view.scrollTop = 0;
   document.body.classList.add('locked');
-  await Promise.race([Promise.all([$('#cityPoster').decode(), $('.letter-stamp').decode()]).catch(() => {}), sleep(1500)]);
+  document.querySelector('main').inert = true;
+  if (!reduced()) await archTo(id, from, 'open', 1150);
   if (my !== state.seq) return;
+  view.focus({ preventScroll: true });
   drawTie();
 
   try {
     await deliver(my);
   } catch { return; }
   if (my !== state.seq) return;
-  if (state.user) {
-    await sleep(500);
-    breakSeal(my);
-  } else {
-    view.classList.add('locked');
-    $('#checkpoint').hidden = false;
-    state.afterAuth = () => { $('#checkpoint').hidden = true; breakSeal(my); };
-  }
+  // Reading is free: the seal breaks for everyone. An account only keeps your stamps and points.
+  await wait(500);
+  breakSeal(my);
 }
 
 // The twine wrapped round the closed scroll: crossing strands, a knot, two loose ends.
@@ -131,6 +185,7 @@ async function deliver(my) {
   const check = () => { if (my !== state.seq) throw new Error('cancelled'); };
   const sc = $('#scroll'), pg = $('#pigeon'), view = $('#city');
   if (reduced()) {
+    view.classList.remove('arriving');
     await settle(sc.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, fill: 'both' }));
     view.classList.add('show-title');
     return;
@@ -159,8 +214,10 @@ async function deliver(my) {
   sound.whoosh();
   const kf = (extra) => path.map(([x, y, rot], i) => ({ transform: `translate(${x + extra.x}px, ${y + extra.y}px) rotate(${rot}deg)`, offset: [0, 0.35, 0.7, 0.88, 1][i] }));
   const timing = { duration: 2300, easing: 'cubic-bezier(.35,.1,.3,1)', fill: 'both' };
-  const flyPg = pg.animate(kf({ x: px, y: py }), timing);
-  const flySc = sc.animate(path.map(([x, y, rot], i) => ({ transform: `translate(${x}px, ${y}px) rotate(${rot * 0.6}deg)`, offset: [0, 0.35, 0.7, 0.88, 1][i] })), timing);
+  const flyPg = speedUp(pg.animate(kf({ x: px, y: py }), timing));
+  const flySc = speedUp(sc.animate(path.map(([x, y, rot], i) => ({ transform: `translate(${x}px, ${y}px) rotate(${rot * 0.6}deg)`, offset: [0, 0.35, 0.7, 0.88, 1][i] })), timing));
+  cur.flying = [flyPg, flySc];
+  view.classList.remove('arriving'); // the scroll is off-screen with the pigeon now, so it can be shown
   await Promise.all([settle(flyPg), settle(flySc)]);
   check();
   // touch down: the scroll settles with a bump, the tether slips off the leg and the pigeon leaves
@@ -168,7 +225,7 @@ async function deliver(my) {
   sc.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(6px) scaleY(.97)' }, { transform: 'translateY(0)' }], { duration: 380, easing: 'ease-out' });
   view.classList.add('show-title');
   pg.classList.add('released');
-  await sleep(420);
+  await wait(420);
   check();
   flyPg.cancel();
   const away = pg.animate([
@@ -177,7 +234,7 @@ async function deliver(my) {
     { transform: `translate(${-pw - 60}px, ${-innerHeight * 0.4}px) rotate(-16deg)` },
   ], { duration: 1300, easing: 'cubic-bezier(.5,0,.6,1)', fill: 'both' });
   sound.whoosh();
-  await sleep(500);
+  await wait(500);
   flySc.cancel();
   settle(away).then(() => { pg.hidden = true; pg.classList.remove('flying', 'released'); away.cancel(); });
 }
@@ -196,30 +253,33 @@ async function breakSeal(my) {
     const check = () => { if (my !== state.seq) throw new Error('cancelled'); };
     sc.classList.add('broken');
     sound.crack();
-    await sleep(320);
+    await wait(320);
     check();
-    api('/api/progress/visit', { city: cur.id }).then(showEarned);
+    if (state.user) api('/api/progress/visit', { city: cur.id }).then(showEarned);
+    ctx.markSeen(cur.id);
 
     // the twine comes loose and falls, one end still tied to the bottom roller
     const L = $('#runway').offsetHeight + $('.roll-top').offsetHeight / 2;
     startRope(L);
     $('#tie').style.opacity = '0';
-    await sleep(reduced() ? 0 : 900);
+    await wait(reduced() ? 0 : 900);
     check();
 
     // unroll: the bottom roller travels down, the city's picture fills the top half
     const target = $('#letter').offsetHeight;
     view.classList.add('opened');
     sound.paper();
-    const roll = sheet.animate([{ height: '0px' }, { height: target + 'px' }], { duration: reduced() ? 1 : 1700, easing: 'cubic-bezier(.45,.05,.25,1)', fill: 'forwards' });
+    const roll = speedUp(sheet.animate([{ height: '0px' }, { height: target + 'px' }], { duration: reduced() ? 1 : 1700, easing: 'cubic-bezier(.45,.05,.25,1)', fill: 'forwards' }));
     await settle(roll);
     check();
     sheet.style.height = 'auto';
     roll.cancel();
     view.classList.remove('delivering');
     cur.opened = true;
+    ctx.sequenceDone();
     buildStory();
     layoutAfterOpen();
+    watchSections();
   } catch { /* cancelled by going back */ }
   opening = false;
 }
@@ -308,15 +368,133 @@ function layoutAfterOpen() {
 function renderLetter(c) {
   const { state, esc, firstName } = ctx;
   const name = state.user ? firstName(state.user.name) : 'Explorer';
+  const lang = LANG[c.id] || '';
+  const sections = c.sections.filter((s) => s.items.length);
+  $('#letter').dataset.city = c.id;
   $('#letter').innerHTML = `
-    <img class="letter-stamp" src="${c.stamp}" alt="${esc(c.name)} stamp">
+    <div class="letter-stamp">${stampHTML(c, `${esc(c.name)} stamp`)}</div>
     <p class="letter-kicker">${esc(c.state)} · ${esc(c.nickname)}</p>
-    <h2>${esc(c.name)}<small>${esc(c.native)}</small></h2>
+    <h2 id="letterTitle">${esc(c.name)}${c.native ? `<span class="native" lang="${lang}">${esc(c.native)}</span>` : ''}</h2>
     <p class="greet">${esc(c.greeting.replace(/!$/, ''))}, ${esc(name)}! <span>(${esc(c.greetingNote)})</span></p>
     <div class="letter-body">${c.letter.map((p) => `<p>${esc(p)}</p>`).join('')}</div>
     <div class="facts">${c.quickFacts.map(([k, v]) => `<div class="fact"><span>${esc(k)}</span><strong>${esc(v)}</strong></div>`).join('')}</div>
     ${c.sources?.length ? `<p class="letter-src">Sources for this letter: ${c.sources.map(([t, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)}</a>`).join(' · ')}</p>` : ''}
+    <section class="inside" aria-labelledby="insideTitle">
+      <div class="inside-h"><h3 id="insideTitle">Inside this letter</h3><small>${sections.length ? `${sections.reduce((n, s) => n + s.items.length, 0)} cards` : ''}</small></div>
+      ${sections.length ? sections.map((s) => `
+        <div class="sec" data-sec="${esc(s.id)}">
+          <p class="sec-label">${SECTION_ICONS[s.id] || ''}${esc(s.label)}<span class="done">Read ✓</span></p>
+          <div class="cards">${s.items.map((f) => `
+            <article class="card"><h4>${esc(f.title)}${f.draft ? '<span class="draft">draft</span>' : ''}</h4><p>${esc(f.text)}</p>
+              ${f.src ? `<a href="${esc(f.src)}" target="_blank" rel="noopener">Source</a>` : ''}</article>`).join('')}</div>
+        </div>`).join('')
+        : `<p class="inside-empty">Our team is checking the fact cards for ${esc(c.name)} against their sources. Each one appears here once a second teammate has verified it.</p>`}
+    </section>
+    ${c.quiz.length ? '<section class="sealq" id="sealq" aria-live="polite"></section>' : ''}
     <p class="signoff">With love, Gaju <img src="assets/elephant.png" alt=""></p>`;
+  if (c.quiz.length) startQuiz(c);
+}
+
+// Drawn icons for the four parts of a letter, in the street's ink.
+const ic = (inner) => `<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inner}</svg>`;
+const SECTION_ICONS = {
+  landmarks: ic('<path d="M6 28V14Q6 8 16 4Q26 8 26 14V28Z"/><path d="M12 28V19Q12 15 16 13Q20 15 20 19V28"/><path d="M3 28h26"/>'),
+  festivals: ic('<path d="M7 20h18l-3 7H10Z"/><path d="M16 20c-3-3-3-7 0-11 3 4 3 8 0 11Z"/><path d="M16 4v2"/>'),
+  food: ic('<circle cx="16" cy="18" r="11"/><circle cx="16" cy="18" r="6"/><circle cx="9" cy="12" r="1.5"/><circle cx="23" cy="13" r="1.5"/><circle cx="22" cy="24" r="1.5"/>'),
+  facts: ic('<circle cx="16" cy="16" r="5"/><path d="M16 3v4M16 25v4M3 16h4M25 16h4M7 7l3 3M22 22l3 3M25 7l-3 3M10 22l-3 3"/>'),
+};
+
+// ---------------------------------------------------------------- reading the fact cards
+// A section counts as read once most of it has been on screen for a couple of seconds.
+function watchSections() {
+  const { state, api, showEarned } = ctx, run = cur;
+  const timers = new Map();
+  const io = new IntersectionObserver((entries) => {
+    for (const en of entries) {
+      const el = en.target;
+      if (en.isIntersecting && !timers.has(el)) {
+        timers.set(el, setTimeout(() => {
+          io.unobserve(el);
+          el.classList.add('read');
+          if (cur === run && state.user && !el.dataset.draftOnly) api('/api/progress/section', { city: run.id, section: el.dataset.sec }).then(showEarned);
+        }, 2000));
+      } else if (!en.isIntersecting && timers.has(el)) { clearTimeout(timers.get(el)); timers.delete(el); }
+    }
+  }, { root: $('#city'), threshold: 0.5 });
+  $$('#letter .sec').forEach((el) => io.observe(el));
+  run.stopWatching = () => { io.disconnect(); timers.forEach(clearTimeout); };
+}
+
+// ---------------------------------------------------------------- seal the letter
+// Up to five questions, one at a time. Answers are marked by the server (drafts in demo mode carry their
+// answer, since only editors can see them). The score presses one, two or three wax seals.
+function startQuiz(c) {
+  const pool = [...c.quiz].sort(() => Math.random() - 0.5).slice(0, 5);
+  cur.quiz = { pool, i: 0, picks: [], right: 0 };
+  drawQuestion();
+}
+
+function drawQuestion() {
+  const { esc } = ctx, q = cur.quiz, box = $('#sealq');
+  const item = q.pool[q.i];
+  box.innerHTML = `
+    <div class="sealq-head"><div class="wax" aria-hidden="true">${SEAL_MARK[cur.id] || 'V'}</div>
+      <div><h3>Seal the letter</h3><p>Answer to press ${esc(cur.c.name)}'s seal into the wax.</p></div></div>
+    <div class="sealq-steps" aria-hidden="true">${q.pool.map((_, k) => `<i class="${k < q.i ? (q.picks[k].ok ? 'ok' : 'no') : k === q.i ? 'now' : ''}"></i>`).join('')}</div>
+    <p class="q-text">${esc(item.q)}${item.draft ? '<span class="q-draft">draft</span>' : ''}</p>
+    <div class="q-opts">${item.options.map((o, k) => `<button class="q-opt" data-k="${k}">${esc(o)}</button>`).join('')}</div>
+    <p class="q-feedback" id="qFeedback"></p>`;
+  $$('.q-opt', box).forEach((b) => b.addEventListener('click', () => answer(Number(b.dataset.k))));
+  layoutAfterOpen();
+}
+
+async function answer(choice) {
+  const { api, esc, sound } = ctx, q = cur.quiz, run = cur, item = q.pool[q.i];
+  const btns = $$('#sealq .q-opt');
+  btns.forEach((b) => { b.disabled = true; });
+  let ok, right;
+  if (item.draft) { right = item.answer; ok = choice === right; }
+  else {
+    const r = await api('/api/quiz/check', { id: item.id, choice });
+    if (cur !== run) return;
+    if (!r.ok) { btns.forEach((b) => { b.disabled = false; }); $('#qFeedback').textContent = r.data.error; return; }
+    ({ correct: ok, answer: right } = r.data);
+  }
+  q.picks.push({ id: item.id, choice, ok, draft: !!item.draft });
+  if (ok) q.right++;
+  btns[choice].classList.add(ok ? 'right' : 'wrong');
+  btns[right]?.classList.add('right');
+  ok ? sound.ding() : sound.buzz();
+  const last = q.i === q.pool.length - 1;
+  $('#qFeedback').innerHTML = (ok ? '<b>Shabash!</b> That is right.' : `Not quite. The answer is <b>${esc(item.options[right])}</b>.`) +
+    `<br><button class="btn primary q-next" id="qNext">${last ? 'Press the seal' : 'Next question'}</button>`;
+  $('#qNext').addEventListener('click', () => { if (last) finishQuiz(); else { q.i++; drawQuestion(); } });
+  $('#qNext').focus({ preventScroll: true });
+}
+
+async function finishQuiz() {
+  const { state, api, showEarned, esc, sound } = ctx, q = cur.quiz, run = cur;
+  const share = q.right / q.pool.length;
+  const seals = share === 1 ? 3 : share >= 0.8 ? 2 : share >= 0.6 ? 1 : 0;
+  const mark = SEAL_MARK[cur.id] || 'V';
+  const words = ['The wax did not set this time. Read the cards again and try once more.',
+    'One seal pressed. A good start.', 'Two seals pressed. Nearly perfect.', 'All three seals pressed. A perfect letter!'][seals];
+  $('#sealq').innerHTML = `<div class="seal-result">
+      <div class="wax-row">${[0, 1, 2].map((k) => `<div class="wax ${k < seals ? 'press' : 'off'}" style="--d:${k * 0.25}s">${mark}</div>`).join('')}</div>
+      <h4>${q.right} of ${q.pool.length} right</h4><p>${esc(words)}</p>
+      <button class="btn" id="qAgain">Try again</button></div>`;
+  if (seals) sound.thunk();
+  $('#qAgain').addEventListener('click', () => startQuiz(cur.c));
+  layoutAfterOpen();
+  const real = q.picks.filter((p) => !p.draft);
+  if (state.user && real.length) {
+    const r = await api('/api/progress/quiz', { city: run.id, answers: real.map(({ id, choice }) => ({ id, choice })) });
+    if (cur === run) showEarned(r);
+  } else if (!state.user) {
+    $('#cpTitle').textContent = 'Sign your passport';
+    $('#cpText').textContent = `${seals ? 'Your seal is pressed.' : 'Your letter is read.'} Sign your passport and Virasat keeps your ${esc(cur.c.name)} stamp and score, on any device.`;
+    $('#checkpoint').hidden = false;
+  }
 }
 
 // ---------------------------------------------------------------- the timeline and the map
@@ -356,8 +534,8 @@ function buildStory() {
   $$('.node', stage).forEach((b) => b.addEventListener('click', () => jumpTo(Number(b.dataset.i))));
   $$('[data-end]', stage).forEach((b) => b.addEventListener('click', async () => {
     const to = b.dataset.end;
-    closeCity();
-    if (to !== 'back') { await sleep(700); ctx.goToCity(to); }
+    await closeCity();
+    if (to !== 'back') { await sleep(300); ctx.goToCity(to); }
   }));
 }
 
@@ -533,7 +711,7 @@ function showEvent(i) {
     ? imgs.map((im, k) => `<figure class="snap m${k}"><img src="${esc(im.src)}" alt="${esc(im.caption)}" loading="lazy">${im.caption ? `<figcaption>${esc(im.caption)}</figcaption>` : ''}</figure>`).join('')
     : `<div class="ev-ghost" aria-hidden="true">${esc(e.year)}</div>
       ${motifSVG(e.motif) ? `<figure class="element"><div class="element-disc">${motifSVG(e.motif)}</div></figure>` : ''}
-      <figure class="snap ${motifSVG(e.motif) ? 'm1' : 'm0'} stamp"><img src="${c.stamp}" alt=""></figure>`;
+      <figure class="snap ${motifSVG(e.motif) ? 'm1' : 'm0'} stamp">${stampHTML(c)}</figure>`;
   for (const el of [info, media]) el.animate([{ opacity: 0, transform: 'translateY(14px)' }, { opacity: 1, transform: 'none' }], { duration: 420, easing: 'cubic-bezier(.2,.8,.2,1)' });
 }
 
@@ -627,19 +805,27 @@ function jumpTo(i) {
 }
 
 // ---------------------------------------------------------------- leave
-export function closeCity() {
+export async function closeCity() {
   const { state } = ctx;
   state.seq++;
   state.afterAuth = null;
   opening = false;
-  if (cur) cur.rope = null;
+  const id = cur?.id;
+  if (cur) { cur.rope = null; cur.stopWatching?.(); }
   cur = null;
   const pg = $('#pigeon');
   pg.getAnimations().forEach((a) => a.cancel());
   $('#scroll').getAnimations().forEach((a) => a.cancel());
   pg.hidden = true;
-  $('#city').hidden = true;
+  $('#checkpoint').hidden = true;
+  ctx.sequenceDone();
   ctx.resetStreet();
+  // step back out through the arch while the street pulls back
+  if (id && !reduced()) await archTo(id, null, 'close', 650);
+  $('#city').hidden = true;
+  $('#city').style.clipPath = '';
+  $('#archFrame').innerHTML = '';
+  document.querySelector('main').inert = false;
 }
 
 export const cityIsOpen = () => !$('#city').hidden;
