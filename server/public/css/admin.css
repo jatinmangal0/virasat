@@ -88,3 +88,7 @@ th { color: var(--ink-soft); font-weight: 600; }
 
 .help { font-size: 14px; color: var(--ink-soft); }
 .help li { margin: 2px 0; }
+.item .year { display: inline-block; background: var(--ink); color: #fff; border-radius: 6px; padding: 0 7px; margin-right: 4px; font-size: 14px; }
+.thumbs { display: flex; gap: 8px; margin: 4px 0 8px; flex-wrap: wrap; }
+.thumbs img { width: 84px; height: 64px; object-fit: cover; border-radius: 6px; border: 1px solid var(--line); }
+.item .motif { float: right; width: 64px; height: 64px; margin: 0 0 6px 10px; }

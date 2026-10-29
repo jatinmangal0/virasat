@@ -9,7 +9,7 @@
   <link rel="icon" href="assets/elephant.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&family=Baloo+Da+2:wght@500;700&family=Bowlby+One&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&family=Baloo+Da+2:wght@500;700&family=Baloo+Thambi+2:wght@600&family=Baloo+Tamma+2:wght@600&family=Baloo+Tammudu+2:wght@600&family=Baloo+Chettan+2:wght@600&family=Baloo+Bhai+2:wght@600&family=Baloo+Paaji+2:wght@600&family=Baloo+Bhaina+2:wght@600&family=IM+Fell+English:ital@0;1&family=Bowlby+One&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -33,6 +33,9 @@
       </button>
       <button class="icon-btn" id="journeyBtn" aria-label="My journey">
         <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="10" r="3.5"/><path d="M8 17h8"/></svg>
+      </button>
+      <button class="icon-btn" id="nightBtn" aria-label="Turn on night mode" aria-pressed="false" title="Night" hidden>
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path class="nt-moon" d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/><g class="nt-sun"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></g></svg>
       </button>
       <button class="icon-btn" id="soundBtn" aria-label="Turn sound on" aria-pressed="false">
         <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path class="wave" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/><path class="mute" d="M16 9l5 6M21 9l-5 6"/></svg>
@@ -59,9 +62,7 @@
         <div class="world" id="world"></div></div>
       </div>
 
-      <h1 class="headline" aria-label="Namaste!">
-        <span class="hl-big">N</span><span>amaste!</span>
-      </h1>
+      <h1 class="sr-only">Virasat: walk into Udaipur and Kolkata</h1>
 
       <div class="callout" id="callout">
         <p>Two cities are waiting at the end of this street. <strong>Pick one</strong> and Gaju the elephant will walk you there!</p>
@@ -98,59 +99,48 @@
     </section>
   </main>
 
-  <!-- post office: envelope + poster -->
-  <section class="post" id="post" hidden aria-live="polite">
-    <div class="post-bg"></div>
-    <button class="post-back" id="postBack">← Back to the street</button>
+  <!-- a city: a pigeon brings a sealed scroll, the scroll opens into the letter, and its twine leads
+       down into the timeline and the city's outline -->
+  <section class="city" id="city" hidden>
+    <div class="city-sky" id="citySky" aria-hidden="true"></div>
+    <button class="post-back" id="cityBack">← Back to the street</button>
+    <button class="post-night" id="cityNight" aria-label="Switch day or night" title="Day or night">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path class="nt-moon" d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/><g class="nt-sun"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></g></svg>
+    </button>
     <div class="post-title" id="postTitle"></div>
-    <div class="env-wrap" id="envWrap">
-      <div class="env" id="env">
-        <div class="env-face env-front">
-          <div class="airmail"></div>
-          <div class="env-stamp"><img id="envStamp" alt=""></div>
-          <div class="postmark" id="postmark">
-            <svg viewBox="0 0 220 110"><circle cx="55" cy="55" r="44" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="55" cy="55" r="34" fill="none" stroke="currentColor" stroke-width="1.5"/>
-              <path id="pmArc" d="M21,55 a34,34 0 1,1 68,0" fill="none"/><text font-size="11" font-family="Baloo 2" font-weight="800" fill="currentColor"><textPath href="#pmArc" startOffset="50%" text-anchor="middle" id="pmCity">VIRASAT POST</textPath></text>
-              <text x="55" y="62" text-anchor="middle" font-size="12" font-family="Baloo 2" font-weight="800" fill="currentColor" id="pmDate"></text>
-              <path d="M104,30 q14,-8 28,0 t28,0 t28,0 t28,0 M104,48 q14,-8 28,0 t28,0 t28,0 t28,0 M104,66 q14,-8 28,0 t28,0 t28,0 t28,0 M104,84 q14,-8 28,0 t28,0 t28,0 t28,0" fill="none" stroke="currentColor" stroke-width="3"/></svg>
-          </div>
-          <div class="env-from" id="envFrom"></div>
-          <div class="env-to"><span>To,</span><strong id="envTo">The Curious Explorer</strong><em>Somewhere in India</em></div>
-        </div>
-        <div class="env-face env-back">
-          <div class="env-inside"></div>
-          <div class="env-poster" id="envPoster"><img id="posterImg" alt=""></div>
-          <div class="env-pocket"></div>
-          <div class="env-flap" id="envFlap"></div>
-          <button class="seal" id="seal" aria-label="Break the seal">
-            <span class="seal-v">V</span>
-            <svg class="seal-lock" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff6e0" stroke-width="2.4"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
-          </button>
-        </div>
-      </div>
+
+    <div class="city-hero" id="cityHero"><img id="cityPoster" alt=""></div>
+
+    <div class="scroll" id="scroll">
+      <div class="roll roll-top"><i class="knob l"></i><i class="knob r"></i></div>
+      <div class="sheet" id="sheet"><article class="letter" id="letter"></article></div>
+      <div class="roll roll-bottom" id="rollBottom"><i class="knob l"></i><i class="knob r"></i></div>
+      <svg class="tie" id="tie" aria-hidden="true"></svg>
+      <button class="seal" id="seal" aria-label="Break the seal">
+        <span class="seal-half a"></span><span class="seal-half b"></span>
+        <span class="seal-v">V</span>
+        <svg class="seal-lock" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff6e0" stroke-width="2.4"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+      </button>
     </div>
+
+    <div class="runway" id="runway" aria-hidden="true"><p>Follow the thread</p></div>
+    <section class="story" id="story" aria-label="Timeline">
+      <div class="story-stage" id="storyStage"></div>
+    </section>
+
+    <svg class="rope-layer" id="ropeLayer" aria-hidden="true"></svg>
+    <div class="pigeon" id="pigeon" aria-hidden="true"></div>
+
     <div class="checkpoint" id="checkpoint" hidden>
       <div class="cp-badge">Checkpoint</div>
-      <h3>This letter is sealed</h3>
+      <h3>This scroll is sealed</h3>
       <p>Log in or make a free account to break the seal. We'll keep track of the cities you open and your quiz scores.</p>
       <div class="cp-btns">
         <button class="btn primary" data-auth="phone">Log in</button>
         <button class="btn" data-auth="signup">Sign up free</button>
       </div>
     </div>
-    <div class="open-hint" id="openHint" hidden>Tap the seal to open your letter</div>
-  </section>
-
-  <!-- flying poster (FLIP from envelope to full view) -->
-  <div class="poster-fly" id="posterFly" hidden><img alt=""></div>
-
-  <!-- city letter -->
-  <section class="city" id="city" hidden>
-    <div class="city-top" id="cityTop">
-      <div class="city-hero" id="cityHero"><img id="cityPoster" alt=""></div>
-      <button class="post-back on-hero" id="cityBack">← Back to the street</button>
-    </div>
-    <article class="letter" id="letter"></article>
+    <div class="open-hint" id="openHint" hidden>Tap the seal to open your scroll</div>
   </section>
 
   <!-- auth -->
@@ -231,5 +221,6 @@
   <div class="toast" id="toast" role="status"></div>
 
   <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/night.js"></script>
 </body>
 </html>

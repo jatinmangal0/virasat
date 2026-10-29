@@ -27,7 +27,9 @@ export default function admin(r, { db, adminSetupCode }) {
         (SELECT COUNT(*)::int FROM facts f JOIN sections s ON s.id = f.section_id WHERE s.city_id = c.id AND f.status = 'verified') AS facts_verified,
         (SELECT COUNT(*)::int FROM facts f JOIN sections s ON s.id = f.section_id WHERE s.city_id = c.id AND f.status = 'needs_check') AS facts_to_check,
         (SELECT COUNT(*)::int FROM quiz_questions q WHERE q.city_id = c.id AND q.status = 'verified') AS quiz_verified,
-        (SELECT COUNT(*)::int FROM quiz_questions q WHERE q.city_id = c.id AND q.status = 'needs_check') AS quiz_to_check
+        (SELECT COUNT(*)::int FROM quiz_questions q WHERE q.city_id = c.id AND q.status = 'needs_check') AS quiz_to_check,
+        (SELECT COUNT(*)::int FROM timeline_events e WHERE e.city_id = c.id AND e.status = 'verified') AS timeline_verified,
+        (SELECT COUNT(*)::int FROM timeline_events e WHERE e.city_id = c.id AND e.status = 'needs_check') AS timeline_to_check
       FROM cities c ORDER BY c.sort_order, c.id`)).rows;
     return json(200, { cities: rows });
   });
@@ -43,7 +45,17 @@ export default function admin(r, { db, adminSetupCode }) {
       WHERE x.section_id = ANY($1::int[]) ORDER BY x.sort_order, x.id`, [sections.map((s) => s.id)])).rows;
     const quiz = (await db.query(`SELECT x.*, ${names} FROM quiz_questions x ${people}
       WHERE x.city_id = $1 ORDER BY x.sort_order, x.id`, [city.id])).rows;
-    return json(200, { city, sections: sections.map((s) => ({ ...s, facts: facts.filter((f) => f.section_id === s.id) })), quiz });
+    const timeline = (await db.query(`SELECT x.*, ${names} FROM timeline_events x ${people}
+      WHERE x.city_id = $1 ORDER BY x.sort_order, x.id`, [city.id])).rows;
+    return json(200, { city, sections: sections.map((s) => ({ ...s, facts: facts.filter((f) => f.section_id === s.id) })), quiz, timeline });
+  });
+
+  // The greetings in the top bar belong to the whole site, not to one city.
+  r.get('/api/admin/greetings', { role: 'editor' }, async () => {
+    const rows = (await db.query(`SELECT x.*, cu.name AS created_by_name, uu.name AS updated_by_name, vu.name AS verified_by_name
+      FROM greetings x LEFT JOIN users cu ON cu.id = x.created_by LEFT JOIN users uu ON uu.id = x.updated_by
+      LEFT JOIN users vu ON vu.id = x.verified_by ORDER BY x.sort_order, x.id`)).rows;
+    return json(200, { greetings: rows });
   });
 
   // ---------------------------------------------------------------- city profile (letter, quick facts)
@@ -101,6 +113,33 @@ export default function admin(r, { db, adminSetupCode }) {
       columns: ['city_id', 'question', 'options', 'answer_index', 'source_url'],
       wording: ['question', 'options', 'answer_index', 'source_url'],
     },
+    timeline: {
+      table: 'timeline_events', path: 'timeline',
+      read: async (b, c) => {
+        const images = (Array.isArray(b.images) ? b.images : []).slice(0, 4)
+          .map((im) => ({ src: text(im?.src, 500), caption: text(im?.caption, 160) })).filter((im) => im.src);
+        const out = { year_label: text(b.year, 20), title: text(b.title, 120), body: text(b.text, 700), images,
+          source_url: text(b.sourceUrl, 500), city_id: text(b.cityId, 40), sort_order: Number(b.order) || 0,
+          motif: /^[a-z]{0,20}$/.test(b.motif || '') ? b.motif || '' : '' };
+        if (!out.year_label || !out.title || !out.body) return { error: 'An event needs a year, a title and a short paragraph.' };
+        if (images.some((im) => !/^https:\/\/[^\s]+$/i.test(im.src))) return { error: 'Photo links must start with https://' };
+        if (!(await one('SELECT 1 FROM cities WHERE id = $1', [out.city_id], c))) return { error: 'Pick a city.' };
+        return out;
+      },
+      // sort_order is set by the editor here (the place on the timeline), and moving an event is not a rewording.
+      columns: ['city_id', 'year_label', 'title', 'body', 'images', 'source_url', 'sort_order', 'motif'],
+      wording: ['year_label', 'title', 'body', 'images', 'source_url'],
+    },
+    greeting: {
+      table: 'greetings', path: 'greetings',
+      read: async (b) => {
+        const out = { word: text(b.word, 40), native: text(b.native, 60), language: text(b.language, 40), source_url: text(b.sourceUrl, 500) };
+        if (!out.word || !out.language) return { error: 'A greeting needs the word and its language.' };
+        return out;
+      },
+      columns: ['word', 'native', 'language', 'source_url'],
+      wording: ['word', 'native', 'language', 'source_url'],
+    },
     // Heritage places (from Aksh's workbooks): a point on the map with a short description.
     // Aksh's extra research columns stay in `details`; the editor page changes only these.
     place: {
@@ -119,9 +158,10 @@ export default function admin(r, { db, adminSetupCode }) {
       wording: ['name', 'subcategory', 'description', 'latitude', 'longitude', 'source_url'],
     },
   };
+  const JSON_COLUMNS = ['options', 'images'];
 
   for (const [entity, k] of Object.entries(kinds)) {
-    const val = (row, col) => (col === 'options' ? JSON.stringify(row[col]) : row[col]);
+    const val = (row, col) => (JSON_COLUMNS.includes(col) ? JSON.stringify(row[col]) : row[col]);
     const same = (a, b, cols) => cols.every((col) => JSON.stringify(a[col]) === JSON.stringify(b[col]));
     const check = (out) => (out.source_url && !isUrl(out.source_url) ? 'The source must be a link starting with http:// or https://.' : null);
 
@@ -129,10 +169,12 @@ export default function admin(r, { db, adminSetupCode }) {
       const out = await k.read(body, db);
       if (out.error || check(out)) return err(400, out.error || check(out));
       const row = await transaction(db, async (c) => {
-        const cols = [...k.columns, 'created_by', 'updated_by', 'sort_order'];
-        const vals = [...k.columns.map((col) => val(out, col)), user.id, user.id];
+        // New items go to the end, unless the kind lets the editor choose the place (timeline events).
+        const own = k.columns.includes('sort_order') && out.sort_order;
+        const cols = [...k.columns.filter((col) => col !== 'sort_order' || own), 'created_by', 'updated_by', ...(own ? [] : ['sort_order'])];
+        const vals = [...cols.filter((col) => k.columns.includes(col)).map((col) => val(out, col)), user.id, user.id];
         const created = await one(`INSERT INTO ${k.table} (${cols.join(', ')})
-          VALUES (${cols.slice(0, -1).map((_, i) => `$${i + 1}`).join(', ')}, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM ${k.table}))
+          VALUES (${vals.map((_, i) => `$${i + 1}`).join(', ')}${own ? '' : `, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM ${k.table})`})
           RETURNING *`, vals, c);
         await log(c, user.id, 'create', entity, created.id, null, created);
         return created;
@@ -201,7 +243,7 @@ export default function admin(r, { db, adminSetupCode }) {
   // ---------------------------------------------------------------- history
   r.get('/api/admin/log', { role: 'editor' }, async () => {
     const rows = (await db.query(`SELECT l.id, l.action, l.entity, l.entity_id, l.at, u.name AS user_name,
-      COALESCE(l.after->>'title', l.before->>'title', l.after->>'question', l.before->>'question', l.after->>'name', l.before->>'name') AS label
+      COALESCE(l.after->>'title', l.before->>'title', l.after->>'question', l.before->>'question', l.after->>'name', l.before->>'name', l.after->>'word', l.before->>'word') AS label
       FROM content_log l LEFT JOIN users u ON u.id = l.user_id ORDER BY l.at DESC, l.id DESC LIMIT 200`)).rows;
     return json(200, { log: rows });
   });
@@ -230,7 +272,7 @@ export default function admin(r, { db, adminSetupCode }) {
   });
 
   // The very first admin: works only while there is no admin at all, and needs the setup code
-  // stored in the ADMIN_SETUP_CODE environment variable on Netlify.
+  // stored in the ADMIN_SETUP_CODE environment variable on Vercel.
   r.post('/api/admin/claim', { role: 'learner', limit: true }, async ({ body, user }) => {
     const admins = (await one("SELECT COUNT(*)::int AS n FROM users WHERE role = 'admin'", [])).n;
     if (admins > 0) return err(403, 'This site already has an admin. Ask them to give you a role.');

@@ -2,6 +2,8 @@
 // teammate has verified. Quiz answers are never sent ahead: the browser asks /api/quiz/check.
 import { json, err } from './router.js';
 
+const publicEvent = (e) => ({ id: e.id, year: e.year_label, title: e.title, text: e.body, images: e.images, motif: e.motif, src: e.source_url });
+
 // The shape the website code expects for one city (the same shape the old content.js had).
 export async function loadPublicCities(db) {
   const cities = (await db.query('SELECT * FROM cities WHERE published ORDER BY sort_order, id')).rows;
@@ -10,6 +12,8 @@ export async function loadPublicCities(db) {
     "SELECT id, section_id, title, body, source_url FROM facts WHERE status = 'verified' ORDER BY sort_order, id")).rows;
   const quiz = (await db.query(
     "SELECT id, city_id, question, options FROM quiz_questions WHERE status = 'verified' ORDER BY sort_order, id")).rows;
+  const events = (await db.query(
+    "SELECT id, city_id, year_label, title, body, images, motif, source_url FROM timeline_events WHERE status = 'verified' ORDER BY sort_order, id")).rows;
 
   return cities.map((c) => ({
     id: c.id, name: c.name, native: c.native_name, state: c.state, nickname: c.nickname, accent: c.accent,
@@ -20,11 +24,34 @@ export async function loadPublicCities(db) {
       items: facts.filter((f) => f.section_id === s.id).map((f) => ({ id: f.id, title: f.title, text: f.body, src: f.source_url })),
     })),
     quiz: quiz.filter((q) => q.city_id === c.id).map((q) => ({ id: q.id, q: q.question, options: q.options })),
+    timeline: events.filter((e) => e.city_id === c.id).map(publicEvent),
+    outline: c.outline, outlineSource: c.outline_source,
   }));
 }
 
 export default function content(r, { db }) {
   r.get('/api/cities', async () => json(200, { cities: await loadPublicCities(db) }));
+
+  // The greetings that scroll in the top bar.
+  r.get('/api/greetings', async () => {
+    const rows = (await db.query("SELECT word, native, language FROM greetings WHERE status = 'verified' ORDER BY sort_order, id")).rows;
+    return json(200, { greetings: rows });
+  });
+
+  // Demo mode (the website with ?demo in its address): timeline events, greetings and heritage places that are written
+  // but not yet checked, so the team can see the design full. The page labels every one as a draft.
+  r.get('/api/demo', async () => {
+    const events = (await db.query(
+      "SELECT id, city_id, year_label, title, body, images, motif, source_url FROM timeline_events WHERE status = 'needs_check' ORDER BY sort_order, id")).rows;
+    const greetings = (await db.query("SELECT word, native, language FROM greetings WHERE status = 'needs_check' ORDER BY sort_order, id")).rows;
+    const placeRows = (await db.query(`SELECT id, city_id, name, native_name, category, subcategory, description,
+        latitude, longitude, year, image_url, source_url FROM heritage_places
+      WHERE status = 'needs_check' AND latitude IS NOT NULL AND longitude IS NOT NULL ORDER BY sort_order, id`)).rows;
+    const timeline = {}, places = {};
+    for (const e of events) (timeline[e.city_id] ||= []).push({ ...publicEvent(e), draft: true });
+    for (const { city_id, ...p } of placeRows) (places[city_id] ||= []).push({ ...p, draft: true });
+    return json(200, { timeline, greetings, places });
+  });
 
   // Check one answer while someone is playing. Works without logging in.
   r.post('/api/quiz/check', async ({ body }) => {

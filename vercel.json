@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "npm ci --omit=dev",
+  "buildCommand": "node scripts/migrate.js && node scripts/copy-data.js --once",
+  "outputDirectory": "server/public",
+  "cleanUrls": true,
+  "regions": ["sin1"],
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "/api?__p=:path*" }
+  ]
+}

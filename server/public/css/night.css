@@ -1,0 +1,116 @@
+/* Night mode for the street (js/night.js). Everything fades in over about a second and a half. */
+:root { --nt-fade: 1.6s; }
+
+/* day: the street lamps are off */
+.layer-fg .glow { opacity: 0; animation: none; }
+.layer-fg circle[r="10"] { fill: #efe8d2; transition: fill var(--nt-fade); }
+
+/* the daytime drawing dims, a little cooler, as if under moonlight */
+.street { transition: background-color var(--nt-fade); }
+.street.night { background-color: #070b22; }
+.nt-dim { transition: filter var(--nt-fade) ease; filter: brightness(1) saturate(1) contrast(1); }
+.street.night .nt-dim-skyline { filter: brightness(.3) saturate(.55) contrast(1.05); }
+.street.night .nt-dim-buildings { filter: brightness(.34) saturate(.6) contrast(1.08); }
+.street.night .nt-dim-wires { filter: brightness(.3) saturate(.6); }
+.street.night .nt-dim-road { filter: brightness(.36) saturate(.55) contrast(1.05); }
+.street.night .nt-dim-fg { filter: brightness(.38) saturate(.6); }
+.street .gaju-body img { transition: filter var(--nt-fade); }
+.street.night .gaju-body img { filter: brightness(.78) saturate(.85) sepia(.12) drop-shadow(0 6px 0 #00000044); }
+
+/* the night layers */
+.nt { opacity: 0; visibility: hidden; transition: opacity var(--nt-fade) ease, visibility 0s linear var(--nt-fade); pointer-events: none !important; }
+.nt * { pointer-events: none !important; }
+.street.night .nt { opacity: 1; visibility: visible; transition: opacity var(--nt-fade) ease, visibility 0s; }
+.nt-lit { filter: sepia(.22) saturate(1.15) brightness(1.04); }
+
+/* the lamps warm up one after another, with a short flicker like a real street light */
+.nt-lamp { opacity: 0; }
+.street.night .nt-lamp { animation: nt-ignite 1.8s ease-out var(--d) forwards; }
+@keyframes nt-ignite {
+  0% { opacity: 0; } 8% { opacity: .75; } 13% { opacity: .1; } 22% { opacity: .9; } 28% { opacity: .35; }
+  45% { opacity: .85; } 100% { opacity: 1; }
+}
+.street.night .layer-fg circle[r="10"] { fill: #fff3c8; }
+
+.nt-twinkle { animation: nt-twinkle 3.6s ease-in-out infinite; animation-delay: var(--d); animation-play-state: paused; }
+.street.night .nt-twinkle { animation-play-state: running; }
+@keyframes nt-twinkle { 50% { opacity: .25; } }
+.nt-bulb { filter: drop-shadow(0 0 3px #ffd27a); }
+
+/* the toggle in the top bar: a moon by day, a sun by night */
+#nightBtn .nt-sun { display: none; }
+#nightBtn[aria-pressed="true"] .nt-sun { display: inline; }
+#nightBtn[aria-pressed="true"] .nt-moon { display: none; }
+#nightBtn svg { transition: transform .5s ease; }
+#nightBtn:active svg { transform: rotate(-25deg) scale(.9); }
+
+/* with the extra button, give the right-hand icons room on phones */
+@media (max-width: 480px) {
+  .topbar { grid-template-columns: auto 1fr auto; }
+  .topbar .logo { justify-self: center; }
+  .topbar-right { gap: 2px; }
+  .topbar-right .icon-btn { padding: 5px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .street.night .nt-lamp { opacity: 1; }
+}
+
+/* ---------- the city page at night: the pigeon flies under the moon, the scroll is read by lamplight ---------- */
+.post-night {
+  position: fixed; top: 16px; right: 16px; z-index: 12; width: 42px; height: 42px; display: grid; place-items: center;
+  border: 2px solid var(--ink); background: #fff; color: var(--ink); border-radius: 50%; box-shadow: 0 3px 0 var(--ink);
+}
+.post-night .nt-sun, body.is-night .post-night .nt-moon { display: none; }
+body.is-night .post-night .nt-sun { display: inline; }
+body.is-night .post-night { background: #1b2148; color: #ffe7a3; border-color: #0a0d24; box-shadow: 0 3px 0 #0a0d24, 0 0 18px #ffd56a55; }
+
+.city { transition: background-color var(--nt-fade); }
+body.is-night .city {
+  --night: #0b0e24;
+  background:
+    radial-gradient(ellipse at 50% 0%, #2a2f5c 0%, #0000 60%),
+    radial-gradient(#ffffff22 1px, #0000 1.5px) 0 0 / 34px 34px,
+    radial-gradient(#ffffff14 1px, #0000 1.4px) 11px 17px / 23px 23px,
+    var(--night);
+}
+.city-sky::before, .city-sky::after { content: ''; position: absolute; inset: 0; opacity: 0; transition: opacity var(--nt-fade); }
+/* the stars twinkle */
+.city-sky::before {
+  background:
+    radial-gradient(#fff 1px, #0000 1.6px) 0 0 / 61px 47px,
+    radial-gradient(#ffffffb0 1px, #0000 1.4px) 23px 31px / 37px 53px,
+    radial-gradient(#ffe9b0 1.2px, #0000 1.8px) 40px 9px / 97px 83px;
+  animation: nt-twinkle 4s ease-in-out infinite alternate;
+}
+/* the night sky itself and the moon, with a warm haze over the city at the bottom */
+.city-sky::after { z-index: -1; background:
+  radial-gradient(circle at 82% 16%, #fffdf2 0 2.6%, #fff1c4 3.3%, #ffe7a355 3.6%, #ffe7a31a 7%, #0000 12%),
+  radial-gradient(circle at 50% 120%, #ff9a5a55 0%, #0000 45%), linear-gradient(#070b22, #1a2052 60%, #33305e); }
+body.is-night .city-sky { background: none; }
+body.is-night .city-sky::before, body.is-night .city-sky::after { opacity: 1; }
+@keyframes nt-twinkle { to { filter: brightness(.65); } }
+body.is-night .post-title { color: #f6ead2; text-shadow: 0 2px 12px #000a; }
+body.is-night .post-title small { color: #c9c6e8; }
+body.is-night .pg { filter: brightness(.82) saturate(.8) drop-shadow(0 0 10px #c9d6ff55); }
+
+/* the city picture at dusk */
+.city-hero img { transition: filter var(--nt-fade), transform 2.4s cubic-bezier(.2,.8,.2,1) .2s; }
+body.is-night .city-hero img { filter: brightness(.62) saturate(.85) hue-rotate(-8deg) contrast(1.05); }
+body.is-night .city-hero::after { background: linear-gradient(#0b0e2455, #0000 30%, #0b0e24ee); height: 100%; }
+
+/* the scroll, lit by a warm lamp from above */
+body.is-night .scroll::before {
+  content: ''; position: absolute; left: -20%; right: -20%; top: -60px; height: 520px; pointer-events: none; z-index: -1;
+  background: radial-gradient(ellipse 50% 60% at 50% 30%, #ffb45a3a, #0000 70%);
+}
+body.is-night .sheet { filter: sepia(.12) brightness(.94); box-shadow: 0 0 80px #ffb45a33; }
+body.is-night .knob { box-shadow: 0 4px 8px #0006, 0 0 14px #ffd56a99; }
+
+/* the thread, the medallions and the marigolds catch the light */
+body.is-night .story-svg .garland, body.is-night .rope-layer .garland { filter: drop-shadow(0 0 4px #ffb347aa); }
+body.is-night .medal { box-shadow: 0 0 0 3px #d8a93b, 0 0 0 5px #7a5310, 0 0 0 7px #e8730c55, 0 0 24px #ffcf6a77; }
+body.is-night .element-disc { box-shadow: 0 0 0 6px #d8a93b, 0 0 0 9px #6b4a12, 0 0 60px #ffb34766, 0 30px 60px -20px #000c; }
+body.is-night .story-head small, body.is-night .ev-year { text-shadow: 0 0 18px #ffcf6a66; }
+body.is-night .ev-ghost { color: #c9d6ff0a; -webkit-text-stroke-color: #c9d6ff22; }
+body.is-night .place-card { box-shadow: 0 0 0 4px #d8a93b, 0 0 0 6px #6b4a12, 0 0 50px #ffb34744, 0 30px 60px -20px #000; }
