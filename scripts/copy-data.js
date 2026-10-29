@@ -5,16 +5,30 @@
 // counter past the highest copied id. The old database is only read, never changed.
 // Tables and columns that only Neon has (added by newer migrations, e.g. the timeline and the city
 // outlines) keep the values the migrations gave them.
+//
+// With --once (how Vercel's production build runs it), it does nothing when OLD_DATABASE_URL is
+// not set or the copy has already happened, so later builds never overwrite live data.
 import pg from 'pg';
 import { makePool } from '../server/lib/db.js';
 
-if (!process.env.OLD_DATABASE_URL) throw new Error('OLD_DATABASE_URL is not set');
+const once = process.argv.includes('--once');
+if (once && process.env.VERCEL_ENV && process.env.VERCEL_ENV !== 'production') process.exit(0);
+if (!process.env.OLD_DATABASE_URL) {
+  if (once) process.exit(0);
+  throw new Error('OLD_DATABASE_URL is not set');
+}
 const from = new pg.Pool({ connectionString: process.env.OLD_DATABASE_URL, max: 1 });
 const to = makePool();
+await to.query('CREATE TABLE IF NOT EXISTS data_imports (name TEXT PRIMARY KEY, done_at TIMESTAMPTZ NOT NULL DEFAULT now())');
+if (once && (await to.query("SELECT 1 FROM data_imports WHERE name = 'netlify'")).rowCount) {
+  console.log('Data was already copied from Netlify; skipping.');
+  await Promise.all([from.end(), to.end()]);
+  process.exit(0);
+}
 
 const tablesIn = async (db) => (await db.query(
   `SELECT table_name FROM information_schema.tables
-   WHERE table_schema = 'public' AND table_type = 'BASE TABLE' AND table_name <> 'schema_migrations'`,
+   WHERE table_schema = 'public' AND table_type = 'BASE TABLE' AND table_name NOT IN ('schema_migrations', 'data_imports')`,
 )).rows.map((r) => r.table_name);
 
 try {
@@ -80,6 +94,7 @@ try {
       }
       console.log(`${t}: ${rows.length} rows${keep.has(t) ? ' (kept, not in the old database)' : ''}`);
     }
+    await c.query("INSERT INTO data_imports (name) VALUES ('netlify') ON CONFLICT DO NOTHING");
     await c.query('COMMIT');
     console.log('Done. Neon now has every row from the old database.');
   } catch (e) {

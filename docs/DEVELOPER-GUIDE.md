@@ -47,6 +47,7 @@ r.get('/api/badges', { role: 'learner' }, async ({ user }) => json(200, { badges
 | Name | What it is for |
 |---|---|
 | `DATABASE_URL` | the Neon connection string (required) |
+| `OLD_DATABASE_URL` | one-off: the old Netlify database (`NETLIFY_DB_URL` on Netlify). The first production build copies its rows to Neon, then never again. Delete it afterwards. |
 | `ADMIN_SETUP_CODE` | code for claiming the first admin account |
 | `GOOGLE_CLIENT_ID` | Google sign-in (optional) |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM` | real SMS login codes (optional; without them, phone login runs in demo mode) |
