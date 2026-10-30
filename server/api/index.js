@@ -9,6 +9,8 @@
 //   progress.js  what a learner has covered, quiz scores, points
 //   admin.js     the editor page: writing, checking and verifying content, team roles
 //   places.js    heritage places (map positions), public and editor lists
+//   passport.js  the Fading Passport: stamps, and the spaced recall that keeps them inked
+//   classes.js   classes: a teacher's code, students who join with a nickname, and their results
 import { createRouter, err } from './router.js';
 import { sha256, rateLimiter } from '../lib/security.js';
 import { readSessionToken } from './session.js';
@@ -17,11 +19,13 @@ import content from './content.js';
 import progress from './progress.js';
 import admin from './admin.js';
 import places from './places.js';
+import passport from './passport.js';
+import classes from './classes.js';
 
-export function createApi({ db, sms, verifyGoogle, googleClientId = '', secureCookies = false, adminSetupCode = '' }) {
-  const deps = { db, sms, verifyGoogle, googleClientId, secureCookies, adminSetupCode };
+export function createApi({ db, sms, verifyGoogle, googleClientId = '', secureCookies = false, adminSetupCode = '', allowDemoSms = true }) {
+  const deps = { db, sms, verifyGoogle, googleClientId, secureCookies, adminSetupCode, allowDemoSms };
   const router = createRouter();
-  for (const area of [auth, content, progress, admin, places]) area(router, deps);
+  for (const area of [auth, content, progress, admin, places, passport, classes]) area(router, deps);
 
   // Per IP is loose because a whole classroom can share one IP; auth.js adds tighter per-email/phone limits.
   // On Vercel these counters live per function instance, so they are a speed bump, not a hard wall.
@@ -30,7 +34,8 @@ export function createApi({ db, sms, verifyGoogle, googleClientId = '', secureCo
 
   // req: { method, path, body, cookieHeader, ip } → { status, body, cookies: [Set-Cookie values] }
   return async function handle({ method, path, body, cookieHeader, ip }) {
-    const match = router.find(method, path.replace(/\/+$/, ''));
+    // HEAD is GET without the body; uptime checks use it
+    const match = router.find(method === 'HEAD' ? 'GET' : method, path.replace(/\/+$/, ''));
     if (!match) return err(404, 'Not found');
     const { route, params } = match;
 
@@ -46,6 +51,8 @@ export function createApi({ db, sms, verifyGoogle, googleClientId = '', secureCo
         return err(403, route.role === 'admin' ? 'Only an admin can do this.' : 'Only team editors can do this.');
       }
     }
-    return route.fn({ params, body: body ?? {}, user, token, ip });
+    const out = await route.fn({ params, body: body ?? {}, user, token, ip });
+    if (route.cache && out.status === 200) out.cache = route.cache;
+    return out;
   };
 }

@@ -10,7 +10,8 @@ const migrations = fileURLToPath(new URL('../db/migrations', import.meta.url));
 
 export const SETUP_CODE = 'test-setup-code';
 
-export async function startServer() {
+// options are passed on to createApi, e.g. { allowDemoSms: false } to act like the live site.
+export async function startServer(options = {}) {
   const local = new NetlifyDB();
   const db = new pg.Pool({ connectionString: await local.start() });
   await local.applyMigrations(migrations);
@@ -21,7 +22,7 @@ export async function startServer() {
     if (tok === 'neel') return { sub: 'g-456', email: 'neel@example.com', name: 'Neel', picture: null };
     throw new Error('bad token');
   };
-  const app = createExpressApp(createApi({ db, sms, verifyGoogle, googleClientId: 'cid', adminSetupCode: SETUP_CODE }));
+  const app = createExpressApp(createApi({ db, sms, verifyGoogle, googleClientId: 'cid', adminSetupCode: SETUP_CODE, ...options }));
   const server = await new Promise((resolve) => { const s = app.listen(0, () => resolve(s)); });
   const base = `http://127.0.0.1:${server.address().port}`;
 
@@ -50,5 +51,5 @@ export async function startServer() {
   };
 
   const stop = async () => { server.close(); await db.end(); await local.stop(); };
-  return { db, sent, client, person, stop };
+  return { db, sent, client, person, stop, base };
 }

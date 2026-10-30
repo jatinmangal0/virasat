@@ -71,10 +71,15 @@ function person(x, base, { skin = '#a8693f', top = '#e0503c', bottom = '#2f3c6b'
 
 function shopfront(x, w, { sign, signFont, num, goods, awning = ['#e0503c', '#f7e9d4'] }) {
   const top = 488, signY = 494, awnY = 532, openY = 554;
+  // The name sits between the sign's left edge and the number badge. A long name is squeezed to fit that
+  // space (textLength), so it never runs into the badge.
+  const size = sign.length > 11 ? 15 : 18, room = w - 50;
+  const latin = /^[\x20-\x7e]+$/.test(sign), guess = sign.length * size * (latin ? 0.74 : 0.62);
+  const fit = guess > room ? `textLength="${room}" lengthAdjust="spacingAndGlyphs"` : '';
   let g = `${r(x + 6, signY, w - 12, 34, '#fffaf0', `stroke="${INK}" stroke-width="2" rx="4"`)}
-    <text x="${x + w / 2 - 10}" y="${signY + 24}" text-anchor="middle" font-family="${signFont}" font-weight="700" font-size="${sign.length > 11 ? 15 : 18}" fill="#2a2a5a">${sign}</text>
+    <text x="${x + w / 2 - 14}" y="${signY + 24}" text-anchor="middle" font-family="${signFont}" font-weight="700" font-size="${size}" fill="#2a2a5a" ${fit}>${sign}</text>
     <circle cx="${x + w - 22}" cy="${signY + 17}" r="11" fill="#2a2a5a"/>
-    <text x="${x + w - 22}" y="${signY + 22}" text-anchor="middle" font-family="Baloo 2, sans-serif" font-weight="700" font-size="12" fill="#fff">${num}</text>`;
+    <text x="${x + w - 22}" y="${signY + 22}" text-anchor="middle" font-family="Anek Devanagari, Anek Latin, sans-serif" font-weight="700" font-size="12" fill="#fff">${num}</text>`;
   // scalloped striped awning
   const n = Math.max(4, Math.round((w - 8) / 22));
   const sw = (w - 8) / n;
@@ -256,7 +261,7 @@ function udaipurGate() {
   g += `<g class="gate-sign">${r(x + 30, top + 196, w - 60, 44, cream, `stroke="${blue}" stroke-width="3" rx="3"`)}
     ${r(x + 35, top + 201, w - 70, 34, 'none', `stroke="${blue}" stroke-width="1" stroke-dasharray="3 3"`)}
     <text x="${cx}" y="${top + 226}" text-anchor="middle" font-family="Bowlby One, sans-serif" font-size="19" fill="${blue}" letter-spacing="1">UDAIPUR</text>
-    <text x="${cx}" y="${top + 239}" text-anchor="middle" font-family="Baloo 2, sans-serif" font-weight="700" font-size="11" fill="${blue}">उदयपुर · City of Lakes</text></g>`;
+    <text x="${cx}" y="${top + 239}" text-anchor="middle" font-family="Anek Devanagari, Anek Latin, sans-serif" font-weight="700" font-size="11" fill="${blue}">उदयपुर · City of Lakes</text></g>`;
   // the portal: Lake Pichola seen through the arch
   const ax = cx - 62, ay = top + 258, aw = 124, ah = GROUND - ay;
   g += `<defs><clipPath id="arch-u"><path d="${pointedArch(ax, ay, aw, ah)}"/></clipPath>
@@ -316,7 +321,7 @@ function kolkataGate() {
   g += `<g class="gate-sign">${r(x + 28, top + 170, w - 56, 44, '#fff7df', `stroke="${INK}" stroke-width="2.5" rx="3"`)}
     ${r(x + 33, top + 175, w - 66, 34, 'none', `stroke="#c0392b" stroke-width="1" stroke-dasharray="3 3"`)}
     <text x="${cx}" y="${top + 199}" text-anchor="middle" font-family="Bowlby One, sans-serif" font-size="19" fill="#b9503a" letter-spacing="1">KOLKATA</text>
-    <text x="${cx}" y="${top + 212}" text-anchor="middle" font-family="Baloo Da 2, sans-serif" font-weight="700" font-size="11" fill="#b9503a">কলকাতা · City of Joy</text></g>`;
+    <text x="${cx}" y="${top + 212}" text-anchor="middle" font-family="Anek Bangla, sans-serif" font-weight="700" font-size="11" fill="#b9503a">কলকাতা · City of Joy</text></g>`;
   // portal: Howrah Bridge over the Hooghly, a yellow taxi crossing
   const ax = cx - 64, ay = top + 232, aw = 128, ah = GROUND - ay;
   let truss = '';
@@ -382,14 +387,14 @@ function skylineLayer() {
 function buildingsLayer() {
   const B = [
     rajBuilding({ x: -20, w: 180, h: 360, fill: '#f0a59b', trim: '#fbe3d6', win: '#7b2f45', chhatriAt: 120, creepers: [[10, 30, 1.2]],
-      shop: { sign: 'घेवर भंडार', signFont: 'Baloo 2, sans-serif', num: 11, goods: goods.sweets } }),
+      shop: { sign: 'घेवर भंडार', signFont: 'Anek Devanagari, Anek Latin, sans-serif', num: 11, goods: goods.sweets } }),
     rajBuilding({ x: 160, w: 175, h: 400, fill: '#de7f63', trim: '#f8dccb', win: '#5a2333', chhatriAt: 50, creepers: [[150, 60, 1]],
       shop: { sign: 'MEWAR CHAI', signFont: 'Bowlby One, sans-serif', num: 12, goods: goods.chai, awning: ['#2f5fb8', '#f7e9d4'] } }),
     udaipurGate(),
     rajBuilding({ x: 605, w: 165, h: 340, fill: '#f6b98f', trim: '#fff0e0', win: '#7b3b2a', creepers: [[140, 20, 1.1]],
-      shop: { sign: 'कठपुतली घर', signFont: 'Baloo 2, sans-serif', num: 14, goods: goods.puppets, awning: ['#3c8c5a', '#f7e9d4'] } }),
+      shop: { sign: 'कठपुतली घर', signFont: 'Anek Devanagari, Anek Latin, sans-serif', num: 14, goods: goods.puppets, awning: ['#3c8c5a', '#f7e9d4'] } }),
     calBuilding({ x: 832, w: 168, h: 360, fill: '#f2c14e', trim: '#fff3d6', shutter: '#3f8f6a', clothes: true,
-      shop: { sign: 'মিষ্টি ঘর', signFont: 'Baloo Da 2, sans-serif', num: 21, goods: goods.mishti } }),
+      shop: { sign: 'মিষ্টি ঘর', signFont: 'Anek Bangla, sans-serif', num: 21, goods: goods.mishti } }),
     kolkataGate(),
     calBuilding({ x: 1270, w: 165, h: 390, fill: '#7fbfb0', trim: '#f2f4ea', shutter: '#2f6b4f', clothes: false,
       shop: { sign: 'BOI PARA', signFont: 'Bowlby One, sans-serif', num: 23, goods: goods.books, awning: ['#7a4b9a', '#f7e9d4'] } }),
@@ -460,7 +465,7 @@ function auto(x, y) {
     <circle cx="${x + 26}" cy="${y + 72}" r="13" fill="#1d1d1d"/><circle cx="${x + 26}" cy="${y + 72}" r="5" fill="#c0392b"/>
     <circle cx="${x + 120}" cy="${y + 72}" r="13" fill="#1d1d1d"/><circle cx="${x + 120}" cy="${y + 72}" r="5" fill="#c0392b"/>
     <circle cx="${x + 2}" cy="${y + 40}" r="5" fill="#fff6c4" stroke="${INK}"/></g>
-    <text x="${x + 26}" y="${y + 44}" text-anchor="middle" font-family="Baloo 2" font-size="10" font-weight="700" fill="#fff">VIRASAT</text>
+    <text x="${x + 26}" y="${y + 44}" text-anchor="middle" font-family="Anek Latin" font-size="10" font-weight="700" fill="#fff">VIRASAT</text>
   </g>`;
 }
 
@@ -471,7 +476,7 @@ function taxi(x, y) {
     <path d="M${x + 42},${y + 16} Q${x + 48},${y} ${x + 74},${y} V${y + 16} Z M${x + 80},${y + 16} V${y} Q${x + 104},${y} ${x + 110},${y + 16} Z" fill="#cfe3e6"/>
     <path d="M${x},${y + 52} V${y + 28} Q${x + 2},${y + 16} ${x + 20},${y + 16} H${x + 132} Q${x + 150},${y + 18} ${x + 150},${y + 32} V${y + 52} Z" fill="#f5c518" stroke="${INK}" stroke-width="2.5"/>
     ${r(x + 60, y - 14, 30, 9, '#f7e9d4', `stroke="${INK}" stroke-width="1" rx="2"`)}
-    <text x="${x + 75}" y="${y - 7}" text-anchor="middle" font-size="7" font-family="Baloo 2" font-weight="700" fill="${INK}">TAXI</text>
+    <text x="${x + 75}" y="${y - 7}" text-anchor="middle" font-size="7" font-family="Anek Latin" font-weight="700" fill="${INK}">TAXI</text>
     ${r(x + 6, y + 34, 140, 3, '#2b2b2b', 'opacity=".5"')}
     <circle cx="${x + 32}" cy="${y + 54}" r="12" fill="#1d1d1d"/><circle cx="${x + 32}" cy="${y + 54}" r="5" fill="#ccc"/>
     <circle cx="${x + 118}" cy="${y + 54}" r="12" fill="#1d1d1d"/><circle cx="${x + 118}" cy="${y + 54}" r="5" fill="#ccc"/>

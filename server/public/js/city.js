@@ -1,13 +1,20 @@
 // A city, from delivery to map:
-//   1. a pigeon flies in with a sealed scroll tied to its leg, drops it and flies off
-//   2. breaking the seal (after logging in) lets the twine fall, still tied to the scroll
-//   3. the scroll unrolls under the city's picture, which fills the top half of the screen
+//   0. the camera flies through the gate's arch: the city view opens inside the arch, which grows past the screen
+//   1. a pigeon flies in over the city with a sealed scroll tied to its leg, drops it and flies off
+//   2. the seal breaks (no login needed) and the twine falls, still tied to the scroll
+//   3. the scroll unrolls under the city's picture, which fills the top half of the screen. Inside: the letter,
+//      fact cards by section, and "Seal the letter", a short quiz that presses the city's seal into the wax
 //   4. scrolling down follows the twine: it becomes a wave of events, moves to the left as a
 //      timeline while each event is shown in the middle, then swirls off, comes back and draws
 //      the outline of the city.
 //   5. the city's heritage places light up inside the outline, and each one opens a card.
 import { twineSVG, setTwine, Rope, GARLAND_DEFS, placeGarland } from './twine.js';
 import { motifSVG } from './motifs.js';
+import { stampHTML } from './stamps.js';
+import { heroSVG, archPath } from './hero.js';
+import { openKit } from './kit.js';
+import { initQuiz, startQuiz } from './quiz.js';
+import { initPlaces, loadPlaces, renderPlaces, placePins } from './places.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -18,13 +25,22 @@ const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 const smooth = (t) => t * t * (3 - 2 * t);
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 // An animation's promise can stall in a background tab, so never wait longer than it should take.
-const settle = (anim) => Promise.race([anim.finished, sleep(anim.effect.getTiming().duration + 250)]).catch(() => {});
+const settle = (anim) => Promise.race([anim.finished, sleep(anim.effect.getTiming().duration / (anim.playbackRate || 1) + 250)]).catch(() => {});
+// Skipping (the Skip button, or a city seen before) plays the same sequence, just much faster.
+const pace = () => (ctx.state.fast ? 0.18 : 1);
+const wait = (ms) => sleep(ms * pace());
+const speedUp = (anim) => { anim.playbackRate = 1 / pace(); return anim; };
+// The seal on each city's scroll carries Virasat's initial in the city's own script.
+const SEAL_MARK = { udaipur: 'वि', kolkata: 'বি' };
+const LANG = { udaipur: 'hi', kolkata: 'bn' };
 
 let ctx;      // what app.js shares: state, CITIES, api, sound, esc, firstName, openAuth, showEarned, goToCity, resetStreet
 let cur = null; // the open city: { id, c, my, rope, story, ... }
 
 export function initCity(shared) {
   ctx = shared;
+  initQuiz({ ctx, cur: () => cur, relayout: () => layoutAfterOpen(), marks: SEAL_MARK });
+  initPlaces({ ctx, cur: () => cur, relayout: () => layoutAfterOpen() });
   $('#pigeon').innerHTML = PIGEON;
   document.body.insertAdjacentHTML('beforeend', `<svg width="0" height="0" style="position:absolute" aria-hidden="true">${GARLAND_DEFS}</svg>`);
   $('#cityBack').onclick = closeCity;
@@ -37,6 +53,51 @@ export function initCity(shared) {
   });
   $('#city').addEventListener('scroll', () => cur?.story && requestStoryFrame());
   addEventListener('resize', () => { if (cur?.opened) layoutAfterOpen(); });
+  $('#cpClose').onclick = () => { $('#checkpoint').hidden = true; };
+  // the arrival scene leans a little with the pointer, each layer by its depth
+  $('#city').addEventListener('pointermove', (e) => {
+    if (reduced() || !cur) return;
+    const dx = e.clientX / innerWidth - 0.5, dy = e.clientY / innerHeight - 0.5;
+    $$('#citySky .hero-layer, #cityHero .hero-layer').forEach((g) => {
+      const d = Number(g.dataset.depth) || 0;
+      g.style.transform = `translate(${-dx * d * 120}px, ${-dy * d * 40}px)`;
+    });
+  });
+}
+
+// ---------------------------------------------------------------- through the arch
+// The city view is clipped to the shape of the gate's opening, starting exactly over the little arch on the
+// street and growing until its edges are far past the screen. The arch's blue border grows with it, so you
+// see yourself pass through the gate. `from` is the opening's box on screen; null means start from the middle.
+let archAnim = 0;
+function archTo(id, from, to, ms) {
+  const view = $('#city'), frame = $('#archFrame');
+  const W = innerWidth, H = innerHeight;
+  const start = from || { x: W * 0.45, y: H * 0.42, w: W * 0.1, h: H * 0.18 };
+  // big enough that every corner of the screen is inside the arch, with its border well outside
+  const big = Math.max(W, H) * 3.2;
+  const end = { x: W / 2 - big / 2, y: H / 2 - big * 0.42, w: big, h: big * 1.2 };
+  const [a, b] = to === 'open' ? [start, end] : [end, start];
+  const ring = id === 'kolkata' ? '#f3e3c3' : '#2b45a6';
+  const my = ++archAnim;
+  return new Promise((done) => {
+    const t0 = performance.now();
+    const step = (t) => {
+      if (my !== archAnim) return done();
+      const k = clamp((t - t0) / (ms * pace()));
+      const e = to === 'open' ? 1 - (1 - k) ** 3 : k * k * k;
+      const r = { x: lerp(a.x, b.x, e), y: lerp(a.y, b.y, e), w: lerp(a.w, b.w, e), h: lerp(a.h, b.h, e) };
+      const d = archPath(id, r.x, r.y, r.w, r.h);
+      view.style.clipPath = `path('${d}')`;
+      const sw = Math.max(4, r.w * 0.06);
+      frame.innerHTML = `<path d="${d}" stroke="${ring}" stroke-width="${sw}"/><path d="${archPath(id, r.x - sw * 0.9, r.y - sw * 0.9, r.w + sw * 1.8, r.h + sw * 0.9)}" stroke="#3a2420" stroke-width="${Math.max(1.5, sw * 0.25)}"/>`;
+      if (k < 1) requestAnimationFrame(step);
+      else { if (to === 'open') { view.style.clipPath = ''; frame.innerHTML = ''; } done(); }
+    };
+    requestAnimationFrame(step);
+    // frames stop in background tabs; never leave the city half-clipped
+    setTimeout(() => { if (my === archAnim && to === 'open') { view.style.clipPath = ''; frame.innerHTML = ''; } done(); }, ms * pace() + 400);
+  });
 }
 
 // ---------------------------------------------------------------- the pigeon
@@ -66,19 +127,20 @@ const PIGEON = `
 <svg class="tether" viewBox="0 0 20 90">${twineSVG(3.5)}</svg>`;
 
 // ---------------------------------------------------------------- open a city
-export async function openCity(id, my) {
+export async function openCity(id, my, from = null) {
   const { state, CITIES, esc } = ctx;
   const c = CITIES[id];
   state.city = id;
   const view = $('#city');
   cur = { id, c, my, opened: false, places: [] };
   loadPlaces(cur);
-  view.className = 'city delivering';
+  view.className = 'city delivering arriving';
   view.style.setProperty('--accent', c.accent);
   renderLetter(c);
-  $('#cityPoster').src = c.poster;
-  $('#cityPoster').alt = `Scenes from ${c.name}`;
-  $('#postTitle').innerHTML = `<small>Virasat Post</small>A scroll from ${esc(c.name)}`;
+  $('#citySky').innerHTML = heroSVG(id);
+  $('#cityHero').innerHTML = heroSVG(id);
+  $('#sealMark').textContent = SEAL_MARK[id] || 'V';
+  $('#postTitle').innerHTML = `<small>Virasat Dak</small>A scroll from ${esc(c.name)}`;
   $('#checkpoint').hidden = true;
   $('#openHint').hidden = true;
   $('#sheet').style.height = '0px';
@@ -90,22 +152,19 @@ export async function openCity(id, my) {
   view.hidden = false;
   view.scrollTop = 0;
   document.body.classList.add('locked');
-  await Promise.race([Promise.all([$('#cityPoster').decode(), $('.letter-stamp').decode()]).catch(() => {}), sleep(1500)]);
+  document.querySelector('main').inert = true;
+  if (!reduced()) await archTo(id, from, 'open', 1150);
   if (my !== state.seq) return;
+  view.focus({ preventScroll: true });
   drawTie();
 
   try {
     await deliver(my);
   } catch { return; }
   if (my !== state.seq) return;
-  if (state.user) {
-    await sleep(500);
-    breakSeal(my);
-  } else {
-    view.classList.add('locked');
-    $('#checkpoint').hidden = false;
-    state.afterAuth = () => { $('#checkpoint').hidden = true; breakSeal(my); };
-  }
+  // Reading is free: the seal breaks for everyone. An account only keeps your stamps and points.
+  await wait(500);
+  breakSeal(my);
 }
 
 // The twine wrapped round the closed scroll: crossing strands, a knot, two loose ends.
@@ -131,6 +190,7 @@ async function deliver(my) {
   const check = () => { if (my !== state.seq) throw new Error('cancelled'); };
   const sc = $('#scroll'), pg = $('#pigeon'), view = $('#city');
   if (reduced()) {
+    view.classList.remove('arriving');
     await settle(sc.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, fill: 'both' }));
     view.classList.add('show-title');
     return;
@@ -159,8 +219,10 @@ async function deliver(my) {
   sound.whoosh();
   const kf = (extra) => path.map(([x, y, rot], i) => ({ transform: `translate(${x + extra.x}px, ${y + extra.y}px) rotate(${rot}deg)`, offset: [0, 0.35, 0.7, 0.88, 1][i] }));
   const timing = { duration: 2300, easing: 'cubic-bezier(.35,.1,.3,1)', fill: 'both' };
-  const flyPg = pg.animate(kf({ x: px, y: py }), timing);
-  const flySc = sc.animate(path.map(([x, y, rot], i) => ({ transform: `translate(${x}px, ${y}px) rotate(${rot * 0.6}deg)`, offset: [0, 0.35, 0.7, 0.88, 1][i] })), timing);
+  const flyPg = speedUp(pg.animate(kf({ x: px, y: py }), timing));
+  const flySc = speedUp(sc.animate(path.map(([x, y, rot], i) => ({ transform: `translate(${x}px, ${y}px) rotate(${rot * 0.6}deg)`, offset: [0, 0.35, 0.7, 0.88, 1][i] })), timing));
+  cur.flying = [flyPg, flySc];
+  view.classList.remove('arriving'); // the scroll is off-screen with the pigeon now, so it can be shown
   await Promise.all([settle(flyPg), settle(flySc)]);
   check();
   // touch down: the scroll settles with a bump, the tether slips off the leg and the pigeon leaves
@@ -168,7 +230,7 @@ async function deliver(my) {
   sc.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(6px) scaleY(.97)' }, { transform: 'translateY(0)' }], { duration: 380, easing: 'ease-out' });
   view.classList.add('show-title');
   pg.classList.add('released');
-  await sleep(420);
+  await wait(420);
   check();
   flyPg.cancel();
   const away = pg.animate([
@@ -177,7 +239,7 @@ async function deliver(my) {
     { transform: `translate(${-pw - 60}px, ${-innerHeight * 0.4}px) rotate(-16deg)` },
   ], { duration: 1300, easing: 'cubic-bezier(.5,0,.6,1)', fill: 'both' });
   sound.whoosh();
-  await sleep(500);
+  await wait(500);
   flySc.cancel();
   settle(away).then(() => { pg.hidden = true; pg.classList.remove('flying', 'released'); away.cancel(); });
 }
@@ -196,30 +258,33 @@ async function breakSeal(my) {
     const check = () => { if (my !== state.seq) throw new Error('cancelled'); };
     sc.classList.add('broken');
     sound.crack();
-    await sleep(320);
+    await wait(320);
     check();
-    api('/api/progress/visit', { city: cur.id }).then(showEarned);
+    if (state.user) api('/api/progress/visit', { city: cur.id }).then(showEarned);
+    ctx.markSeen(cur.id);
 
     // the twine comes loose and falls, one end still tied to the bottom roller
     const L = $('#runway').offsetHeight + $('.roll-top').offsetHeight / 2;
     startRope(L);
     $('#tie').style.opacity = '0';
-    await sleep(reduced() ? 0 : 900);
+    await wait(reduced() ? 0 : 900);
     check();
 
     // unroll: the bottom roller travels down, the city's picture fills the top half
     const target = $('#letter').offsetHeight;
     view.classList.add('opened');
     sound.paper();
-    const roll = sheet.animate([{ height: '0px' }, { height: target + 'px' }], { duration: reduced() ? 1 : 1700, easing: 'cubic-bezier(.45,.05,.25,1)', fill: 'forwards' });
+    const roll = speedUp(sheet.animate([{ height: '0px' }, { height: target + 'px' }], { duration: reduced() ? 1 : 1700, easing: 'cubic-bezier(.45,.05,.25,1)', fill: 'forwards' }));
     await settle(roll);
     check();
     sheet.style.height = 'auto';
     roll.cancel();
     view.classList.remove('delivering');
     cur.opened = true;
+    ctx.sequenceDone();
     buildStory();
     layoutAfterOpen();
+    watchSections();
   } catch { /* cancelled by going back */ }
   opening = false;
 }
@@ -233,7 +298,7 @@ function anchor() {
 function startRope(L) {
   const layer = $('#ropeLayer'), view = $('#city');
   layer.style.display = '';
-  layer.style.height = view.scrollHeight + 'px';
+  layer.style.height = view.scrollHeight + 'px'; // the story is not laid out yet; restRope() sizes it properly
   layer.innerHTML = twineSVG(threadWidth(), 'rope') + '<g class="garland"></g>';
   const g = $('g.rope', layer);
   const A = anchor();
@@ -288,9 +353,12 @@ function restPoints(n) {
   const A = anchor(), end = $('#story').offsetTop + 2, sway = Math.min(14, (end - A[1]) * 0.03);
   return Array.from({ length: n }, (_, i) => { const t = i / (n - 1); return [A[0] + sway * Math.sin(t * Math.PI), lerp(A[1], end, t)]; });
 }
+// The rope layer must end where the story ends. Measuring the page's height while the layer is part of it
+// only ever grew it (leaving empty scroll after the map), so it is sized from the story itself.
+const storyEnd = () => { const s = $('#story'); return s.offsetTop + s.offsetHeight; };
 function restRope() {
   const layer = $('#ropeLayer');
-  layer.style.height = $('#city').scrollHeight + 'px';
+  layer.style.height = storyEnd() + 'px';
   const pts = restPoints(24);
   setTwine($('g.rope', layer), pts, true);
   placeGarland($('g.garland', layer), pts, gardenGap(), gardenScale());
@@ -300,7 +368,7 @@ function layoutAfterOpen() {
   if (!cur?.story) return;
   measureStory();
   if (!cur.rope) restRope();
-  else $('#ropeLayer').style.height = $('#city').scrollHeight + 'px';
+  else $('#ropeLayer').style.height = storyEnd() + 'px';
   requestStoryFrame();
 }
 
@@ -308,15 +376,75 @@ function layoutAfterOpen() {
 function renderLetter(c) {
   const { state, esc, firstName } = ctx;
   const name = state.user ? firstName(state.user.name) : 'Explorer';
+  const lang = LANG[c.id] || '';
+  const sections = c.sections.filter((s) => s.items.length);
+  $('#letter').dataset.city = c.id;
   $('#letter').innerHTML = `
-    <img class="letter-stamp" src="${c.stamp}" alt="${esc(c.name)} stamp">
+    <div class="letter-stamp">${stampHTML(c, `${esc(c.name)} stamp`)}</div>
     <p class="letter-kicker">${esc(c.state)} · ${esc(c.nickname)}</p>
-    <h2>${esc(c.name)}<small>${esc(c.native)}</small></h2>
+    <h2 id="letterTitle">${esc(c.name)}${c.native ? `<span class="native" lang="${lang}">${esc(c.native)}</span>` : ''}</h2>
     <p class="greet">${esc(c.greeting.replace(/!$/, ''))}, ${esc(name)}! <span>(${esc(c.greetingNote)})</span></p>
     <div class="letter-body">${c.letter.map((p) => `<p>${esc(p)}</p>`).join('')}</div>
+    ${c.photos?.length ? `<div class="letter-photos">${c.photos.map((ph, k) => photoFigure(ph, `postcard p${k}`)).join('')}</div>` : ''}
     <div class="facts">${c.quickFacts.map(([k, v]) => `<div class="fact"><span>${esc(k)}</span><strong>${esc(v)}</strong></div>`).join('')}</div>
     ${c.sources?.length ? `<p class="letter-src">Sources for this letter: ${c.sources.map(([t, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)}</a>`).join(' · ')}</p>` : ''}
-    <p class="signoff">With love, Gaju <img src="assets/elephant.png" alt=""></p>`;
+    <section class="inside" aria-labelledby="insideTitle">
+      <div class="inside-h"><h3 id="insideTitle">Inside this letter</h3><small>${sections.length ? `${sections.reduce((n, s) => n + s.items.length, 0)} cards` : ''}</small></div>
+      ${sections.length ? sections.map((s) => `
+        <div class="sec" data-sec="${esc(s.id)}">
+          <p class="sec-label">${SECTION_ICONS[s.id] || ''}${esc(s.label)}<span class="done">Read ✓</span></p>
+          <div class="cards">${s.items.map((f) => `
+            <article class="card${f.image ? ' has-photo' : ''}">${f.image ? photoFigure(f.image, 'card-photo') : ''}
+              <h4>${esc(f.title)}${f.draft ? '<span class="draft">draft</span>' : ''}</h4><p>${esc(f.text)}</p>
+              ${f.src ? `<a href="${esc(f.src)}" target="_blank" rel="noopener">Source</a>` : ''}</article>`).join('')}</div>
+        </div>`).join('')
+        : `<p class="inside-empty">Our team is checking the fact cards for ${esc(c.name)} against their sources. Each one appears here once a second teammate has verified it.</p>`}
+    </section>
+    ${c.quiz.length ? '<section class="sealq" id="sealq" aria-live="polite"></section>' : ''}
+    <div class="kit-call"><div><b>Making a school project?</b><span>One page about ${esc(c.name)}: key facts, landmarks, photos, the timeline and every source, ready to print.</span></div>
+      <button class="btn primary" id="kitBtn">Make my Project Kit</button></div>
+    <p class="signoff">With love, Gaju <img src="assets/gaju.svg" alt=""></p>`;
+  if (c.quiz.length) startQuiz(c);
+  $$('#letter img').forEach((im) => im.addEventListener('load', () => { if (cur?.opened) layoutAfterOpen(); }, { once: true }));
+  $('#kitBtn').addEventListener('click', () => openKit(c, { esc, user: state.user }));
+}
+
+// A real photograph with its caption and credit. Every photo is freely licensed (Wikimedia Commons) and
+// its licence asks for the author's name, so the credit is always shown, linked to the photo's page.
+function photoFigure(ph, cls) {
+  const { esc } = ctx;
+  return `<figure class="${cls}"><img src="${esc(ph.src)}" alt="${esc(ph.caption || '')}" loading="lazy" decoding="async">
+    <figcaption>${ph.caption ? `<span>${esc(ph.caption)}</span>` : ''}<a href="${esc(ph.page || ph.src)}" target="_blank" rel="noopener">Photo: ${esc(ph.credit)}</a></figcaption></figure>`;
+}
+
+// Drawn icons for the four parts of a letter, in the street's ink.
+const ic = (inner) => `<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inner}</svg>`;
+const SECTION_ICONS = {
+  landmarks: ic('<path d="M6 28V14Q6 8 16 4Q26 8 26 14V28Z"/><path d="M12 28V19Q12 15 16 13Q20 15 20 19V28"/><path d="M3 28h26"/>'),
+  festivals: ic('<path d="M7 20h18l-3 7H10Z"/><path d="M16 20c-3-3-3-7 0-11 3 4 3 8 0 11Z"/><path d="M16 4v2"/>'),
+  food: ic('<circle cx="16" cy="18" r="11"/><circle cx="16" cy="18" r="6"/><circle cx="9" cy="12" r="1.5"/><circle cx="23" cy="13" r="1.5"/><circle cx="22" cy="24" r="1.5"/>'),
+  facts: ic('<circle cx="16" cy="16" r="5"/><path d="M16 3v4M16 25v4M3 16h4M25 16h4M7 7l3 3M22 22l3 3M25 7l-3 3M10 22l-3 3"/>'),
+};
+
+// ---------------------------------------------------------------- reading the fact cards
+// A section counts as read once most of it has been on screen for a couple of seconds.
+function watchSections() {
+  const { state, api, showEarned } = ctx, run = cur;
+  const timers = new Map();
+  const io = new IntersectionObserver((entries) => {
+    for (const en of entries) {
+      const el = en.target;
+      if (en.isIntersecting && !timers.has(el)) {
+        timers.set(el, setTimeout(() => {
+          io.unobserve(el);
+          el.classList.add('read');
+          if (cur === run && state.user && !el.dataset.draftOnly) api('/api/progress/section', { city: run.id, section: el.dataset.sec }).then(showEarned);
+        }, 2000));
+      } else if (!en.isIntersecting && timers.has(el)) { clearTimeout(timers.get(el)); timers.delete(el); }
+    }
+  }, { root: $('#city'), rootMargin: '-35% 0px -35% 0px' }); // in the middle band of the screen, so a section taller than the screen still counts
+  $$('#letter .sec').forEach((el) => io.observe(el));
+  run.stopWatching = () => { io.disconnect(); timers.forEach(clearTimeout); };
 }
 
 // ---------------------------------------------------------------- the timeline and the map
@@ -330,6 +458,7 @@ function buildStory() {
   const otherId = Object.keys(CITIES).find((k) => k !== cur.id);
   const stage = $('#storyStage');
   stage.innerHTML = `
+    <svg class="story-water" id="storyWater" aria-hidden="true"></svg>
     <svg class="story-svg" id="storySvg" aria-hidden="true"></svg>
     <div class="story-head" id="storyHead"><small>The thread of time</small><h3>${esc(c.name)} through the years</h3>
       <p>${ev.length ? 'Keep scrolling to follow the thread' : 'Our team is still checking the events for this timeline. Come back soon!'}</p></div>
@@ -342,6 +471,7 @@ function buildStory() {
     <div class="place-legend" id="placeLegend"></div>
     <div class="places" id="places"></div>
     <aside class="place-card" id="placeCard" aria-live="polite" hidden></aside>
+    <aside class="place-list" id="placeList" hidden></aside>
     <div class="map-end" id="mapEnd">
       <h3>${esc(c.name)}</h3>
       <p id="mapNote">Soon, this map will hold ${esc(c.name)}'s landmarks.</p>
@@ -349,15 +479,15 @@ function buildStory() {
         <button class="btn" data-end="back">← Back to the street</button>
         ${otherId ? `<button class="btn primary" data-end="${otherId}">Visit ${esc(CITIES[otherId].name)} next →</button>` : ''}
       </div>
-      ${c.outlineSource ? `<p class="map-src">City outline: ${esc(c.outlineSource.replace(/: https?:\/\/\S+$/, ''))}</p>` : ''}
+      ${c.outlineSource ? `<p class="map-src">City outline: ${esc(c.outlineSource.replace(/: https?:\/\/\S+$/, ''))}${c.waterSource ? ` · ${esc(c.waterSource)}` : ''}</p>` : ''}
     </div>`;
   cur.story = { ev, active: -1, outline: null, place: null };
   renderPlaces();
   $$('.node', stage).forEach((b) => b.addEventListener('click', () => jumpTo(Number(b.dataset.i))));
   $$('[data-end]', stage).forEach((b) => b.addEventListener('click', async () => {
     const to = b.dataset.end;
-    closeCity();
-    if (to !== 'back') { await sleep(700); ctx.goToCity(to); }
+    await closeCity();
+    if (to !== 'back') { await sleep(300); ctx.goToCity(to, { quick: true }); } // the street was walked once already: the short version
   }));
 }
 
@@ -371,25 +501,31 @@ function measureStory() {
   const total = Object.values(s.seg).reduce((a, b) => a + b, 0) + H * 0.5;
   $('#story').style.height = total + H + 'px';
   $('#storySvg').innerHTML = twineSVG(s.g.w, 'main') + '<g class="garland" id="storyGarland"></g>';
-  s.outline = fitOutline(cur.c.outline || [], s.g, cur.places.length > 0);
+  const water = cur.c.water || {};
+  const wet = [...(water.areas || []).flatMap((a) => a.ring), ...(water.lines || []).flatMap((l) => l.line)];
+  s.outline = fitOutline(cur.c.outline || [], s.g, cur.places.length > 0, wet);
+  drawWater(water, s.outline);
   placePins();
 }
 
 // The city boundary, [lng, lat], fitted into the middle of the screen and spaced evenly along its edge.
 // With places to show on a wide screen, the map moves left to make room for the place card.
-function fitOutline(ring, { W, H, mob }, roomForCard) {
+// `extra` are more [lng, lat] points the frame must hold (the lakes and the river), so the map is framed around
+// the city and its water together.
+function fitOutline(ring, { W, H, mob }, roomForCard, extra = []) {
   if (ring.length < 3) {
     return Array.from({ length: M }, (_, i) => { const a = (i / (M - 1)) * Math.PI * 2; return [W / 2 + Math.cos(a) * H * 0.25, H * 0.45 + Math.sin(a) * H * 0.25]; });
   }
   const lat0 = ring.reduce((a, p) => a + p[1], 0) / ring.length;
   const k = Math.cos((lat0 * Math.PI) / 180);
   const xy = ring.map(([lng, lat]) => [lng * k, -lat]);
-  const xs = xy.map((p) => p[0]), ys = xy.map((p) => p[1]);
+  const frame = [...xy, ...extra.map(([lng, lat]) => [lng * k, -lat])];
+  const xs = frame.map((p) => p[0]), ys = frame.map((p) => p[1]);
   const bw = Math.max(...xs) - Math.min(...xs), bh = Math.max(...ys) - Math.min(...ys);
   const card = roomForCard && !mob;
-  const boxW = mob ? W * 0.8 : Math.min(W * (card ? 0.46 : 0.5), 620), boxH = H * (mob ? 0.46 : card ? 0.58 : 0.52);
+  const boxW = mob ? W * 0.8 : Math.min(W * (card ? 0.46 : 0.5), 620), boxH = H * (mob ? 0.36 : card ? 0.58 : 0.52); // on a phone the map sits between the filters above and the city's name below
   const sc = Math.min(boxW / bw, boxH / bh);
-  const cx = card ? W * 0.38 : W / 2, cy = H * (mob ? 0.4 : card ? 0.43 : 0.41);
+  const cx = card ? W * 0.38 : W / 2, cy = H * (mob ? 0.36 : card ? 0.43 : 0.41);
   const ox = cx - ((Math.min(...xs) + bw / 2) * sc), oy = cy - ((Math.min(...ys) + bh / 2) * sc);
   const pts = xy.map(([x, y]) => [x * sc + ox, y * sc + oy]);
   if (pts[0][0] !== pts[pts.length - 1][0] || pts[0][1] !== pts[pts.length - 1][1]) pts.push(pts[0]);
@@ -403,14 +539,29 @@ function fitOutline(ring, { W, H, mob }, roomForCard) {
     const t = (d - lens[j]) / (lens[j + 1] - lens[j] || 1);
     out.push([lerp(pts[j][0], pts[j + 1][0], t), lerp(pts[j][1], pts[j + 1][1], t)]);
   }
-  // where a [lng, lat] lands on screen, or null when it is well outside the city
+  // where a [lng, lat] lands on screen (toXY), or null when it is well outside the city (project)
   const minX = Math.min(...xs), minY = Math.min(...ys);
+  out.toXY = (lng, lat) => [lng * k * sc + ox, -lat * sc + oy];
   out.project = (lng, lat) => {
     const x = lng * k, y = -lat;
     if (x < minX - bw * 0.2 || x > minX + bw * 1.2 || y < minY - bh * 0.2 || y > minY + bh * 1.2) return null;
     return [x * sc + ox, y * sc + oy];
   };
   return out;
+}
+
+// Lakes as filled shapes and rivers as wide strokes, under the thread. Shown as the map is drawn.
+function drawWater(water, outline) {
+  const svg = $('#storyWater');
+  if (!svg || !outline.toXY) return;
+  const pts = (list) => list.map(([lng, lat]) => outline.toXY(lng, lat).map((v) => v.toFixed(1)).join(',')).join(' ');
+  svg.innerHTML = (water.areas || []).map((a) => `<polygon class="lake" points="${pts(a.ring)}"><title>${ctx.esc(a.name)}</title></polygon>`).join('')
+    + (water.lines || []).map((l) => `<polyline class="river" points="${pts(l.line)}"><title>${ctx.esc(l.name)}</title></polyline>`).join('')
+    + [...(water.areas || []).filter((a) => a.ring.length > 40), ...(water.lines || [])].map((w) => {
+      const pts2 = (w.ring || w.line).map(([lng, lat]) => outline.toXY(lng, lat));
+      const [x, y] = pts2[Math.floor(pts2.length / (w.ring ? 2.6 : 2))];
+      return `<text class="water-name" x="${x.toFixed(0)}" y="${y.toFixed(0)}">${ctx.esc(w.name)}</text>`;
+    }).join('');
 }
 
 // ----- the shapes the thread takes; each maps u (0 at the scroll end, 1 at the far end) to a point
@@ -513,6 +664,8 @@ function drawStory() {
     el.style.visibility = end > 0 ? 'visible' : 'hidden';
   }
   $('#places').classList.toggle('on', m > 0.8);
+  const water = $('#storyWater');
+  if (water) water.style.opacity = clamp((m - 0.45) / 0.4);
 }
 
 function showEvent(i) {
@@ -522,101 +675,49 @@ function showEvent(i) {
   const { esc, c } = { esc: ctx.esc, c: cur.c };
   const e = s.ev[i];
   const info = $('#evInfo'), media = $('#evMedia');
+  // When an event is remembered differently from what the sources show, both sides are shown.
+  info.classList.toggle('two-sides', !!e.memory);
+  const from = s.ev[s.shown ?? i]?.year;
+  s.shown = i;
   info.innerHTML = `
-    <p class="ev-year">${esc(e.year)}</p>
+    <p class="ev-year${String(e.year).length > 5 ? ' long' : ''}">${esc(e.year)}</p>
     <h3>${esc(e.title)}</h3>
-    <p class="ev-text">${esc(e.text)}</p>
-    ${e.src ? `<a class="ev-src" href="${esc(e.src)}" target="_blank" rel="noopener">Source</a>` : ''}
+    ${e.memory ? `<div class="sides">
+        <div class="side record"><small>The record</small><p>${esc(e.text)}</p>${e.src ? `<a href="${esc(e.src)}" target="_blank" rel="noopener">Source</a>` : ''}</div>
+        <div class="side memory"><small>The memory</small><p>${esc(e.memory)}</p>${e.memorySrc ? `<a href="${esc(e.memorySrc)}" target="_blank" rel="noopener">Source</a>` : ''}</div>
+      </div>${e.argued ? `<p class="argued"><b>Why it is argued about:</b> ${esc(e.argued)}</p>` : ''}`
+    : `<p class="ev-text">${esc(e.text)}</p>
+    ${e.src ? `<a class="ev-src" href="${esc(e.src)}" target="_blank" rel="noopener">Source</a>` : ''}`}
     <p class="ev-count">${i + 1} of ${s.ev.length}${e.draft ? ' · <span class="draft">draft, not yet checked</span>' : ''}</p>`;
   const imgs = (e.images || []).slice(0, 4);
   media.innerHTML = imgs.length
-    ? imgs.map((im, k) => `<figure class="snap m${k}"><img src="${esc(im.src)}" alt="${esc(im.caption)}" loading="lazy">${im.caption ? `<figcaption>${esc(im.caption)}</figcaption>` : ''}</figure>`).join('')
+    ? imgs.map((im, k) => {
+      // a caption reads "What it shows. Photo: who, licence": the words in hand, the credit in small print
+      const [what, credit] = String(im.caption || '').split(/\s*Photo:\s*/);
+      return `<figure class="snap m${k}"><img src="${esc(im.src)}" alt="${esc(what)}" loading="lazy">${im.caption ? `<figcaption>${what ? `<span>${esc(what)}</span>` : ''}${credit ? `<small>Photo: ${esc(credit)}</small>` : ''}</figcaption>` : ''}</figure>`;
+    }).join('')
     : `<div class="ev-ghost" aria-hidden="true">${esc(e.year)}</div>
       ${motifSVG(e.motif) ? `<figure class="element"><div class="element-disc">${motifSVG(e.motif)}</div></figure>` : ''}
-      <figure class="snap ${motifSVG(e.motif) ? 'm1' : 'm0'} stamp"><img src="${c.stamp}" alt=""></figure>`;
+      <figure class="snap ${motifSVG(e.motif) ? 'm1' : 'm0'} stamp">${stampHTML(c)}</figure>`;
   for (const el of [info, media]) el.animate([{ opacity: 0, transform: 'translateY(14px)' }, { opacity: 1, transform: 'none' }], { duration: 420, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  rollYear($('.ev-year', info), from, e.year);
 }
 
-// ---------------------------------------------------------------- heritage places on the map
-// Places come from the team's research (the Places tab on the editor page): the checked ones, plus
-// drafts in demo mode. Each sits on the outline map as a marigold, coloured by what kind of place it is.
-const PLACE_KINDS = [
-  ['built', 'Buildings', /built|architecture|fortif/i],
-  ['culture', 'Living culture', /living|intangible|culinary|craft|perform/i],
-  ['nature', 'Lakes and nature', /hydro|ecolog|natural|landscape/i],
-  ['civic', 'Institutions', /institution|civic|sport|archive|literary/i],
-];
-const kindOf = (p) => (PLACE_KINDS.find((k) => k[2].test(p.category || '')) || PLACE_KINDS[0])[0];
-
-// Commons "Special:FilePath" links become a sized https image, plus the file's page for the credit.
-function photoOf(url) {
-  const m = /^https?:\/\/commons\.wikimedia\.org\/wiki\/Special:FilePath\/(.+)$/i.exec(url || '');
-  if (m) return { src: `https://commons.wikimedia.org/wiki/Special:FilePath/${m[1]}?width=640`, page: `https://commons.wikimedia.org/wiki/File:${m[1]}` };
-  return /^https:\/\//i.test(url || '') ? { src: url, page: url } : null;
-}
-
-async function loadPlaces(run) {
-  const r = await ctx.api(`/api/cities/${run.id}/places`);
-  const list = [...(r.ok ? r.data.places : []), ...(ctx.state.demo?.places?.[run.id] || [])]
-    .filter((p) => Number.isFinite(p.latitude) && Number.isFinite(p.longitude));
-  if (cur !== run || !list.length) return;
-  // described places are drawn last, so they sit on top
-  run.places = list.sort((a, b) => !!a.description - !!b.description);
-  if (run.story) { renderPlaces(); layoutAfterOpen(); }
-}
-
-function renderPlaces() {
-  const { esc } = ctx, list = cur.places;
-  if (!list.length) return;
-  const count = Object.fromEntries(PLACE_KINDS.map((k) => [k[0], list.filter((p) => kindOf(p) === k[0]).length]));
-  $('#placeLegend').innerHTML = PLACE_KINDS.filter((k) => count[k[0]])
-    .map(([id, label]) => `<button class="chip k-${id}" data-kind="${id}" aria-pressed="true"><i></i>${label} <b>${count[id]}</b></button>`).join('');
-  $('#places').innerHTML = list.map((p, i) => `<button class="pp k-${kindOf(p)}${p.description ? ' big' : ''}" data-i="${i}"
-      style="--d:${(i % 40) * 18}ms" aria-label="${esc(p.name)}"><span class="pp-name">${esc(p.name)}</span></button>`).join('');
-  $$('#places .pp').forEach((b) => b.addEventListener('click', () => showPlace(Number(b.dataset.i))));
-  $$('#placeLegend .chip').forEach((b) => b.addEventListener('click', () => {
-    const on = b.getAttribute('aria-pressed') !== 'true';
-    b.setAttribute('aria-pressed', on);
-    $('#places').classList.toggle('hide-' + b.dataset.kind, !on);
-  }));
-  // wide screens open on a place with a photo and a description, so the card is never empty
-  if (innerWidth >= 720) {
-    const pick = list.findLastIndex((p) => p.description && photoOf(p.image_url));
-    showPlace(pick >= 0 ? pick : list.findLastIndex((p) => p.description));
-  }
-}
-
-function placePins() {
-  const s = cur.story;
-  if (!s?.outline?.project) return;
-  $$('#places .pp').forEach((b) => {
-    const p = cur.places[b.dataset.i], xy = s.outline.project(p.longitude, p.latitude);
-    b.hidden = !xy;
-    if (xy) { b.style.left = xy[0] + 'px'; b.style.top = xy[1] + 'px'; }
-  });
-  const shown = $$('#places .pp:not([hidden])').length, drafts = cur.places.some((p) => p.draft);
-  $('#mapNote').textContent = `${shown} heritage places, researched by our team${drafts ? ' (drafts, not yet checked)' : ''}. Tap a marigold to explore.`;
-}
-
-function showPlace(i) {
-  const { esc } = ctx, p = cur.places[i], card = $('#placeCard');
-  if (!p) return;
-  cur.story.place = i;
-  $$('#places .pp').forEach((b) => b.classList.toggle('sel', Number(b.dataset.i) === i));
-  const photo = photoOf(p.image_url);
-  card.innerHTML = `
-    <button class="pc-close" aria-label="Close">×</button>
-    ${photo ? `<figure class="pc-photo"><img src="${esc(photo.src)}" alt="${esc(p.name)}" loading="lazy">
-      <figcaption><a href="${esc(photo.page)}" target="_blank" rel="noopener">Photo: Wikimedia Commons</a></figcaption></figure>` : ''}
-    <p class="pc-kind k-${kindOf(p)}"><i></i>${esc(p.subcategory || 'Heritage place')}${p.year ? ` · since ${esc(p.year)}` : ''}</p>
-    <h4>${esc(p.name)}</h4>
-    ${p.native_name ? `<p class="pc-native">${esc(p.native_name)}</p>` : ''}
-    <p class="pc-text">${p.description ? esc(p.description) : 'Our team is still writing about this place.'}</p>
-    <p class="pc-foot">${p.source_url ? `<a href="${esc(p.source_url)}" target="_blank" rel="noopener">Source</a>` : ''}${p.draft ? '<span class="draft">draft, not yet checked</span>' : ''}</p>`;
-  card.hidden = false;
-  $('img', card)?.addEventListener('error', (ev) => ev.target.closest('figure').remove());
-  $('.pc-close', card).addEventListener('click', () => { card.hidden = true; $$('#places .pp.sel').forEach((b) => b.classList.remove('sel')); });
-  card.animate([{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }], { duration: 300, easing: 'ease-out' });
+// The year counts from the last event's year to this one, so moving along the thread feels like moving
+// through time. Labels like "1620s" or "c. 1536" keep their words; only the number rolls.
+function rollYear(el, from, to) {
+  const n = (y) => Number(/\d{3,4}/.exec(y || '')?.[0]);
+  const a = n(from), b = n(to);
+  if (!el || reduced() || !Number.isFinite(a) || !Number.isFinite(b) || a === b) return;
+  const [pre, post] = String(to).split(String(b));
+  const t0 = performance.now(), ms = Math.min(900, 250 + Math.abs(b - a) * 2);
+  const step = (t) => {
+    if (!el.isConnected) return;
+    const k = clamp((t - t0) / ms), v = Math.round(a + (b - a) * (1 - (1 - k) ** 3));
+    el.textContent = `${pre}${v}${post}`;
+    if (k < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
 }
 
 // Scroll to where event i is in focus (a little after it arrives, before the glide to the next).
@@ -627,19 +728,27 @@ function jumpTo(i) {
 }
 
 // ---------------------------------------------------------------- leave
-export function closeCity() {
+export async function closeCity() {
   const { state } = ctx;
   state.seq++;
   state.afterAuth = null;
   opening = false;
-  if (cur) cur.rope = null;
+  const id = cur?.id;
+  if (cur) { cur.rope = null; cur.stopWatching?.(); }
   cur = null;
   const pg = $('#pigeon');
   pg.getAnimations().forEach((a) => a.cancel());
   $('#scroll').getAnimations().forEach((a) => a.cancel());
   pg.hidden = true;
-  $('#city').hidden = true;
+  $('#checkpoint').hidden = true;
+  ctx.sequenceDone();
   ctx.resetStreet();
+  // step back out through the arch while the street pulls back
+  if (id && !reduced()) await archTo(id, null, 'close', 650);
+  $('#city').hidden = true;
+  $('#city').style.clipPath = '';
+  $('#archFrame').innerHTML = '';
+  document.querySelector('main').inert = false;
 }
 
 export const cityIsOpen = () => !$('#city').hidden;

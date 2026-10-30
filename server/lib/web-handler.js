@@ -17,7 +17,9 @@ export function toWebHandler(handle, { path = (req) => new URL(req.url).pathname
         method: req.method, path: path(req), body,
         cookieHeader: req.headers.get('cookie'), ip: ip(req),
       });
-      const headers = new Headers({ 'cache-control': 'no-store' });
+      // public answers that are the same for everyone may sit on Vercel's CDN for a minute, so the database
+      // (which sleeps when idle) is woken far less often; everything else is never cached
+      const headers = new Headers({ 'cache-control': out.cache ? `public, max-age=0, s-maxage=${out.cache}, stale-while-revalidate=600` : 'no-store' });
       for (const c of out.cookies) headers.append('set-cookie', c);
       return Response.json(out.body, { status: out.status, headers });
     } catch (e) {

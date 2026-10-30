@@ -8,7 +8,7 @@ const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const when = (t) => (t ? new Date(t).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '');
 
-const state = { me: null, cities: [], city: null, data: null, tab: 'facts', filter: 'needs_check', placeSearch: '' };
+const state = { me: null, cities: [], city: null, data: null, tab: 'inbox', filter: 'needs_check', placeSearch: '' };
 
 async function api(path, body, method = body ? 'POST' : 'GET') {
   try {
@@ -139,19 +139,77 @@ async function refresh() {
 // ---------------------------------------------------------------- layout
 function render() {
   const isAdmin = state.me.role === 'admin';
-  const tabs = [['facts', 'Facts'], ['quiz', 'Quiz'], ['timeline', 'Timeline'], ['places', 'Places'], ['letter', 'City letter'], ['greetings', 'Greetings'], ...(isAdmin ? [['team', 'Team']] : []), ['log', 'History'], ['help', 'How this works']];
+  const tabs = [['inbox', 'To check'], ['facts', 'Facts'], ['quiz', 'Quiz'], ['timeline', 'Timeline'], ['places', 'Places'], ['letter', 'City letter'], ['greetings', 'Greetings'], ...(isAdmin ? [['team', 'Team']] : []), ['log', 'History'], ['help', 'How this works']];
   $('#app').innerHTML = `
     <div class="cities">${state.cities.map((c) => `
       <button class="btn city-btn" data-city="${esc(c.id)}" aria-pressed="${c.id === state.city}">
         ${esc(c.name)}${c.published ? '' : ' (hidden)'}
-        <small>${c.facts_to_check + c.quiz_to_check + c.timeline_to_check} to check · ${c.facts_verified + c.quiz_verified + c.timeline_verified} live</small>
+        <small>${c.facts_to_check + c.quiz_to_check + c.timeline_to_check + (c.places_to_check || 0) + (c.letter_to_check || 0)} to check · ${c.facts_verified + c.quiz_verified + c.timeline_verified + (c.places_verified || 0)} live</small>
       </button>`).join('')}</div>
     <div class="tabs" role="tablist">${tabs.map(([id, label]) =>
       `<button class="tab" role="tab" data-tab="${id}" aria-selected="${state.tab === id}">${label}</button>`).join('')}</div>
     <section id="view"></section>`;
   $$('[data-city]').forEach((b) => b.onclick = async () => { state.city = b.dataset.city; await loadCity(); render(); });
   $$('[data-tab]').forEach((b) => b.onclick = () => { state.tab = b.dataset.tab; render(); });
-  ({ facts: renderFacts, quiz: renderQuiz, timeline: renderTimeline, places: renderPlaces, letter: renderLetter, greetings: renderGreetings, team: renderTeam, log: renderLog, help: renderHelp })[state.tab]();
+  ({ inbox: renderInbox, facts: renderFacts, quiz: renderQuiz, timeline: renderTimeline, places: renderPlaces, letter: renderLetter, greetings: renderGreetings, team: renderTeam, log: renderLog, help: renderHelp })[state.tab]();
+}
+
+// ---------------------------------------------------------------- the "To check" inbox
+// Every item waiting for a check, for every city, with what changed since it was last live.
+const KIND_WORDS = { fact: 'Fact', quiz: 'Quiz question', timeline: 'Timeline event', place: 'Place', greeting: 'Greeting', letter: 'City letter' };
+
+// Word-by-word difference between two texts (longest common subsequence). Each run of changes shows the
+// removed words, then the added ones; when most of the text is new, the old and new versions are shown whole.
+function wordDiff(a, b) {
+  const x = String(a || '').split(/\s+/).filter(Boolean), y = String(b || '').split(/\s+/).filter(Boolean);
+  const n = x.length, m = y.length, L = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) L[i][j] = x[i] === y[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  if (L[0][0] < Math.max(n, m) * 0.4) return `<del class="whole">${esc(x.join(' '))}</del><ins class="whole">${esc(y.join(' '))}</ins>`;
+  const out = []; let dels = [], adds = [];
+  const flush = () => {
+    if (dels.length) out.push(`<del>${esc(dels.join(' '))}</del>`);
+    if (adds.length) out.push(`<ins>${esc(adds.join(' '))}</ins>`);
+    dels = []; adds = [];
+  };
+  let i = 0, j = 0;
+  while (i < n && j < m) {
+    if (x[i] === y[j]) { flush(); out.push(esc(x[i])); i++; j++; }
+    else if (L[i + 1][j] >= L[i][j + 1]) dels.push(x[i++]);
+    else adds.push(y[j++]);
+  }
+  while (i < n) dels.push(x[i++]);
+  while (j < m) adds.push(y[j++]);
+  flush();
+  return out.join(' ');
+}
+
+async function renderInbox() {
+  $('#view').innerHTML = '<p class="muted">Loading what needs a check…</p>';
+  const r = await api('/api/admin/inbox');
+  if (!r.ok) { $('#view').innerHTML = `<p class="form-error">${esc(r.data.error)}</p>`; return; }
+  const items = r.data.items.sort((p, q) => !p.source - !q.source), mine = items.filter((x) => x.mine).length; // ready to check first, no source yet last
+  const cityName = (id) => state.cities.find((c) => c.id === id)?.name || '';
+  $('#view').innerHTML = `
+    <p class="muted">${items.length} item${items.length === 1 ? '' : 's'} need a check${mine ? `; ${mine} you wrote, which someone else must check` : ''}.
+      Open the source, compare it with the words, then verify. Changes since an item was last live are marked: <del>removed</del> <ins>added</ins>.</p>
+    ${items.map((x, k) => `
+      <article class="item inbox-item">
+        <h4><span class="badge">${esc(KIND_WORDS[x.kind] || x.kind)}</span> ${x.city ? `<span class="muted">${esc(cityName(x.city))}</span> ` : ''}${esc(x.label)}</h4>
+        ${x.text ? `<p>${x.wasLive != null && x.wasLive !== x.text ? wordDiff(x.wasLive, x.text) : esc(x.text)}</p>` : ''}
+        ${x.wasLive != null && x.wasLive !== x.text ? '<p class="muted" style="font-size:13px">Was live before; changed since.</p>' : ''}
+        ${x.source ? `<a class="src" href="${esc(x.source)}" target="_blank" rel="noopener">${esc(x.source)}</a>` : '<span class="badge">No source yet</span>'}
+        <div class="row">${x.mine
+          ? '<span class="muted" style="font-size:13px">You wrote or changed this, so a teammate must verify it.</span>'
+          : `<button class="btn small ok" data-inbox="${k}" ${x.source ? '' : 'disabled'}>I checked the source · Verify</button>`}</div>
+      </article>`).join('') || '<p class="muted">Nothing is waiting. Every item is checked.</p>'}`;
+  $$('[data-inbox]').forEach((b) => b.onclick = async () => {
+    const x = items[Number(b.dataset.inbox)];
+    const path = x.kind === 'letter' ? `/api/admin/cities/${encodeURIComponent(x.id)}/verify` : `/api/admin/${x.path}/${x.id}/verify`;
+    const res = await api(path, { updatedAt: x.updatedAt }, 'POST');
+    if (!res.ok) return toast(res.data.error || 'That did not work.', true);
+    toast('Verified. It is now on the website.');
+    renderInbox();
+  });
 }
 
 const people = (x) => [
@@ -163,7 +221,7 @@ const people = (x) => [
 const badge = (x) => (x.status === 'verified' ? '<span class="badge ok">Live</span>' : '<span class="badge">Needs check</span>');
 
 // Why this person cannot verify this item, or '' if they can. The server checks the same rule.
-const cannotVerify = (x) => (!x.source_url ? 'Add a source link first.' : x.updated_by === state.me.id ? 'You made the latest change, so someone else must verify it.' : '');
+const cannotVerify = (x) => (!x.source_url ? 'Add a source link first.' : (x.authors || []).includes(state.me.id) ? 'You wrote or changed these words, so someone else must verify them.' : '');
 
 function filters(items) {
   const counts = { needs_check: items.filter((x) => x.status === 'needs_check').length, verified: items.filter((x) => x.status === 'verified').length };
@@ -188,7 +246,8 @@ function itemButtons(kind, x) {
 function wireItems(kind, list, edit) {
   const find = (id) => list.find((x) => x.id === Number(id));
   $$('[data-edit]').forEach((b) => b.onclick = () => edit(find(b.dataset.edit)));
-  $$('[data-verify]').forEach((b) => b.onclick = () => act(`/api/admin/${kind}/${b.dataset.verify}/verify`, {}, 'POST', 'Verified. It is now on the website.'));
+  // send the version on screen, so a change made meanwhile is never verified unseen
+  $$('[data-verify]').forEach((b) => b.onclick = () => act(`/api/admin/${kind}/${b.dataset.verify}/verify`, { updatedAt: find(b.dataset.verify).updated_at }, 'POST', 'Verified. It is now on the website.'));
   $$('[data-unverify]').forEach((b) => b.onclick = () => act(`/api/admin/${kind}/${b.dataset.unverify}/unverify`, {}, 'POST', 'Taken off the website. It needs a check again.'));
   $$('[data-del]').forEach((b) => b.onclick = () => {
     if (confirm('Delete this for good? It will stay in the History tab.')) act(`/api/admin/${kind}/${b.dataset.del}`, null, 'DELETE', 'Deleted.');
@@ -217,6 +276,7 @@ function renderFacts() {
           <article class="item ${f.status === 'verified' ? 'verified' : ''}">
             <h4>${esc(f.title)} ${badge(f)}</h4>
             <p>${esc(f.body)}</p>
+          ${f.image ? `<span class="thumbs"><a href="${esc(f.image.page || f.image.src)}" target="_blank" rel="noopener"><img src="${esc(f.image.src)}" alt="${esc(f.image.caption)}" loading="lazy"></a></span><small class="muted">${esc(f.image.credit)}</small>` : ''}
             ${f.source_url ? `<a class="src" href="${esc(f.source_url)}" target="_blank" rel="noopener">${esc(f.source_url)}</a>` : '<span class="badge">No source yet</span>'}
             <div class="meta">${people(f)}</div>
             ${itemButtons('facts', f)}
@@ -234,6 +294,11 @@ function editFact(f) {
     { name: 'title', label: 'Title', type: 'text', value: f?.title ?? '' },
     { name: 'text', label: 'Text', type: 'textarea', value: f?.body ?? '', hint: 'one or two short sentences' },
     { name: 'sourceUrl', label: 'Source link', type: 'url', value: f?.source_url ?? '', hint: 'where a teammate can check this' },
+    { name: 'imageSrc', label: 'Photo link (optional)', type: 'url', value: f?.image?.src ?? '',
+      hint: 'a freely licensed photo, e.g. from Wikimedia Commons (CC BY, CC BY-SA, CC0 or public domain)' },
+    { name: 'imagePage', label: "Photo's page", type: 'url', value: f?.image?.page ?? '', hint: 'the page that shows its licence' },
+    { name: 'imageCredit', label: 'Photo credit', type: 'text', value: f?.image?.credit ?? '', hint: 'author and licence, e.g. "Henrik Bennetsen, CC BY-SA 2.0, via Wikimedia Commons"' },
+    { name: 'imageCaption', label: 'Photo caption', type: 'text', value: f?.image?.caption ?? '', hint: 'what the photo shows' },
   ], async (v) => {
     const r = f ? await api(`/api/admin/facts/${f.id}`, v, 'PUT') : await api('/api/admin/facts', v);
     if (!r.ok) return r.data.error;
@@ -289,6 +354,7 @@ function renderTimeline() {
       <article class="item ${e.status === 'verified' ? 'verified' : ''}">
         <h4><span class="year">${esc(e.year_label)}</span> ${esc(e.title)} ${badge(e)} <span class="muted" style="font-weight:400;font-size:13px">place ${e.sort_order}</span></h4>
         <p>${esc(e.body)}</p>
+        ${e.memory ? `<p class="memory"><b>Remembered as:</b> ${esc(e.memory)}${e.argued ? `<br><b>Why argued:</b> ${esc(e.argued)}` : ''}</p>` : ''}
         ${e.motif ? `<span class="motif">${motifSVG(e.motif)}</span>` : ''}
         ${e.images.length ? `<div class="thumbs">${e.images.map((im) => `<a href="${esc(im.src)}" target="_blank" rel="noopener"><img src="${esc(im.src)}" alt="${esc(im.caption)}" loading="lazy"></a>`).join('')}</div>` : '<span class="badge">No photos yet</span> '}
         ${e.source_url ? `<a class="src" href="${esc(e.source_url)}" target="_blank" rel="noopener">${esc(e.source_url)}</a>` : '<span class="badge">No source yet</span>'}
@@ -312,9 +378,14 @@ function editEvent(e) {
       hint: 'shown when the event has no photo' },
     { name: 'order', label: 'Place on the timeline', type: 'text', value: e?.sort_order ?? last + 1, hint: 'events are shown from the smallest number to the largest' },
     { name: 'sourceUrl', label: 'Source link', type: 'url', value: e?.source_url ?? '' },
+    { name: 'memory', label: 'How it is remembered (optional)', type: 'textarea', value: e?.memory ?? '',
+      hint: 'only when people remember this event differently from what the sources show. The paragraph above is the record; this is the memory. The page shows them side by side.' },
+    { name: 'memorySourceUrl', label: 'Source for how it is remembered', type: 'url', value: e?.memory_source_url ?? '' },
+    { name: 'argued', label: 'Why people disagree (one line)', type: 'text', value: e?.argued ?? '' },
   ], async (v) => {
     const images = v.images.split('\n').map((l) => l.split('|').map((x) => x.trim())).filter((p) => p[0]).map((p) => ({ src: p[0], caption: p.slice(1).join(' | ') }));
-    const body = { cityId: state.city, year: v.year, title: v.title, text: v.text, images, motif: v.motif, order: Number(v.order) || 0, sourceUrl: v.sourceUrl };
+    const body = { cityId: state.city, year: v.year, title: v.title, text: v.text, images, motif: v.motif, order: Number(v.order) || 0, sourceUrl: v.sourceUrl,
+      memory: v.memory, memorySourceUrl: v.memorySourceUrl, argued: v.argued };
     const r = e ? await api(`/api/admin/timeline/${e.id}`, body, 'PUT') : await api('/api/admin/timeline', body);
     if (!r.ok) return r.data.error;
     toast(r.data.backToCheck ? 'Saved. Because the words changed, it needs to be checked again.' : e ? 'Saved.' : 'Added. A teammate now needs to verify it.');
@@ -359,12 +430,15 @@ function editGreeting(g) {
 
 // ---------------------------------------------------------------- city letter
 function renderLetter() {
-  const c = state.data.city;
+  // the form shows the draft when there is one, so the checker sees exactly what would go live
+  const c = { ...state.data.city, ...(state.data.city.draft || {}) };
   const lines = (pairs) => pairs.map(([a, b]) => `${a} | ${b}`).join('\n');
   const isAdmin = state.me.role === 'admin';
   $('#view').innerHTML = `
     <form class="panel" id="letterForm">
-      <p class="muted" style="margin-top:0">This is the opening of the letter visitors read. Changes go live as soon as you save, and are recorded in History.</p>
+      <p class="muted" style="margin-top:0">This is the opening of the letter visitors read. Saving makes a <b>draft</b>: a different teammate checks it against the sources and verifies it, and only then does it go live. Every change is recorded in History.</p>
+      ${c.draft ? `<div class="draft-box"><b>A draft is waiting for a check</b>, saved ${esc(when(c.draft_at))}${c.draft_by === state.me.id ? ' by you' : ''}. The form below shows the draft.
+        ${c.draft_by === state.me.id ? '<span class="muted">Someone else must verify it.</span>' : '<button type="button" class="btn small ok" id="verifyLetter">I checked the sources · Verify the draft</button>'}</div>` : ''}
       <div class="row">
         <div style="flex:1;min-width:200px"><label for="l_name">City name</label><input id="l_name" value="${esc(c.name)}"></div>
         <div style="flex:1;min-width:200px"><label for="l_native">Name in its own script</label><input id="l_native" value="${esc(c.native_name)}"></div>
@@ -400,9 +474,10 @@ function renderLetter() {
     };
     const r = await api(`/api/admin/cities/${encodeURIComponent(c.id)}`, body, 'PUT');
     if (!r.ok) { $('#letterErr').textContent = r.data.error; return; }
-    toast('Letter saved. It is live now.');
+    toast('Draft saved. A teammate now needs to check and verify it.');
     refresh();
   };
+  $('#verifyLetter')?.addEventListener('click', () => act(`/api/admin/cities/${encodeURIComponent(c.id)}/verify`, {}, 'POST', 'Verified. The new letter is live.'));
 }
 
 // ---------------------------------------------------------------- team (admins)

@@ -4,7 +4,7 @@
 import { json, err } from './router.js';
 
 export default function places(r, { db }) {
-  r.get('/api/cities/:id/places', async ({ params }) => {
+  r.get('/api/cities/:id/places', { cache: 60 }, async ({ params }) => {
     const rows = (await db.query(`SELECT p.id, p.name, p.native_name, p.category, p.subcategory, p.description,
         p.latitude, p.longitude, p.year, p.image_url, p.image_license, p.source_url
       FROM heritage_places p JOIN cities c ON c.id = p.city_id
