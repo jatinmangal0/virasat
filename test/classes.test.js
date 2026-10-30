@@ -8,7 +8,7 @@ let t, teacher, code;
 before(async () => {
   t = await startServer();
   await t.db.query("UPDATE quiz_questions SET status = 'verified' WHERE city_id = 'udaipur'");
-  teacher = await t.person('Ms Dsouza');
+  teacher = await t.person('Dsouza');
 });
 after(() => t.stop());
 

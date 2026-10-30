@@ -21,9 +21,9 @@ test('imported timeline events and greetings are hidden until verified', async (
   assert.match(c.outlineSource, /DataMeet/);
   assert.deepEqual((await t.client()('/api/greetings')).body.greetings, []);
 
-  const { rows } = await t.db.query("SELECT id FROM timeline_events WHERE city_id = 'udaipur' AND year_label = '1559'");
+  const { rows } = await t.db.query("SELECT id FROM timeline_events WHERE city_id = 'udaipur' AND year_label = '1553'");
   assert.equal((await asha(`/api/admin/timeline/${rows[0].id}/verify`, {})).status, 200, 'any editor may verify imported events');
-  assert.deepEqual((await udaipur()).timeline.map((e) => [e.year, e.title]), [['1559', 'Udaipur is founded']]);
+  assert.deepEqual((await udaipur()).timeline.map((e) => [e.year, e.title]), [['1553', 'Udaipur is founded']]);
 
   const g = (await asha('/api/admin/greetings')).body.greetings;
   assert.ok(g.length >= 10);
