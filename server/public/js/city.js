@@ -12,6 +12,7 @@ import { twineSVG, setTwine, Rope, GARLAND_DEFS, placeGarland } from './twine.js
 import { motifSVG } from './motifs.js';
 import { stampHTML } from './stamps.js';
 import { heroSVG, archPath } from './hero.js';
+import { openKit } from './kit.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -393,8 +394,11 @@ function renderLetter(c) {
         : `<p class="inside-empty">Our team is checking the fact cards for ${esc(c.name)} against their sources. Each one appears here once a second teammate has verified it.</p>`}
     </section>
     ${c.quiz.length ? '<section class="sealq" id="sealq" aria-live="polite"></section>' : ''}
+    <div class="kit-call"><div><b>Making a school project?</b><span>One page about ${esc(c.name)}: key facts, landmarks, photos, the timeline and every source, ready to print.</span></div>
+      <button class="btn primary" id="kitBtn">Make my Project Kit</button></div>
     <p class="signoff">With love, Gaju <img src="assets/elephant.png" alt=""></p>`;
   if (c.quiz.length) startQuiz(c);
+  $('#kitBtn').addEventListener('click', () => openKit(c, { esc, user: state.user }));
 }
 
 // A real photograph with its caption and credit. Every photo is freely licensed (Wikimedia Commons) and

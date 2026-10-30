@@ -58,6 +58,7 @@
     <a href="#" data-go="udaipur">Visit Udaipur</a>
     <a href="#" data-go="kolkata">Visit Kolkata</a>
     <a href="#" data-open="journey">My Journey</a>
+    <a href="#" data-open="class">Join a class</a>
     <a href="#about" data-close>Our Story</a>
     <a href="#" data-open="auth" id="drawerAuth">Log in / Sign up</a>
   </aside>
@@ -154,6 +155,7 @@
 
   <svg class="arch-frame" id="archFrame" aria-hidden="true"></svg>
   <button class="skip" id="skipBtn" hidden>Skip ›</button>
+  <div class="kit" id="kit" role="dialog" aria-modal="true" aria-label="Project Kit" hidden></div>
 
   <!-- auth -->
   <div class="modal" id="authModal" role="dialog" aria-modal="true" aria-labelledby="authTitle" hidden>
@@ -212,6 +214,21 @@
       </form>
 
       <p class="form-error" id="authError" role="alert"></p>
+    </div>
+  </div>
+
+  <!-- join a class: a code and a nickname, nothing else -->
+  <div class="modal" id="classModal" role="dialog" aria-modal="true" aria-labelledby="classTitle" hidden>
+    <div class="modal-card">
+      <button class="modal-x" data-close-modal aria-label="Close">×</button>
+      <h2 id="classTitle" class="class-title">Join your class</h2>
+      <p class="auth-sub">Your teacher has a six-letter code. No email or phone number needed.</p>
+      <form class="pane" id="classForm" novalidate>
+        <label>Class code <input name="code" autocomplete="off" autocapitalize="characters" maxlength="8" placeholder="K7Q2MX" required></label>
+        <label class="nick">Your name in class <input name="nickname" autocomplete="nickname" maxlength="40" placeholder="Your first name, or first name and initial"></label>
+        <button class="btn primary wide" type="submit">Join</button>
+      </form>
+      <p class="form-error" id="classError" role="alert"></p>
     </div>
   </div>
 

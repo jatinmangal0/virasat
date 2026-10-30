@@ -1,6 +1,7 @@
 import { buildScene, grain, VB, GATES } from './scene.js';
 import { initCity, openCity } from './city.js';
 import { stampHTML } from './stamps.js';
+import { initClasses, openJoin, classesSection } from './classes.js';
 // City content comes from the database through the API (/api/cities), loaded in boot().
 let CITIES = {};
 
@@ -132,6 +133,7 @@ function setupChrome() {
       e.preventDefault(); closeDrawer();
       if (op.dataset.open === 'journey') openJourney();
       if (op.dataset.open === 'auth') state.user ? logout() : openAuth('phone');
+      if (op.dataset.open === 'class') openJoin();
     }
   });
 
@@ -146,7 +148,7 @@ function setupChrome() {
   // In a city, PageDown / Space / → move down a screen and PageUp / ← move back: classroom clickers send these.
   document.addEventListener('keydown', (e) => {
     const view = $('#city');
-    if (view.hidden || $$('.modal').some((m) => !m.hidden) || e.target.closest('input, textarea, select, button, a')) return;
+    if (view.hidden || !$('#kit').hidden || $$('.modal').some((m) => !m.hidden) || e.target.closest('input, textarea, select, button, a')) return;
     const down = ['PageDown', ' ', 'ArrowRight'].includes(e.key) && !e.shiftKey, up = ['PageUp', 'ArrowLeft'].includes(e.key) || (e.key === ' ' && e.shiftKey);
     if (!down && !up) return;
     e.preventDefault();
@@ -664,6 +666,7 @@ async function openJourney() {
         <small>${v ? `Opened ${v.count} time${v.count > 1 ? 's' : ''}` : 'Not visited yet'}<br>Read ${read(c.id)} of ${c.sections.length} parts<br>${q ? `Best seal: ${q.best} of ${q.total} right` : 'Letter not sealed yet'}</small>
       </div>`;
     }).join('')}</div>
+    <div class="pp-classes" id="ppClasses"></div>
     <p class="pp-how">Stamps fade so you remember. Each time one fades, answer Gaju's three questions to re-ink it: after 2 days, then 7, then 21. After that it is yours for good.</p>
     <div class="pp-actions">
       ${Object.values(CITIES).map((c) => `<button class="btn primary" data-go="${c.id}">Visit ${esc(c.name)}</button>`).join('')}
@@ -673,6 +676,7 @@ async function openJourney() {
   $$('[data-go]', body).forEach((b) => b.addEventListener('click', () => closeModal($('#journeyModal')), { capture: true }));
   $('#logoutBtn').onclick = logout;
   $$('[data-reink]', body).forEach((b) => b.addEventListener('click', () => openRecall(b.dataset.reink)));
+  classesSection($('#ppClasses'));
 }
 
 const BOX_WORDS = { 1: 'Fresh ink', 2: 'Remembered once', 3: 'Remembered twice' };
@@ -770,6 +774,11 @@ async function boot() {
   setupAuth();
   initCity({ state, CITIES, api, sound, esc, firstName, openAuth, showEarned, goToCity, resetStreet, markSeen, sequenceDone });
   $('#skipBtn').onclick = speedUp;
+  initClasses({ state, CITIES, api, esc, toast, openModal, closeModal, openJourney,
+    onJoined: (d) => {
+      if (d.user && !state.user) { state.user = d.user; renderHeader(); }
+      toast(`You joined ${d.class.name}. Your teacher can see your stamps and scores.`);
+    } });
   if (cfg.ok) state.config = cfg.data;
   if (me.ok && me.data.user) state.user = me.data.user;
   renderHeader();
