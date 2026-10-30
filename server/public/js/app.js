@@ -2,21 +2,18 @@ import { buildScene, grain, VB, GATES } from './scene.js';
 import { initCity, openCity } from './city.js';
 import { stampHTML } from './stamps.js';
 import { gajuSVG } from './gaju.js';
-import { initClasses, openJoin, classesSection } from './classes.js';
+import { initClasses, openJoin } from './classes.js';
+import { $, $$, sleep, clamp, esc, reduced, api } from './lib.js';
+import { makeSound } from './sound.js';
+import { initPassport, openJourney, openRecall, checkFading, openFadingRecall } from './passport.js';
 // City content comes from the database through the API (/api/cities), loaded in boot().
 let CITIES = {};
 
-const $ = (s, el = document) => el.querySelector(s);
-const $$ = (s, el = document) => [...el.querySelectorAll(s)];
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // two frames so a class change animates; capped because frames never come in a background tab
 const nextFrame = () => Promise.race([new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))), new Promise((r) => setTimeout(r, 60))]);
-const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const firstName = (n) => String(n || '').split(' ')[0] || 'Explorer';
 
 const state = { user: null, config: { googleClientId: null, smsMode: 'demo' }, busy: false, city: null, seq: 0, afterAuth: null, sound: false, fast: false };
-const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // Cities you have already flown into get the short version of the arrival: same beats, much faster.
 const SEEN_KEY = 'virasat.seen';
@@ -24,22 +21,6 @@ const seen = (() => { try { return new Set(JSON.parse(localStorage.getItem(SEEN_
 function markSeen(id) {
   seen.add(id);
   try { localStorage.setItem(SEEN_KEY, JSON.stringify([...seen])); } catch { /* private mode: fine */ }
-}
-
-// ---------------- api ----------------
-async function api(path, body) {
-  try {
-    const res = await fetch(path, {
-      method: body ? 'POST' : 'GET',
-      headers: body ? { 'content-type': 'application/json' } : {},
-      body: body ? JSON.stringify(body) : undefined,
-      credentials: 'same-origin',
-    });
-    const data = await res.json().catch(() => ({}));
-    return { ok: res.ok, status: res.status, data };
-  } catch {
-    return { ok: false, status: 0, data: { error: 'Could not reach the server. Check your connection.' } };
-  }
 }
 
 // Show "+10 points" when the server says something earned points.
@@ -59,36 +40,7 @@ function toast(msg) {
 }
 
 // ---------------- sound (synthesised, off until asked) ----------------
-const sound = (() => {
-  let ctx;
-  const ac = () => (ctx ||= new (window.AudioContext || window.webkitAudioContext)());
-  function noise(dur, freq, q, gain) {
-    if (!state.sound) return;
-    const c = ac(), len = Math.floor(c.sampleRate * dur), buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
-    const src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
-    src.buffer = buf; f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = q; g.gain.value = gain;
-    src.connect(f).connect(g).connect(c.destination); src.start();
-  }
-  function tone(type, from, to, dur, gain = 0.12) {
-    if (!state.sound) return;
-    const c = ac(), o = c.createOscillator(), g = c.createGain(), t = c.currentTime;
-    o.type = type; o.frequency.setValueAtTime(from, t); o.frequency.exponentialRampToValueAtTime(to, t + dur);
-    g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-    o.connect(g).connect(c.destination); o.start(t); o.stop(t + dur);
-  }
-  return {
-    whoosh: () => noise(0.5, 900, 0.7, 0.5),
-    paper: () => noise(0.35, 2400, 1.2, 0.35),
-    thunk: () => { noise(0.12, 180, 1, 1.2); tone('sine', 120, 60, 0.18, 0.3); },
-    tap: () => tone('triangle', 660, 520, 0.08, 0.1),
-    crack: () => noise(0.18, 1400, 3, 0.8),
-    toot: () => { tone('sawtooth', 260, 520, 0.35, 0.07); setTimeout(() => tone('sawtooth', 520, 700, 0.4, 0.06), 180); },
-    ding: () => { tone('sine', 880, 880, 0.25, 0.12); setTimeout(() => tone('sine', 1320, 1320, 0.35, 0.1), 120); },
-    buzz: () => tone('square', 160, 120, 0.22, 0.05),
-    ctx: () => ac(),
-  };
-})();
+const sound = makeSound(() => state.sound);
 
 // ---------------- ticker, drawer, header ----------------
 // Greetings from across India scroll in the top bar. They come from the database (checked by the
@@ -204,7 +156,7 @@ function setupStreet() {
   const gaju = $('#gaju');
   const tell = () => {
     if (state.busy) return;
-    if (fadingCity) { const id = fadingCity; fadingCity = null; openRecall(id); return; }
+    if (openFadingRecall()) return;
     const all = Object.values(CITIES).flatMap((c) => c.sections.find((s) => s.id === 'facts')?.items.map((i) => i.title) || []);
     say(all.length ? `Fun fact: ${all[Math.floor(Math.random() * all.length)]}! Pick a city to learn more.` : 'Pick a city and I will walk you there!', 4200);
     gaju.classList.remove('cheer'); void gaju.offsetWidth; gaju.classList.add('cheer');
@@ -627,126 +579,6 @@ async function logout() {
   toast('Logged out. See you soon!');
 }
 
-// ---------------- passport ----------------
-async function openJourney() {
-  if (!state.user) {
-    state.afterAuth = () => openJourney();
-    return openAuth('phone', 'Log in to see your Virasat passport.');
-  }
-  const body = $('#journeyBody');
-  body.innerHTML = '<p>Loading your passport…</p>';
-  openModal($('#journeyModal'));
-  const [r, pass] = await Promise.all([api('/api/progress'), api('/api/passport')]);
-  if (!r.ok) {
-    body.innerHTML = `<p>${esc(r.data.error || 'Your passport could not load.')}</p><button class="btn" id="ppRetry">Try again</button>`;
-    $('#ppRetry').onclick = openJourney;
-    return;
-  }
-  const visits = Object.fromEntries((r.data.visits || []).map((v) => [v.city, v]));
-  const quizzes = Object.fromEntries((r.data.quizzes || []).map((q) => [q.city, q]));
-  const read = (cityId) => (r.data.covered || []).filter((x) => x.city === cityId).length;
-  const stamps = Object.fromEntries((pass.ok ? pass.data.stamps : []).map((s) => [s.city, s]));
-  const u = state.user;
-  const joined = new Date((u.createdAt || '').replace(' ', 'T') + 'Z');
-  const via = { email: 'Email', phone: 'Phone', google: 'Google' };
-  const masked = u.phone ? u.phone.slice(0, 3) + ' ••••• ' + u.phone.slice(-3) : '';
-  body.innerHTML = `
-    <div class="pp-who">
-      <div class="av">${u.avatar ? `<img src="${esc(u.avatar)}" alt="">` : esc(u.name[0]?.toUpperCase() || 'V')}</div>
-      <div><b>${esc(u.name)}</b><small>${esc(u.email || masked)}<br>Signed in with ${(u.via || []).map((v) => via[v]).join(', ') || '—'}${isNaN(joined) ? '' : ` · joined ${joined.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`}</small></div>
-    </div>
-    <div class="pp-points"><b>${Number(r.data.points || 0)}</b> points
-      <small>10 for each new city · 5 for each part of a letter you read · 10 for each correct answer on your best Seal the letter</small></div>
-    <div class="pp-stamps">${Object.values(CITIES).map((c) => {
-      const v = visits[c.id], q = quizzes[c.id], s = stamps[c.id];
-      return `<div class="pp-slot ${s ? (s.due ? 'fading' : '') : 'empty'}">
-        <div class="pp-stamp" style="--ink:${s ? s.ink : 1}">${stampHTML(c, `${esc(c.name)} stamp`)}${s?.box >= 4 ? '<span class="kept">Kept</span>' : ''}</div>
-        <b>${esc(c.name)}</b>
-        <small class="ink-line">${inkLine(s)}</small>
-        ${s?.due ? `<button class="btn primary reink" data-reink="${c.id}">Re-ink it</button>` : ''}
-        <small>${v ? `Opened ${v.count} time${v.count > 1 ? 's' : ''}` : 'Not visited yet'}<br>Read ${read(c.id)} of ${c.sections.length} parts<br>${q ? `Best seal: ${q.best} of ${q.total} right` : 'Letter not sealed yet'}</small>
-      </div>`;
-    }).join('')}</div>
-    <div class="pp-classes" id="ppClasses"></div>
-    <p class="pp-how">Stamps fade so you remember. Each time one fades, answer Gaju's three questions to re-ink it: after 2 days, then 7, then 21. After that it is yours for good.</p>
-    <div class="pp-actions">
-      ${Object.values(CITIES).map((c) => `<button class="btn primary" data-go="${c.id}">Visit ${esc(c.name)}</button>`).join('')}
-      ${['editor', 'admin'].includes(u.role) ? '<a class="btn" href="/admin">Editor page</a>' : ''}
-      <button class="btn" id="logoutBtn">Log out</button>
-    </div>`;
-  $$('[data-go]', body).forEach((b) => b.addEventListener('click', () => closeModal($('#journeyModal')), { capture: true }));
-  $('#logoutBtn').onclick = logout;
-  $$('[data-reink]', body).forEach((b) => b.addEventListener('click', () => openRecall(b.dataset.reink)));
-  classesSection($('#ppClasses'));
-}
-
-const BOX_WORDS = { 1: 'Fresh ink', 2: 'Remembered once', 3: 'Remembered twice' };
-function inkLine(s) {
-  if (!s) return 'Seal the letter to earn this stamp';
-  if (s.box >= 4) return 'Kept for good';
-  if (s.due) return s.ink > 0.6 ? 'Starting to fade' : 'Fading';
-  const days = Math.max(1, Math.ceil((new Date(s.dueAt) - Date.now()) / 86400000));
-  return `${BOX_WORDS[s.box]} · fades in ${days} day${days > 1 ? 's' : ''}`;
-}
-
-// ---------------------------------------------------------------- the memory letter
-// When a stamp fades, Gaju sends three questions about that city. Two or more right re-inks it.
-async function openRecall(cityId) {
-  const c = CITIES[cityId], body = $('#journeyBody');
-  body.innerHTML = '<p>Gaju is writing your letter…</p>';
-  if ($('#journeyModal').hidden) openModal($('#journeyModal'));
-  const r = await api(`/api/recall/${cityId}`);
-  if (!r.ok) {
-    body.innerHTML = `<p>${esc(r.data.error)}</p><button class="btn" id="recallBack">Back to my passport</button>`;
-    $('#recallBack').onclick = openJourney;
-    return;
-  }
-  const qs = r.data.questions, picks = [];
-  const show = (i) => {
-    const q = qs[i];
-    body.innerHTML = `
-      <div class="recall">
-        <div class="recall-head"><div class="pp-stamp small" style="--ink:.5">${stampHTML(c)}</div>
-          <div><b>A memory letter from ${esc(c.name)}</b><small>Question ${i + 1} of ${qs.length}. Two right re-inks your stamp.</small></div></div>
-        <p class="q-text">${esc(q.q)}</p>
-        <div class="q-opts">${q.options.map((o, k) => `<button class="q-opt" data-k="${k}">${esc(o)}</button>`).join('')}</div>
-      </div>`;
-    $$('.q-opt', body).forEach((b) => b.addEventListener('click', () => {
-      picks.push({ id: q.id, choice: Number(b.dataset.k) });
-      if (i + 1 < qs.length) show(i + 1); else finish();
-    }));
-  };
-  // answers are marked only at the end, so the letter tests memory rather than guessing
-  const finish = async () => {
-    body.innerHTML = '<p>Pressing the stamp…</p>';
-    const res = await api(`/api/recall/${cityId}`, { answers: picks });
-    if (!res.ok) { body.innerHTML = `<p>${esc(res.data.error)}</p>`; return; }
-    const d = res.data;
-    body.innerHTML = `
-      <div class="recall done">
-        <div class="pp-stamp big ${d.passed ? 'reinked' : ''}" style="--ink:${d.passed ? 1 : 0.5}">${stampHTML(c)}</div>
-        <b>${d.right} of ${d.asked} right</b>
-        <p>${d.passed ? (d.box >= 4 ? `${esc(c.name)} is yours for good.` : `Re-inked. It will start to fade again in ${{ 2: 7, 3: 21 }[d.box]} days.`)
-          : 'Not this time. Read the letter again and try tomorrow.'}</p>
-        <div class="pp-actions"><button class="btn" id="recallBack">Back to my passport</button>${d.passed ? '' : `<button class="btn primary" data-go="${cityId}">Read ${esc(c.name)} again</button>`}</div>
-      </div>`;
-    if (d.passed) { sound.thunk(); showEarned(res); }
-    $('#recallBack').onclick = openJourney;
-    $$('[data-go]', body).forEach((b) => b.addEventListener('click', () => closeModal($('#journeyModal')), { capture: true }));
-  };
-  show(0);
-}
-
-// On arrival, Gaju mentions a stamp that is fading; tapping him then opens its memory letter.
-let fadingCity = null;
-async function checkFading() {
-  if (!state.user) return;
-  const r = await api('/api/passport');
-  const due = (r.ok ? r.data.stamps : []).find((s) => s.due && CITIES[s.city]);
-  fadingCity = due?.city || null;
-  if (fadingCity) say(`Your ${CITIES[fadingCity].name} stamp is fading! Tap me to re-ink it.`, 0);
-}
-
 // ---------------- boot ----------------
 async function boot() {
   // Draw the street at once: it needs no data. Everything from the server is asked for together.
@@ -775,6 +607,7 @@ async function boot() {
   setupAuth();
   initCity({ state, CITIES, api, sound, esc, firstName, openAuth, showEarned, goToCity, resetStreet, markSeen, sequenceDone });
   $('#skipBtn').onclick = speedUp;
+  initPassport({ state, CITIES, openModal, closeModal, openAuth, logout, sound, showEarned, say });
   initClasses({ state, CITIES, api, esc, toast, openModal, closeModal, openJourney,
     onJoined: (d) => {
       if (d.user && !state.user) { state.user = d.user; renderHeader(); }
