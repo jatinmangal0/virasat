@@ -396,7 +396,7 @@ function renderLetter(c) {
     ${c.quiz.length ? '<section class="sealq" id="sealq" aria-live="polite"></section>' : ''}
     <div class="kit-call"><div><b>Making a school project?</b><span>One page about ${esc(c.name)}: key facts, landmarks, photos, the timeline and every source, ready to print.</span></div>
       <button class="btn primary" id="kitBtn">Make my Project Kit</button></div>
-    <p class="signoff">With love, Gaju <img src="assets/elephant.png" alt=""></p>`;
+    <p class="signoff">With love, Gaju <img src="assets/gaju.svg" alt=""></p>`;
   if (c.quiz.length) startQuiz(c);
   $('#kitBtn').addEventListener('click', () => openKit(c, { esc, user: state.user }));
 }

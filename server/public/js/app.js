@@ -1,6 +1,7 @@
 import { buildScene, grain, VB, GATES } from './scene.js';
 import { initCity, openCity } from './city.js';
 import { stampHTML } from './stamps.js';
+import { gajuSVG } from './gaju.js';
 import { initClasses, openJoin, classesSection } from './classes.js';
 // City content comes from the database through the API (/api/cities), loaded in boot().
 let CITIES = {};
@@ -195,7 +196,7 @@ function setupStreet() {
     <div class="gaju" id="gaju" role="button" tabindex="0" aria-label="Gaju the elephant. Tap for a fact.">
       <div class="bubble" id="bubble">Namaste! I'm Gaju. Where shall we go?</div>
       <div class="gaju-shadow"></div>
-      <div class="gaju-body"><img src="assets/elephant.png" alt="Gaju the elephant" draggable="false"></div>
+      <div class="gaju-body">${gajuSVG()}</div>
     </div>`);
   scene.layers = layers;
   $$('.gate', world).forEach((g) => g.addEventListener('click', () => goToCity(g.dataset.city)));

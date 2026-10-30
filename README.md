@@ -24,5 +24,5 @@ npm test
 
 ## Good to know
 
-- **Images:** the city stamps and the arrival scenes are drawn in code (`server/public/js/stamps.js`, `hero.js`), so they carry no outside artwork. The old stamp and poster images (sources unknown, one marked "©PSHAIRS") are removed. Gaju (`assets/elephant.png`) still comes from an outside source: replace him or get permission before promoting the site.
+- **Images:** the city stamps, the arrival scenes and Gaju are drawn in code (`server/public/js/stamps.js`, `hero.js`, `gaju.js`), so they carry no outside artwork. Every photograph is freely licensed from Wikimedia Commons and shows its author and licence. The old stamp, poster and elephant images, whose sources were unknown, are removed.
 - **Phone login** is switched off on the live site until Twilio keys are added on Vercel. On preview links and your own computer it runs in demo mode (the code is shown on screen).

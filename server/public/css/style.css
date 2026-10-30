@@ -130,12 +130,30 @@ a { color: inherit; }
   pointer-events: auto; cursor: pointer; z-index: 2;
 }
 .gaju-body { transform-origin: 50% 100%; animation: idle 3s ease-in-out infinite; }
-.gaju-body img { width: 100%; filter: drop-shadow(0 6px 0 #00000022); transform: scaleX(var(--face, 1)); transition: transform .35s; }
+.gaju-body img, .gaju-body svg { width: 100%; height: auto; display: block; overflow: visible; filter: drop-shadow(0 6px 0 #00000022); transform: scaleX(var(--face, 1)); transition: transform .35s; }
+/* Gaju's parts move: legs in pairs when he walks, the ear flaps, the trunk sways, the eyes blink */
+.gaju-svg .gj-leg, .gaju-svg .gj-ear, .gaju-svg .gj-trunk, .gaju-svg .gj-eye, .gaju-svg .gj-tail, .gaju-svg .gj-bell { transform-box: view-box; }
+.gaju-svg .gj-ear { animation: gj-ear 3.4s ease-in-out infinite; }
+.gaju-svg .gj-trunk { animation: gj-trunk 4s ease-in-out infinite; }
+.gaju-svg .gj-eye { animation: gj-blink 5.5s infinite; }
+.gaju-svg .gj-tail { animation: gj-tail 2.2s ease-in-out infinite; }
+.gaju.walking .gaju-svg .gj-leg.a { animation: gj-step .42s ease-in-out infinite alternate; }
+.gaju.walking .gaju-svg .gj-leg.b { animation: gj-step .42s ease-in-out infinite alternate-reverse; }
+.gaju.walking .gaju-svg .gj-bell { animation: gj-bell .42s ease-in-out infinite alternate; }
+.gaju.walking .gaju-svg .gj-trunk { animation-duration: 1.2s; }
+.gaju.cheer .gaju-svg .gj-trunk { animation: gj-toot .7s ease-in-out 2; }
+@keyframes gj-step { from { transform: rotate(-11deg); } to { transform: rotate(11deg); } }
+@keyframes gj-ear { 0%, 70%, 100% { transform: rotate(0); } 80% { transform: rotate(-12deg); } 90% { transform: rotate(4deg); } }
+@keyframes gj-trunk { 50% { transform: rotate(6deg); } }
+@keyframes gj-toot { 50% { transform: rotate(-38deg); } }
+@keyframes gj-blink { 0%, 94%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
+@keyframes gj-tail { 50% { transform: rotate(14deg); } }
+@keyframes gj-bell { from { transform: rotate(-14deg); } to { transform: rotate(14deg); } }
 .gaju-shadow { position: absolute; left: 12%; right: 12%; bottom: -4%; height: 10%; background: radial-gradient(#0000004d, transparent 70%); }
 .gaju.walking .gaju-body { animation: walk .42s ease-in-out infinite; }
 .gaju.cheer .gaju-body { animation: cheer .7s ease-in-out 2; }
 @keyframes idle { 50% { transform: translateY(-2%) rotate(-1deg); } }
-@keyframes walk { 0%, 100% { transform: translateY(0) rotate(-2.5deg); } 50% { transform: translateY(-7%) rotate(2.5deg); } }
+@keyframes walk { 0%, 100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-3%) rotate(1deg); } }
 @keyframes cheer { 30% { transform: translateY(-18%) rotate(-6deg); } 60% { transform: translateY(0) rotate(3deg); } }
 .bubble {
   position: absolute; bottom: 100%; left: 50%; transform: translate(-50%, -6px); white-space: nowrap; background: #fff; color: var(--ink);
