@@ -442,7 +442,7 @@ function watchSections() {
         }, 2000));
       } else if (!en.isIntersecting && timers.has(el)) { clearTimeout(timers.get(el)); timers.delete(el); }
     }
-  }, { root: $('#city'), threshold: 0.5 });
+  }, { root: $('#city'), rootMargin: '-35% 0px -35% 0px' }); // in the middle band of the screen, so a section taller than the screen still counts
   $$('#letter .sec').forEach((el) => io.observe(el));
   run.stopWatching = () => { io.disconnect(); timers.forEach(clearTimeout); };
 }
@@ -487,7 +487,7 @@ function buildStory() {
   $$('[data-end]', stage).forEach((b) => b.addEventListener('click', async () => {
     const to = b.dataset.end;
     await closeCity();
-    if (to !== 'back') { await sleep(300); ctx.goToCity(to); }
+    if (to !== 'back') { await sleep(300); ctx.goToCity(to, { quick: true }); } // the street was walked once already: the short version
   }));
 }
 
@@ -523,9 +523,9 @@ function fitOutline(ring, { W, H, mob }, roomForCard, extra = []) {
   const xs = frame.map((p) => p[0]), ys = frame.map((p) => p[1]);
   const bw = Math.max(...xs) - Math.min(...xs), bh = Math.max(...ys) - Math.min(...ys);
   const card = roomForCard && !mob;
-  const boxW = mob ? W * 0.8 : Math.min(W * (card ? 0.46 : 0.5), 620), boxH = H * (mob ? 0.46 : card ? 0.58 : 0.52);
+  const boxW = mob ? W * 0.8 : Math.min(W * (card ? 0.46 : 0.5), 620), boxH = H * (mob ? 0.36 : card ? 0.58 : 0.52); // on a phone the map sits between the filters above and the city's name below
   const sc = Math.min(boxW / bw, boxH / bh);
-  const cx = card ? W * 0.38 : W / 2, cy = H * (mob ? 0.4 : card ? 0.43 : 0.41);
+  const cx = card ? W * 0.38 : W / 2, cy = H * (mob ? 0.36 : card ? 0.43 : 0.41);
   const ox = cx - ((Math.min(...xs) + bw / 2) * sc), oy = cy - ((Math.min(...ys) + bh / 2) * sc);
   const pts = xy.map(([x, y]) => [x * sc + ox, y * sc + oy]);
   if (pts[0][0] !== pts[pts.length - 1][0] || pts[0][1] !== pts[pts.length - 1][1]) pts.push(pts[0]);
@@ -680,7 +680,7 @@ function showEvent(i) {
   const from = s.ev[s.shown ?? i]?.year;
   s.shown = i;
   info.innerHTML = `
-    <p class="ev-year">${esc(e.year)}</p>
+    <p class="ev-year${String(e.year).length > 5 ? ' long' : ''}">${esc(e.year)}</p>
     <h3>${esc(e.title)}</h3>
     ${e.memory ? `<div class="sides">
         <div class="side record"><small>The record</small><p>${esc(e.text)}</p>${e.src ? `<a href="${esc(e.src)}" target="_blank" rel="noopener">Source</a>` : ''}</div>
@@ -691,7 +691,11 @@ function showEvent(i) {
     <p class="ev-count">${i + 1} of ${s.ev.length}${e.draft ? ' · <span class="draft">draft, not yet checked</span>' : ''}</p>`;
   const imgs = (e.images || []).slice(0, 4);
   media.innerHTML = imgs.length
-    ? imgs.map((im, k) => `<figure class="snap m${k}"><img src="${esc(im.src)}" alt="${esc(im.caption)}" loading="lazy">${im.caption ? `<figcaption>${esc(im.caption)}</figcaption>` : ''}</figure>`).join('')
+    ? imgs.map((im, k) => {
+      // a caption reads "What it shows. Photo: who, licence": the words in hand, the credit in small print
+      const [what, credit] = String(im.caption || '').split(/\s*Photo:\s*/);
+      return `<figure class="snap m${k}"><img src="${esc(im.src)}" alt="${esc(what)}" loading="lazy">${im.caption ? `<figcaption>${what ? `<span>${esc(what)}</span>` : ''}${credit ? `<small>Photo: ${esc(credit)}</small>` : ''}</figcaption>` : ''}</figure>`;
+    }).join('')
     : `<div class="ev-ghost" aria-hidden="true">${esc(e.year)}</div>
       ${motifSVG(e.motif) ? `<figure class="element"><div class="element-disc">${motifSVG(e.motif)}</div></figure>` : ''}
       <figure class="snap ${motifSVG(e.motif) ? 'm1' : 'm0'} stamp">${stampHTML(c)}</figure>`;

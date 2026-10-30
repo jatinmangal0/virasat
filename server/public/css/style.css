@@ -917,3 +917,33 @@ body.kit-open { overflow: hidden; }
 .cl-cell i.st { width: 12px; height: 12px; border-radius: 50%; background: #b5281c; opacity: .45; }
 .cl-cell i.st.b2 { opacity: .65; } .cl-cell i.st.b3 { opacity: .85; } .cl-cell i.st.b4 { opacity: 1; box-shadow: 0 0 0 2px #e9c46a; }
 .cl-key { font-size: 12px; color: #f4ead8aa; margin: 8px 0 12px; }
+
+/* ---------- fixes from the visual check (30 Oct) ---------- */
+/* a year like "c. 1536" or "1620s" stays on one line, a little smaller */
+.ev-year { white-space: nowrap; }
+.ev-year.long { font-size: clamp(44px, 6.4vw, 84px); }
+/* a polaroid's words in hand, its photo credit in small print underneath */
+.snap figcaption span { display: block; }
+.snap figcaption small { display: block; margin-top: 4px; font: 500 11px/1.35 var(--font); color: #6b5a44; overflow-wrap: anywhere; }
+/* a crowded spot on the map gets a bigger bubble */
+.pp-cluster.many { width: 48px; height: 48px; margin: -24px 0 0 -24px; font-size: 15px; }
+/* the Kit's buttons sit on a bar of their own, so they never cover the page */
+.kit-bar { background: #2a2320; margin: -16px -16px 14px; padding: 12px 16px; box-shadow: 0 6px 14px -8px #000a; }
+/* night reaches below the street too */
+body.is-night .about { background: #1d1714; }
+body.is-night .about h2 { color: #f6ead2; }
+body.is-night .about p, body.is-night .foot { color: #d9ccb4; }
+body.is-night .mini-card { background: #2a2320; color: #f6ead2; box-shadow: 0 10px 24px -12px #000; }
+/* seal answers that were not picked fade back once the question is answered */
+.q-opt:disabled:not(.right):not(.wrong) { opacity: .45; }
+
+@media (max-width: 720px) {
+  /* on a phone the letter takes nearly the whole width; the rollers' knobs get smaller to make room */
+  .scroll { width: calc(100% - 60px); }
+  .knob { width: calc(var(--roll) * .62); }
+  .knob.l { right: calc(100% + var(--roll) * .18); } .knob.r { left: calc(100% + var(--roll) * .18); }
+  .letter { padding-left: 16px; padding-right: 16px; }
+  .ev-year.long { font-size: 40px; }
+  .snap figcaption { font-size: 15px; }
+  .map-end p { font-size: 19px; margin-bottom: 10px; }
+}

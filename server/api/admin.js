@@ -32,7 +32,10 @@ export default function admin(r, { db, adminSetupCode }) {
         (SELECT COUNT(*)::int FROM quiz_questions q WHERE q.city_id = c.id AND q.status = 'verified') AS quiz_verified,
         (SELECT COUNT(*)::int FROM quiz_questions q WHERE q.city_id = c.id AND q.status = 'needs_check') AS quiz_to_check,
         (SELECT COUNT(*)::int FROM timeline_events e WHERE e.city_id = c.id AND e.status = 'verified') AS timeline_verified,
-        (SELECT COUNT(*)::int FROM timeline_events e WHERE e.city_id = c.id AND e.status = 'needs_check') AS timeline_to_check
+        (SELECT COUNT(*)::int FROM timeline_events e WHERE e.city_id = c.id AND e.status = 'needs_check') AS timeline_to_check,
+        (SELECT COUNT(*)::int FROM heritage_places p WHERE p.city_id = c.id AND p.status = 'verified') AS places_verified,
+        (SELECT COUNT(*)::int FROM heritage_places p WHERE p.city_id = c.id AND p.status = 'needs_check') AS places_to_check,
+        (c.draft IS NOT NULL)::int AS letter_to_check
       FROM cities c ORDER BY c.sort_order, c.id`)).rows;
     return json(200, { cities: rows });
   });

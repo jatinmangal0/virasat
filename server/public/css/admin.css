@@ -96,3 +96,7 @@ th { color: var(--ink-soft); font-weight: 600; }
 .draft-box { border: 2px dashed #e9a825; border-radius: 10px; padding: 10px 14px; margin: 0 0 14px; display: grid; gap: 8px; justify-items: start; }
 .inbox-item del { background: #f8d7d3; color: #8a1c12; }
 .inbox-item ins { background: #d9f0d7; color: #1f5a1a; text-decoration: none; }
+/* a mostly rewritten text: the old version, then the new one, each whole */
+.inbox-item del.whole, .inbox-item ins.whole { display: block; padding: 6px 10px; border-radius: 8px; margin: 4px 0; }
+.inbox-item del.whole::before { content: 'Before: '; font-weight: 700; }
+.inbox-item ins.whole::before { content: 'Now: '; font-weight: 700; }

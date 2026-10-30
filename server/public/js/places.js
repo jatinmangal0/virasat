@@ -91,15 +91,30 @@ export function placePins() {
     const g = groups.find((q) => Math.hypot(q.x - xy[0], q.y - xy[1]) < R);
     if (g) g.items.push(b); else groups.push({ x: xy[0], y: xy[1], items: [b] });
   }
+  // a numbered bubble is bigger than a pin, so bubbles that would overlap are merged too, until each stands clear
+  const BUBBLE = 48; // the widest bubble
+  for (let merged = true; merged;) {
+    merged = false;
+    outer: for (let i = 0; i < groups.length; i++) for (let j = i + 1; j < groups.length; j++) {
+      const a = groups[i], b = groups[j];
+      if (a.items.length + b.items.length > 2 && Math.hypot(a.x - b.x, a.y - b.y) < BUBBLE) {
+        const n = a.items.length + b.items.length;
+        a.x = (a.x * a.items.length + b.x * b.items.length) / n; a.y = (a.y * a.items.length + b.y * b.items.length) / n;
+        a.items.push(...b.items); groups.splice(j, 1); merged = true; break outer;
+      }
+    }
+  }
   for (const g of groups.filter((q) => q.items.length > 1)) {
     g.items.forEach((b) => b.classList.add('in-cluster'));
     const ids = g.items.map((b) => Number(b.dataset.i));
-    box.insertAdjacentHTML('beforeend', `<button class="pp-cluster" style="left:${g.x}px;top:${g.y}px" data-ids="${ids.join(',')}"
+    box.insertAdjacentHTML('beforeend', `<button class="pp-cluster${ids.length >= 20 ? ' many' : ''}" style="left:${g.x}px;top:${g.y}px" data-ids="${ids.join(',')}"
       aria-label="${ids.length} places here">${ids.length}</button>`);
   }
   $$('.pp-cluster', box).forEach((c) => c.addEventListener('click', () => showList(c.dataset.ids.split(',').map(Number))));
   const shown = groups.reduce((n, q) => n + q.items.length, 0), drafts = cur().places.some((p) => p.draft);
-  $('#mapNote').textContent = `${shown} heritage places on the map${drafts ? ' (drafts, not yet checked)' : ''}. Tap a marigold, or open the list.`;
+  $('#mapNote').textContent = shown
+    ? `${shown} heritage places on the map${drafts ? ' (drafts, not yet checked)' : ''}. Tap a number or a glowing pin, or open the list.`
+    : `${cur().c.name}'s places are still being checked. Each one appears here once a second editor has checked its source.`;
 }
 
 // The places as a list: everything on the map, or the ones in a cluster. Easier on a phone, and for screen readers.

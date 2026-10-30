@@ -144,7 +144,7 @@ function render() {
     <div class="cities">${state.cities.map((c) => `
       <button class="btn city-btn" data-city="${esc(c.id)}" aria-pressed="${c.id === state.city}">
         ${esc(c.name)}${c.published ? '' : ' (hidden)'}
-        <small>${c.facts_to_check + c.quiz_to_check + c.timeline_to_check} to check · ${c.facts_verified + c.quiz_verified + c.timeline_verified} live</small>
+        <small>${c.facts_to_check + c.quiz_to_check + c.timeline_to_check + (c.places_to_check || 0) + (c.letter_to_check || 0)} to check · ${c.facts_verified + c.quiz_verified + c.timeline_verified + (c.places_verified || 0)} live</small>
       </button>`).join('')}</div>
     <div class="tabs" role="tablist">${tabs.map(([id, label]) =>
       `<button class="tab" role="tab" data-tab="${id}" aria-selected="${state.tab === id}">${label}</button>`).join('')}</div>
@@ -158,27 +158,36 @@ function render() {
 // Every item waiting for a check, for every city, with what changed since it was last live.
 const KIND_WORDS = { fact: 'Fact', quiz: 'Quiz question', timeline: 'Timeline event', place: 'Place', greeting: 'Greeting', letter: 'City letter' };
 
-// Word-by-word difference between two texts (longest common subsequence): removed words struck through, added ones marked.
+// Word-by-word difference between two texts (longest common subsequence). Each run of changes shows the
+// removed words, then the added ones; when most of the text is new, the old and new versions are shown whole.
 function wordDiff(a, b) {
-  const x = String(a || '').split(/(\s+)/), y = String(b || '').split(/(\s+)/);
+  const x = String(a || '').split(/\s+/).filter(Boolean), y = String(b || '').split(/\s+/).filter(Boolean);
   const n = x.length, m = y.length, L = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
   for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) L[i][j] = x[i] === y[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
-  let i = 0, j = 0, out = '';
+  if (L[0][0] < Math.max(n, m) * 0.4) return `<del class="whole">${esc(x.join(' '))}</del><ins class="whole">${esc(y.join(' '))}</ins>`;
+  const out = []; let dels = [], adds = [];
+  const flush = () => {
+    if (dels.length) out.push(`<del>${esc(dels.join(' '))}</del>`);
+    if (adds.length) out.push(`<ins>${esc(adds.join(' '))}</ins>`);
+    dels = []; adds = [];
+  };
+  let i = 0, j = 0;
   while (i < n && j < m) {
-    if (x[i] === y[j]) { out += esc(x[i]); i++; j++; }
-    else if (L[i + 1][j] >= L[i][j + 1]) out += `<del>${esc(x[i++])}</del>`;
-    else out += `<ins>${esc(y[j++])}</ins>`;
+    if (x[i] === y[j]) { flush(); out.push(esc(x[i])); i++; j++; }
+    else if (L[i + 1][j] >= L[i][j + 1]) dels.push(x[i++]);
+    else adds.push(y[j++]);
   }
-  while (i < n) out += `<del>${esc(x[i++])}</del>`;
-  while (j < m) out += `<ins>${esc(y[j++])}</ins>`;
-  return out;
+  while (i < n) dels.push(x[i++]);
+  while (j < m) adds.push(y[j++]);
+  flush();
+  return out.join(' ');
 }
 
 async function renderInbox() {
   $('#view').innerHTML = '<p class="muted">Loading what needs a check…</p>';
   const r = await api('/api/admin/inbox');
   if (!r.ok) { $('#view').innerHTML = `<p class="form-error">${esc(r.data.error)}</p>`; return; }
-  const items = r.data.items, mine = items.filter((x) => x.mine).length;
+  const items = r.data.items.sort((p, q) => !p.source - !q.source), mine = items.filter((x) => x.mine).length; // ready to check first, no source yet last
   const cityName = (id) => state.cities.find((c) => c.id === id)?.name || '';
   $('#view').innerHTML = `
     <p class="muted">${items.length} item${items.length === 1 ? '' : 's'} need a check${mine ? `; ${mine} you wrote, which someone else must check` : ''}.

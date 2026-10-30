@@ -119,6 +119,8 @@ function setupChrome() {
 function renderHeader() {
   const btn = $('#accountBtn'), av = $('#accountAvatar');
   btn.querySelector('.initial')?.remove();
+  // signed in, the initial opens the passport, so the separate passport button would only repeat it
+  $('#journeyBtn').hidden = !!state.user;
   if (state.user) {
     btn.classList.add('signed-in');
     btn.setAttribute('aria-label', `${state.user.name}: open my passport`);
@@ -327,6 +329,7 @@ async function goToCity(city, { quick = false } = {}) {
   setAddress(city);
   state.fast = quick || seen.has(city);
   $('#skipBtn').hidden = state.fast || reduced();
+  $('#dragHint')?.classList.add('gone'); // Skip takes that corner
   if (window.scrollY > 10) { window.scrollTo({ top: 0, behavior: 'smooth' }); await sleep(450); }
   startLoop();
   $('#callout').classList.add('away');

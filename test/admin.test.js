@@ -160,3 +160,12 @@ test('the To check inbox lists every waiting item, marks the ones you wrote, and
   assert.equal((await t.client()('/api/admin/inbox')).status, 401);
 });
 
+
+test('a city\'s "to check" count includes its places and a waiting letter draft, as the inbox does', async () => {
+  const cities = (await asha('/api/admin/cities')).body.cities;
+  const k = cities.find((c) => c.id === 'kolkata');
+  const places = (await t.db.query("SELECT COUNT(*)::int AS n FROM heritage_places WHERE city_id = 'kolkata' AND status = 'needs_check'")).rows[0].n;
+  const draft = (await t.db.query("SELECT draft IS NOT NULL AS d FROM cities WHERE id = 'kolkata'")).rows[0].d;
+  assert.equal(k.places_to_check, places);
+  assert.equal(k.letter_to_check, draft ? 1 : 0);
+});
