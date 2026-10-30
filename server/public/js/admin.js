@@ -8,7 +8,7 @@ const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const when = (t) => (t ? new Date(t).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '');
 
-const state = { me: null, cities: [], city: null, data: null, tab: 'facts', filter: 'needs_check', placeSearch: '' };
+const state = { me: null, cities: [], city: null, data: null, tab: 'inbox', filter: 'needs_check', placeSearch: '' };
 
 async function api(path, body, method = body ? 'POST' : 'GET') {
   try {
@@ -139,7 +139,7 @@ async function refresh() {
 // ---------------------------------------------------------------- layout
 function render() {
   const isAdmin = state.me.role === 'admin';
-  const tabs = [['facts', 'Facts'], ['quiz', 'Quiz'], ['timeline', 'Timeline'], ['places', 'Places'], ['letter', 'City letter'], ['greetings', 'Greetings'], ...(isAdmin ? [['team', 'Team']] : []), ['log', 'History'], ['help', 'How this works']];
+  const tabs = [['inbox', 'To check'], ['facts', 'Facts'], ['quiz', 'Quiz'], ['timeline', 'Timeline'], ['places', 'Places'], ['letter', 'City letter'], ['greetings', 'Greetings'], ...(isAdmin ? [['team', 'Team']] : []), ['log', 'History'], ['help', 'How this works']];
   $('#app').innerHTML = `
     <div class="cities">${state.cities.map((c) => `
       <button class="btn city-btn" data-city="${esc(c.id)}" aria-pressed="${c.id === state.city}">
@@ -151,7 +151,56 @@ function render() {
     <section id="view"></section>`;
   $$('[data-city]').forEach((b) => b.onclick = async () => { state.city = b.dataset.city; await loadCity(); render(); });
   $$('[data-tab]').forEach((b) => b.onclick = () => { state.tab = b.dataset.tab; render(); });
-  ({ facts: renderFacts, quiz: renderQuiz, timeline: renderTimeline, places: renderPlaces, letter: renderLetter, greetings: renderGreetings, team: renderTeam, log: renderLog, help: renderHelp })[state.tab]();
+  ({ inbox: renderInbox, facts: renderFacts, quiz: renderQuiz, timeline: renderTimeline, places: renderPlaces, letter: renderLetter, greetings: renderGreetings, team: renderTeam, log: renderLog, help: renderHelp })[state.tab]();
+}
+
+// ---------------------------------------------------------------- the "To check" inbox
+// Every item waiting for a check, for every city, with what changed since it was last live.
+const KIND_WORDS = { fact: 'Fact', quiz: 'Quiz question', timeline: 'Timeline event', place: 'Place', greeting: 'Greeting', letter: 'City letter' };
+
+// Word-by-word difference between two texts (longest common subsequence): removed words struck through, added ones marked.
+function wordDiff(a, b) {
+  const x = String(a || '').split(/(\s+)/), y = String(b || '').split(/(\s+)/);
+  const n = x.length, m = y.length, L = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) L[i][j] = x[i] === y[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  let i = 0, j = 0, out = '';
+  while (i < n && j < m) {
+    if (x[i] === y[j]) { out += esc(x[i]); i++; j++; }
+    else if (L[i + 1][j] >= L[i][j + 1]) out += `<del>${esc(x[i++])}</del>`;
+    else out += `<ins>${esc(y[j++])}</ins>`;
+  }
+  while (i < n) out += `<del>${esc(x[i++])}</del>`;
+  while (j < m) out += `<ins>${esc(y[j++])}</ins>`;
+  return out;
+}
+
+async function renderInbox() {
+  $('#view').innerHTML = '<p class="muted">Loading what needs a check…</p>';
+  const r = await api('/api/admin/inbox');
+  if (!r.ok) { $('#view').innerHTML = `<p class="form-error">${esc(r.data.error)}</p>`; return; }
+  const items = r.data.items, mine = items.filter((x) => x.mine).length;
+  const cityName = (id) => state.cities.find((c) => c.id === id)?.name || '';
+  $('#view').innerHTML = `
+    <p class="muted">${items.length} item${items.length === 1 ? '' : 's'} need a check${mine ? `; ${mine} you wrote, which someone else must check` : ''}.
+      Open the source, compare it with the words, then verify. Changes since an item was last live are marked: <del>removed</del> <ins>added</ins>.</p>
+    ${items.map((x, k) => `
+      <article class="item inbox-item">
+        <h4><span class="badge">${esc(KIND_WORDS[x.kind] || x.kind)}</span> ${x.city ? `<span class="muted">${esc(cityName(x.city))}</span> ` : ''}${esc(x.label)}</h4>
+        ${x.text ? `<p>${x.wasLive != null && x.wasLive !== x.text ? wordDiff(x.wasLive, x.text) : esc(x.text)}</p>` : ''}
+        ${x.wasLive != null && x.wasLive !== x.text ? '<p class="muted" style="font-size:13px">Was live before; changed since.</p>' : ''}
+        ${x.source ? `<a class="src" href="${esc(x.source)}" target="_blank" rel="noopener">${esc(x.source)}</a>` : '<span class="badge">No source yet</span>'}
+        <div class="row">${x.mine
+          ? '<span class="muted" style="font-size:13px">You wrote or changed this, so a teammate must verify it.</span>'
+          : `<button class="btn small ok" data-inbox="${k}" ${x.source ? '' : 'disabled'}>I checked the source · Verify</button>`}</div>
+      </article>`).join('') || '<p class="muted">Nothing is waiting. Every item is checked.</p>'}`;
+  $$('[data-inbox]').forEach((b) => b.onclick = async () => {
+    const x = items[Number(b.dataset.inbox)];
+    const path = x.kind === 'letter' ? `/api/admin/cities/${encodeURIComponent(x.id)}/verify` : `/api/admin/${x.path}/${x.id}/verify`;
+    const res = await api(path, { updatedAt: x.updatedAt }, 'POST');
+    if (!res.ok) return toast(res.data.error || 'That did not work.', true);
+    toast('Verified. It is now on the website.');
+    renderInbox();
+  });
 }
 
 const people = (x) => [

@@ -143,3 +143,20 @@ test('every change is in the log, newest first', async () => {
   assert.equal(log[0].action, 'role');
   assert.ok(log.some((l) => l.label === 'Dal Pakwan' && l.user_name === 'Asha'));
 });
+
+test('the To check inbox lists every waiting item, marks the ones you wrote, and shows what was live before', async () => {
+  let r = await asha('/api/admin/facts', { sectionId, title: 'Malpua', text: 'Sweet fried pancakes.', sourceUrl: 'https://example.com/malpua' });
+  const id = r.body.fact.id;
+  let inbox = (await asha('/api/admin/inbox')).body.items;
+  const mine = inbox.find((x) => x.kind === 'fact' && x.id === id);
+  assert.equal(mine.mine, true);
+  assert.equal(mine.wasLive, null, 'never live yet');
+  assert.ok(inbox.some((x) => x.kind === 'timeline'), 'other kinds are there too');
+  await neel(`/api/admin/facts/${id}/verify`, { updatedAt: mine.updatedAt });
+  await neel(`/api/admin/facts/${id}`, { sectionId, title: 'Malpua', text: 'Sweet fried pancakes in syrup.', sourceUrl: 'https://example.com/malpua' }, 'PUT');
+  inbox = (await asha('/api/admin/inbox')).body.items;
+  const back = inbox.find((x) => x.kind === 'fact' && x.id === id);
+  assert.deepEqual([back.mine, back.wasLive, back.text], [false, 'Sweet fried pancakes.', 'Sweet fried pancakes in syrup.']);
+  assert.equal((await t.client()('/api/admin/inbox')).status, 401);
+});
+

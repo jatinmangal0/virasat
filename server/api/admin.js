@@ -277,6 +277,35 @@ export default function admin(r, { db, adminSetupCode }) {
     });
   }
 
+  // ---------------------------------------------------------------- the "To check" inbox
+  // Everything waiting for a check, across every kind of content, with the last version that was live (from the
+  // History log) so the checker can see exactly what changed. Items the asker wrote are marked: they cannot verify those.
+  r.get('/api/admin/inbox', { role: 'editor' }, async ({ user }) => {
+    const KINDS = [
+      ['fact', 'facts', 'facts', "x.title AS label, x.body AS text, s.city_id AS city", 'JOIN sections s ON s.id = x.section_id'],
+      ['quiz', 'quiz', 'quiz_questions', "x.question AS label, x.options::text AS text, x.city_id AS city", ''],
+      ['timeline', 'timeline', 'timeline_events', "x.year_label || ' · ' || x.title AS label, x.body AS text, x.city_id AS city", ''],
+      ['place', 'places', 'heritage_places', "x.name AS label, x.description AS text, x.city_id AS city", ''],
+      ['greeting', 'greetings', 'greetings', "x.word || ' (' || x.language || ')' AS label, x.native AS text, '' AS city", ''],
+    ];
+    const items = [];
+    for (const [entity, path, table, cols, join] of KINDS) {
+      const rows = (await db.query(`SELECT x.id, x.source_url, x.updated_at, x.authors, ${cols},
+          (SELECT l.after FROM content_log l WHERE l.entity = $1 AND l.entity_id = x.id::text AND l.action = 'verify' ORDER BY l.at DESC, l.id DESC LIMIT 1) AS was_live
+        FROM ${table} x ${join} WHERE x.status = 'needs_check' ORDER BY x.updated_at DESC LIMIT 400`, [entity])).rows;
+      for (const x of rows) {
+        const was = x.was_live;
+        const wasText = was && (was.body ?? was.description ?? (was.options ? JSON.stringify(was.options) : null) ?? was.native ?? null);
+        items.push({ kind: entity, path, id: x.id, city: x.city, label: x.label, text: x.text, source: x.source_url, updatedAt: x.updated_at,
+          wasLive: wasText, mine: (x.authors || []).includes(user.id) });
+      }
+    }
+    const letters = (await db.query('SELECT id, name, draft, draft_by, draft_at, letter FROM cities WHERE draft IS NOT NULL')).rows
+      .map((c) => ({ kind: 'letter', id: c.id, city: c.id, label: `${c.name}: city letter`, text: (c.draft.letter || []).join('\n\n'),
+        wasLive: (c.letter || []).join('\n\n'), source: c.draft.sources?.[0]?.[1] || '', updatedAt: c.draft_at, mine: c.draft_by === user.id }));
+    return json(200, { items: [...letters, ...items] });
+  });
+
   // ---------------------------------------------------------------- history
   r.get('/api/admin/log', { role: 'editor' }, async () => {
     const rows = (await db.query(`SELECT l.id, l.action, l.entity, l.entity_id, l.at, u.name AS user_name,

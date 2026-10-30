@@ -94,3 +94,5 @@ th { color: var(--ink-soft); font-weight: 600; }
 .item .motif { float: right; width: 64px; height: 64px; margin: 0 0 6px 10px; }
 .item .memory { border-left: 3px solid #e9a825; padding-left: 10px; }
 .draft-box { border: 2px dashed #e9a825; border-radius: 10px; padding: 10px 14px; margin: 0 0 14px; display: grid; gap: 8px; justify-items: start; }
+.inbox-item del { background: #f8d7d3; color: #8a1c12; }
+.inbox-item ins { background: #d9f0d7; color: #1f5a1a; text-decoration: none; }

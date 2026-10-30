@@ -741,6 +741,8 @@ function showEvent(i) {
   const info = $('#evInfo'), media = $('#evMedia');
   // When an event is remembered differently from what the sources show, both sides are shown.
   info.classList.toggle('two-sides', !!e.memory);
+  const from = s.ev[s.shown ?? i]?.year;
+  s.shown = i;
   info.innerHTML = `
     <p class="ev-year">${esc(e.year)}</p>
     <h3>${esc(e.title)}</h3>
@@ -758,6 +760,24 @@ function showEvent(i) {
       ${motifSVG(e.motif) ? `<figure class="element"><div class="element-disc">${motifSVG(e.motif)}</div></figure>` : ''}
       <figure class="snap ${motifSVG(e.motif) ? 'm1' : 'm0'} stamp">${stampHTML(c)}</figure>`;
   for (const el of [info, media]) el.animate([{ opacity: 0, transform: 'translateY(14px)' }, { opacity: 1, transform: 'none' }], { duration: 420, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  rollYear($('.ev-year', info), from, e.year);
+}
+
+// The year counts from the last event's year to this one, so moving along the thread feels like moving
+// through time. Labels like "1620s" or "c. 1536" keep their words; only the number rolls.
+function rollYear(el, from, to) {
+  const n = (y) => Number(/\d{3,4}/.exec(y || '')?.[0]);
+  const a = n(from), b = n(to);
+  if (!el || reduced() || !Number.isFinite(a) || !Number.isFinite(b) || a === b) return;
+  const [pre, post] = String(to).split(String(b));
+  const t0 = performance.now(), ms = Math.min(900, 250 + Math.abs(b - a) * 2);
+  const step = (t) => {
+    if (!el.isConnected) return;
+    const k = clamp((t - t0) / ms), v = Math.round(a + (b - a) * (1 - (1 - k) ** 3));
+    el.textContent = `${pre}${v}${post}`;
+    if (k < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
 }
 
 // ---------------------------------------------------------------- heritage places on the map
