@@ -377,6 +377,7 @@ function renderLetter(c) {
     <h2 id="letterTitle">${esc(c.name)}${c.native ? `<span class="native" lang="${lang}">${esc(c.native)}</span>` : ''}</h2>
     <p class="greet">${esc(c.greeting.replace(/!$/, ''))}, ${esc(name)}! <span>(${esc(c.greetingNote)})</span></p>
     <div class="letter-body">${c.letter.map((p) => `<p>${esc(p)}</p>`).join('')}</div>
+    ${c.photos?.length ? `<div class="letter-photos">${c.photos.map((ph, k) => photoFigure(ph, `postcard p${k}`)).join('')}</div>` : ''}
     <div class="facts">${c.quickFacts.map(([k, v]) => `<div class="fact"><span>${esc(k)}</span><strong>${esc(v)}</strong></div>`).join('')}</div>
     ${c.sources?.length ? `<p class="letter-src">Sources for this letter: ${c.sources.map(([t, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)}</a>`).join(' · ')}</p>` : ''}
     <section class="inside" aria-labelledby="insideTitle">
@@ -385,7 +386,8 @@ function renderLetter(c) {
         <div class="sec" data-sec="${esc(s.id)}">
           <p class="sec-label">${SECTION_ICONS[s.id] || ''}${esc(s.label)}<span class="done">Read ✓</span></p>
           <div class="cards">${s.items.map((f) => `
-            <article class="card"><h4>${esc(f.title)}${f.draft ? '<span class="draft">draft</span>' : ''}</h4><p>${esc(f.text)}</p>
+            <article class="card${f.image ? ' has-photo' : ''}">${f.image ? photoFigure(f.image, 'card-photo') : ''}
+              <h4>${esc(f.title)}${f.draft ? '<span class="draft">draft</span>' : ''}</h4><p>${esc(f.text)}</p>
               ${f.src ? `<a href="${esc(f.src)}" target="_blank" rel="noopener">Source</a>` : ''}</article>`).join('')}</div>
         </div>`).join('')
         : `<p class="inside-empty">Our team is checking the fact cards for ${esc(c.name)} against their sources. Each one appears here once a second teammate has verified it.</p>`}
@@ -393,6 +395,14 @@ function renderLetter(c) {
     ${c.quiz.length ? '<section class="sealq" id="sealq" aria-live="polite"></section>' : ''}
     <p class="signoff">With love, Gaju <img src="assets/elephant.png" alt=""></p>`;
   if (c.quiz.length) startQuiz(c);
+}
+
+// A real photograph with its caption and credit. Every photo is freely licensed (Wikimedia Commons) and
+// its licence asks for the author's name, so the credit is always shown, linked to the photo's page.
+function photoFigure(ph, cls) {
+  const { esc } = ctx;
+  return `<figure class="${cls}"><img src="${esc(ph.src)}" alt="${esc(ph.caption || '')}" loading="lazy" decoding="async">
+    <figcaption>${ph.caption ? `<span>${esc(ph.caption)}</span>` : ''}<a href="${esc(ph.page || ph.src)}" target="_blank" rel="noopener">Photo: ${esc(ph.credit)}</a></figcaption></figure>`;
 }
 
 // Drawn icons for the four parts of a letter, in the street's ink.
@@ -508,6 +518,7 @@ function buildStory() {
   const otherId = Object.keys(CITIES).find((k) => k !== cur.id);
   const stage = $('#storyStage');
   stage.innerHTML = `
+    <svg class="story-water" id="storyWater" aria-hidden="true"></svg>
     <svg class="story-svg" id="storySvg" aria-hidden="true"></svg>
     <div class="story-head" id="storyHead"><small>The thread of time</small><h3>${esc(c.name)} through the years</h3>
       <p>${ev.length ? 'Keep scrolling to follow the thread' : 'Our team is still checking the events for this timeline. Come back soon!'}</p></div>
@@ -520,6 +531,7 @@ function buildStory() {
     <div class="place-legend" id="placeLegend"></div>
     <div class="places" id="places"></div>
     <aside class="place-card" id="placeCard" aria-live="polite" hidden></aside>
+    <aside class="place-list" id="placeList" hidden></aside>
     <div class="map-end" id="mapEnd">
       <h3>${esc(c.name)}</h3>
       <p id="mapNote">Soon, this map will hold ${esc(c.name)}'s landmarks.</p>
@@ -527,7 +539,7 @@ function buildStory() {
         <button class="btn" data-end="back">← Back to the street</button>
         ${otherId ? `<button class="btn primary" data-end="${otherId}">Visit ${esc(CITIES[otherId].name)} next →</button>` : ''}
       </div>
-      ${c.outlineSource ? `<p class="map-src">City outline: ${esc(c.outlineSource.replace(/: https?:\/\/\S+$/, ''))}</p>` : ''}
+      ${c.outlineSource ? `<p class="map-src">City outline: ${esc(c.outlineSource.replace(/: https?:\/\/\S+$/, ''))}${c.waterSource ? ` · ${esc(c.waterSource)}` : ''}</p>` : ''}
     </div>`;
   cur.story = { ev, active: -1, outline: null, place: null };
   renderPlaces();
@@ -549,20 +561,26 @@ function measureStory() {
   const total = Object.values(s.seg).reduce((a, b) => a + b, 0) + H * 0.5;
   $('#story').style.height = total + H + 'px';
   $('#storySvg').innerHTML = twineSVG(s.g.w, 'main') + '<g class="garland" id="storyGarland"></g>';
-  s.outline = fitOutline(cur.c.outline || [], s.g, cur.places.length > 0);
+  const water = cur.c.water || {};
+  const wet = [...(water.areas || []).flatMap((a) => a.ring), ...(water.lines || []).flatMap((l) => l.line)];
+  s.outline = fitOutline(cur.c.outline || [], s.g, cur.places.length > 0, wet);
+  drawWater(water, s.outline);
   placePins();
 }
 
 // The city boundary, [lng, lat], fitted into the middle of the screen and spaced evenly along its edge.
 // With places to show on a wide screen, the map moves left to make room for the place card.
-function fitOutline(ring, { W, H, mob }, roomForCard) {
+// `extra` are more [lng, lat] points the frame must hold (the lakes and the river), so the map is framed around
+// the city and its water together.
+function fitOutline(ring, { W, H, mob }, roomForCard, extra = []) {
   if (ring.length < 3) {
     return Array.from({ length: M }, (_, i) => { const a = (i / (M - 1)) * Math.PI * 2; return [W / 2 + Math.cos(a) * H * 0.25, H * 0.45 + Math.sin(a) * H * 0.25]; });
   }
   const lat0 = ring.reduce((a, p) => a + p[1], 0) / ring.length;
   const k = Math.cos((lat0 * Math.PI) / 180);
   const xy = ring.map(([lng, lat]) => [lng * k, -lat]);
-  const xs = xy.map((p) => p[0]), ys = xy.map((p) => p[1]);
+  const frame = [...xy, ...extra.map(([lng, lat]) => [lng * k, -lat])];
+  const xs = frame.map((p) => p[0]), ys = frame.map((p) => p[1]);
   const bw = Math.max(...xs) - Math.min(...xs), bh = Math.max(...ys) - Math.min(...ys);
   const card = roomForCard && !mob;
   const boxW = mob ? W * 0.8 : Math.min(W * (card ? 0.46 : 0.5), 620), boxH = H * (mob ? 0.46 : card ? 0.58 : 0.52);
@@ -581,14 +599,29 @@ function fitOutline(ring, { W, H, mob }, roomForCard) {
     const t = (d - lens[j]) / (lens[j + 1] - lens[j] || 1);
     out.push([lerp(pts[j][0], pts[j + 1][0], t), lerp(pts[j][1], pts[j + 1][1], t)]);
   }
-  // where a [lng, lat] lands on screen, or null when it is well outside the city
+  // where a [lng, lat] lands on screen (toXY), or null when it is well outside the city (project)
   const minX = Math.min(...xs), minY = Math.min(...ys);
+  out.toXY = (lng, lat) => [lng * k * sc + ox, -lat * sc + oy];
   out.project = (lng, lat) => {
     const x = lng * k, y = -lat;
     if (x < minX - bw * 0.2 || x > minX + bw * 1.2 || y < minY - bh * 0.2 || y > minY + bh * 1.2) return null;
     return [x * sc + ox, y * sc + oy];
   };
   return out;
+}
+
+// Lakes as filled shapes and rivers as wide strokes, under the thread. Shown as the map is drawn.
+function drawWater(water, outline) {
+  const svg = $('#storyWater');
+  if (!svg || !outline.toXY) return;
+  const pts = (list) => list.map(([lng, lat]) => outline.toXY(lng, lat).map((v) => v.toFixed(1)).join(',')).join(' ');
+  svg.innerHTML = (water.areas || []).map((a) => `<polygon class="lake" points="${pts(a.ring)}"><title>${ctx.esc(a.name)}</title></polygon>`).join('')
+    + (water.lines || []).map((l) => `<polyline class="river" points="${pts(l.line)}"><title>${ctx.esc(l.name)}</title></polyline>`).join('')
+    + [...(water.areas || []).filter((a) => a.ring.length > 40), ...(water.lines || [])].map((w) => {
+      const pts2 = (w.ring || w.line).map(([lng, lat]) => outline.toXY(lng, lat));
+      const [x, y] = pts2[Math.floor(pts2.length / (w.ring ? 2.6 : 2))];
+      return `<text class="water-name" x="${x.toFixed(0)}" y="${y.toFixed(0)}">${ctx.esc(w.name)}</text>`;
+    }).join('');
 }
 
 // ----- the shapes the thread takes; each maps u (0 at the scroll end, 1 at the far end) to a point
@@ -691,6 +724,8 @@ function drawStory() {
     el.style.visibility = end > 0 ? 'visible' : 'hidden';
   }
   $('#places').classList.toggle('on', m > 0.8);
+  const water = $('#storyWater');
+  if (water) water.style.opacity = clamp((m - 0.45) / 0.4);
 }
 
 function showEvent(i) {
@@ -749,20 +784,36 @@ async function loadPlaces(run) {
   if (run.story) { renderPlaces(); layoutAfterOpen(); }
 }
 
+// A place the team has not written about yet (no description, no photo) is "bare": kept off the map
+// unless the visitor asks for every researched place, so the map shows what it can explain.
+const isBare = (p) => !p.description && !p.image_url;
+
 function renderPlaces() {
   const { esc } = ctx, list = cur.places;
   if (!list.length) return;
-  const count = Object.fromEntries(PLACE_KINDS.map((k) => [k[0], list.filter((p) => kindOf(p) === k[0]).length]));
+  const told = list.filter((p) => !isBare(p));
+  const count = Object.fromEntries(PLACE_KINDS.map((k) => [k[0], told.filter((p) => kindOf(p) === k[0]).length]));
+  const bare = list.length - told.length;
   $('#placeLegend').innerHTML = PLACE_KINDS.filter((k) => count[k[0]])
-    .map(([id, label]) => `<button class="chip k-${id}" data-kind="${id}" aria-pressed="true"><i></i>${label} <b>${count[id]}</b></button>`).join('');
-  $('#places').innerHTML = list.map((p, i) => `<button class="pp k-${kindOf(p)}${p.description ? ' big' : ''}" data-i="${i}"
-      style="--d:${(i % 40) * 18}ms" aria-label="${esc(p.name)}"><span class="pp-name">${esc(p.name)}</span></button>`).join('');
+    .map(([id, label]) => `<button class="chip k-${id}" data-kind="${id}" aria-pressed="true"><i></i>${label} <b>${count[id]}</b></button>`).join('')
+    + (bare ? `<button class="chip bare-chip" data-bare aria-pressed="false">All researched <b>+${bare}</b></button>` : '')
+    + '<button class="chip list-chip" data-list>List</button>';
+  $('#places').innerHTML = list.map((p, i) => `<button class="pp k-${kindOf(p)}${p.description ? ' big' : ''}${isBare(p) ? ' bare' : ''}" data-i="${i}"
+      style="--d:${(i % 40) * 18}ms" aria-label="${esc(p.name)}" tabindex="-1"><span class="pp-name">${esc(p.name)}</span></button>`).join('');
   $$('#places .pp').forEach((b) => b.addEventListener('click', () => showPlace(Number(b.dataset.i))));
-  $$('#placeLegend .chip').forEach((b) => b.addEventListener('click', () => {
+  $$('#placeLegend [data-kind]').forEach((b) => b.addEventListener('click', () => {
     const on = b.getAttribute('aria-pressed') !== 'true';
     b.setAttribute('aria-pressed', on);
     $('#places').classList.toggle('hide-' + b.dataset.kind, !on);
+    placePins();
   }));
+  $('#placeLegend [data-bare]')?.addEventListener('click', (e) => {
+    const on = e.currentTarget.getAttribute('aria-pressed') !== 'true';
+    e.currentTarget.setAttribute('aria-pressed', on);
+    $('#places').classList.toggle('show-bare', on);
+    placePins();
+  });
+  $('#placeLegend [data-list]').addEventListener('click', () => showList(null));
   // wide screens open on a place with a photo and a description, so the card is never empty
   if (innerWidth >= 720) {
     const pick = list.findLastIndex((p) => p.description && photoOf(p.image_url));
@@ -770,28 +821,66 @@ function renderPlaces() {
   }
 }
 
+// Places sit on the map where they are. Pins closer than a fingertip are gathered into one numbered
+// cluster; tapping it lists them. Places outside the map's frame are listed but not pinned.
 function placePins() {
   const s = cur.story;
   if (!s?.outline?.project) return;
-  $$('#places .pp').forEach((b) => {
+  const box = $('#places');
+  $$('.pp-cluster', box).forEach((c) => c.remove());
+  const R = s.g.mob ? 26 : 16, groups = [];
+  const kindHidden = (p) => box.classList.contains('hide-' + kindOf(p)) || (isBare(p) && !box.classList.contains('show-bare'));
+  // described places first, so they lead their cluster
+  const order = $$('.pp', box).sort((a, b) => !!cur.places[b.dataset.i].description - !!cur.places[a.dataset.i].description);
+  for (const b of order) {
     const p = cur.places[b.dataset.i], xy = s.outline.project(p.longitude, p.latitude);
     b.hidden = !xy;
-    if (xy) { b.style.left = xy[0] + 'px'; b.style.top = xy[1] + 'px'; }
-  });
-  const shown = $$('#places .pp:not([hidden])').length, drafts = cur.places.some((p) => p.draft);
-  $('#mapNote').textContent = `${shown} heritage places, researched by our team${drafts ? ' (drafts, not yet checked)' : ''}. Tap a marigold to explore.`;
+    b.classList.remove('in-cluster');
+    if (!xy) continue;
+    b.style.left = xy[0] + 'px'; b.style.top = xy[1] + 'px';
+    if (kindHidden(p)) continue;
+    const g = groups.find((q) => Math.hypot(q.x - xy[0], q.y - xy[1]) < R);
+    if (g) g.items.push(b); else groups.push({ x: xy[0], y: xy[1], items: [b] });
+  }
+  for (const g of groups.filter((q) => q.items.length > 1)) {
+    g.items.forEach((b) => b.classList.add('in-cluster'));
+    const ids = g.items.map((b) => Number(b.dataset.i));
+    box.insertAdjacentHTML('beforeend', `<button class="pp-cluster" style="left:${g.x}px;top:${g.y}px" data-ids="${ids.join(',')}"
+      aria-label="${ids.length} places here">${ids.length}</button>`);
+  }
+  $$('.pp-cluster', box).forEach((c) => c.addEventListener('click', () => showList(c.dataset.ids.split(',').map(Number))));
+  const shown = groups.reduce((n, q) => n + q.items.length, 0), drafts = cur.places.some((p) => p.draft);
+  $('#mapNote').textContent = `${shown} heritage places on the map${drafts ? ' (drafts, not yet checked)' : ''}. Tap a marigold, or open the list.`;
+}
+
+// The places as a list: everything on the map, or the ones in a cluster. Easier on a phone, and for screen readers.
+function showList(ids) {
+  const { esc } = ctx, panel = $('#placeList'), box = $('#places');
+  const visible = (p) => !box.classList.contains('hide-' + kindOf(p)) && (!isBare(p) || box.classList.contains('show-bare'));
+  const items = (ids || cur.places.map((_, i) => i).filter((i) => visible(cur.places[i])))
+    .sort((a, b) => cur.places[a].name.localeCompare(cur.places[b].name));
+  $('#placeCard').hidden = true;
+  panel.innerHTML = `<div class="pl-head"><b>${ids ? `${items.length} places here` : `${items.length} places`}</b>
+      <button class="pc-close" aria-label="Close the list">×</button></div>
+    <ul>${items.map((i) => { const p = cur.places[i]; return `<li><button data-i="${i}"><i class="k-${kindOf(p)}"></i><span>${esc(p.name)}
+      <small>${esc(p.subcategory || 'Heritage place')}${p.description ? '' : ' · not written yet'}</small></span></button></li>`; }).join('')}</ul>`;
+  panel.hidden = false;
+  $('.pc-close', panel).addEventListener('click', () => { panel.hidden = true; });
+  $$('li button', panel).forEach((b) => b.addEventListener('click', () => { panel.hidden = true; showPlace(Number(b.dataset.i)); }));
+  $('li button', panel)?.focus({ preventScroll: true });
 }
 
 function showPlace(i) {
   const { esc } = ctx, p = cur.places[i], card = $('#placeCard');
   if (!p) return;
   cur.story.place = i;
+  $('#placeList').hidden = true;
   $$('#places .pp').forEach((b) => b.classList.toggle('sel', Number(b.dataset.i) === i));
   const photo = photoOf(p.image_url);
   card.innerHTML = `
     <button class="pc-close" aria-label="Close">×</button>
     ${photo ? `<figure class="pc-photo"><img src="${esc(photo.src)}" alt="${esc(p.name)}" loading="lazy">
-      <figcaption><a href="${esc(photo.page)}" target="_blank" rel="noopener">Photo: Wikimedia Commons</a></figcaption></figure>` : ''}
+      <figcaption><a href="${esc(photo.page)}" target="_blank" rel="noopener">Photo: ${esc(p.image_license && !/^See /.test(p.image_license) ? p.image_license : 'Wikimedia Commons')}</a></figcaption></figure>` : ''}
     <p class="pc-kind k-${kindOf(p)}"><i></i>${esc(p.subcategory || 'Heritage place')}${p.year ? ` · since ${esc(p.year)}` : ''}</p>
     <h4>${esc(p.name)}</h4>
     ${p.native_name ? `<p class="pc-native">${esc(p.native_name)}</p>` : ''}

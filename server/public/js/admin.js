@@ -218,6 +218,7 @@ function renderFacts() {
           <article class="item ${f.status === 'verified' ? 'verified' : ''}">
             <h4>${esc(f.title)} ${badge(f)}</h4>
             <p>${esc(f.body)}</p>
+          ${f.image ? `<span class="thumbs"><a href="${esc(f.image.page || f.image.src)}" target="_blank" rel="noopener"><img src="${esc(f.image.src)}" alt="${esc(f.image.caption)}" loading="lazy"></a></span><small class="muted">${esc(f.image.credit)}</small>` : ''}
             ${f.source_url ? `<a class="src" href="${esc(f.source_url)}" target="_blank" rel="noopener">${esc(f.source_url)}</a>` : '<span class="badge">No source yet</span>'}
             <div class="meta">${people(f)}</div>
             ${itemButtons('facts', f)}
@@ -235,6 +236,11 @@ function editFact(f) {
     { name: 'title', label: 'Title', type: 'text', value: f?.title ?? '' },
     { name: 'text', label: 'Text', type: 'textarea', value: f?.body ?? '', hint: 'one or two short sentences' },
     { name: 'sourceUrl', label: 'Source link', type: 'url', value: f?.source_url ?? '', hint: 'where a teammate can check this' },
+    { name: 'imageSrc', label: 'Photo link (optional)', type: 'url', value: f?.image?.src ?? '',
+      hint: 'a freely licensed photo, e.g. from Wikimedia Commons (CC BY, CC BY-SA, CC0 or public domain)' },
+    { name: 'imagePage', label: "Photo's page", type: 'url', value: f?.image?.page ?? '', hint: 'the page that shows its licence' },
+    { name: 'imageCredit', label: 'Photo credit', type: 'text', value: f?.image?.credit ?? '', hint: 'author and licence, e.g. "Henrik Bennetsen, CC BY-SA 2.0, via Wikimedia Commons"' },
+    { name: 'imageCaption', label: 'Photo caption', type: 'text', value: f?.image?.caption ?? '', hint: 'what the photo shows' },
   ], async (v) => {
     const r = f ? await api(`/api/admin/facts/${f.id}`, v, 'PUT') : await api('/api/admin/facts', v);
     if (!r.ok) return r.data.error;

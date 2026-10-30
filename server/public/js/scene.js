@@ -71,8 +71,13 @@ function person(x, base, { skin = '#a8693f', top = '#e0503c', bottom = '#2f3c6b'
 
 function shopfront(x, w, { sign, signFont, num, goods, awning = ['#e0503c', '#f7e9d4'] }) {
   const top = 488, signY = 494, awnY = 532, openY = 554;
+  // The name sits between the sign's left edge and the number badge. A long name is squeezed to fit that
+  // space (textLength), so it never runs into the badge.
+  const size = sign.length > 11 ? 15 : 18, room = w - 50;
+  const latin = /^[\x20-\x7e]+$/.test(sign), guess = sign.length * size * (latin ? 0.74 : 0.62);
+  const fit = guess > room ? `textLength="${room}" lengthAdjust="spacingAndGlyphs"` : '';
   let g = `${r(x + 6, signY, w - 12, 34, '#fffaf0', `stroke="${INK}" stroke-width="2" rx="4"`)}
-    <text x="${x + w / 2 - 10}" y="${signY + 24}" text-anchor="middle" font-family="${signFont}" font-weight="700" font-size="${sign.length > 11 ? 15 : 18}" fill="#2a2a5a">${sign}</text>
+    <text x="${x + w / 2 - 14}" y="${signY + 24}" text-anchor="middle" font-family="${signFont}" font-weight="700" font-size="${size}" fill="#2a2a5a" ${fit}>${sign}</text>
     <circle cx="${x + w - 22}" cy="${signY + 17}" r="11" fill="#2a2a5a"/>
     <text x="${x + w - 22}" y="${signY + 22}" text-anchor="middle" font-family="Anek Devanagari, Anek Latin, sans-serif" font-weight="700" font-size="12" fill="#fff">${num}</text>`;
   // scalloped striped awning

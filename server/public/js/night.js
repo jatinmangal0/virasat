@@ -111,9 +111,17 @@ function buildingsNight(layer, base, lamps) {
     }
   }
   for (const s of signs) mask += `<rect x="${s.x}" y="${s.y}" width="${s.w}" height="${s.h}" fill="#fff" opacity=".9"/>`;
-  for (const p of portals) {
-    mask += `<rect x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}" fill="#fff" opacity=".7"/>`;
-    glows += `<ellipse cx="${p.cx}" cy="${p.cy}" rx="${p.w * 0.75}" ry="${p.h * 0.6}" fill="url(#nt-warm)" opacity=".3"/>`;
+  // The view through each gate is dusk at night too: lit only inside the arch's own shape (not its box),
+  // tinted blue, with a string of lights across it (the Lake Palace, Howrah Bridge).
+  for (const [k, el] of [...base.querySelectorAll('.portal')].entries()) {
+    const p = portals[k], clip = /#([\w-]+)/.exec(el.getAttribute('clip-path') || '')?.[1];
+    const d = clip && base.querySelector(`#${clip} path`)?.getAttribute('d');
+    if (!d) continue;
+    mask += `<path d="${d}" fill="#fff" opacity=".55"/>`;
+    let lights = '';
+    for (let i = 0; i < 7; i++) lights += `<circle class="nt-bulb" cx="${p.x + p.w * (0.14 + i * 0.12)}" cy="${p.y + p.h * 0.5 + (i % 2) * 2}" r="2.4" fill="#ffe9a8"/>`;
+    glows += `<path d="${d}" fill="#16204a" opacity=".5"/>${lights}
+      <ellipse cx="${p.cx}" cy="${p.y + p.h * 0.5}" rx="${p.w * 0.5}" ry="${p.h * 0.12}" fill="url(#nt-warm)" opacity=".35"/>`;
   }
   for (const el of windows) {
     const b = box(el), shape = el.cloneNode(false);

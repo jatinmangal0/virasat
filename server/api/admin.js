@@ -113,13 +113,16 @@ export default function admin(r, { db, adminSetupCode }) {
     fact: {
       table: 'facts', path: 'facts',
       read: async (b, c) => {
-        const out = { title: text(b.title, 120), body: text(b.text, 1500), source_url: text(b.sourceUrl, 500), section_id: Number(b.sectionId) };
+        const img = { src: text(b.imageSrc, 500), page: text(b.imagePage, 500), credit: text(b.imageCredit, 200), caption: text(b.imageCaption, 160) };
+        const out = { title: text(b.title, 120), body: text(b.text, 1500), source_url: text(b.sourceUrl, 500), section_id: Number(b.sectionId),
+          image: img.src ? img : null };
         if (!out.title || !out.body) return { error: 'A fact needs a title and some text.' };
+        if (img.src && (!/^https:\/\//i.test(img.src) || !img.credit)) return { error: 'A photo needs an https link and a credit (author and licence).' };
         if (!(await one('SELECT 1 FROM sections WHERE id = $1', [out.section_id], c))) return { error: 'Pick a section.' };
         return out;
       },
-      columns: ['section_id', 'title', 'body', 'source_url'],
-      wording: ['section_id', 'title', 'body', 'source_url'],
+      columns: ['section_id', 'title', 'body', 'source_url', 'image'],
+      wording: ['section_id', 'title', 'body', 'source_url', 'image'],
     },
     quiz: {
       table: 'quiz_questions', path: 'quiz',
@@ -182,7 +185,7 @@ export default function admin(r, { db, adminSetupCode }) {
       wording: ['city_id', 'name', 'subcategory', 'description', 'latitude', 'longitude', 'source_url'],
     },
   };
-  const JSON_COLUMNS = ['options', 'images'];
+  const JSON_COLUMNS = ['options', 'images', 'image'];
   const changed = () => err(409, 'This changed after you opened it. Reload the page and check the new version.');
 
   for (const [entity, k] of Object.entries(kinds)) {
