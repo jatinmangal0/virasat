@@ -31,3 +31,4 @@ export const GET = web;
 export const POST = web;
 export const PUT = web;
 export const DELETE = web;
+export const HEAD = web;

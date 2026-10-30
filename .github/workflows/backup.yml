@@ -1,0 +1,21 @@
+# A copy of the live database every night, kept for 14 days. Neon's free plan can only restore the last
+# 6 hours, so a mistake noticed the next day needs this. Add DATABASE_URL under Settings → Secrets → Actions.
+# To restore: download the backup from the run's page, then  psql "$DATABASE_URL" < virasat.sql
+name: Nightly backup
+on:
+  schedule:
+    - cron: '30 21 * * *'   # 03:00 in India
+  workflow_dispatch:
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dump the database
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: docker run --rm -e DATABASE_URL postgres:17 sh -c 'pg_dump --no-owner --no-privileges "$DATABASE_URL"' > virasat.sql
+      - uses: actions/upload-artifact@v4
+        with:
+          name: virasat-${{ github.run_id }}
+          path: virasat.sql
+          retention-days: 14

@@ -143,6 +143,15 @@ function setupChrome() {
     $('#soundBtn').setAttribute('aria-label', state.sound ? 'Turn sound off' : 'Turn sound on');
     if (state.sound) { sound.ctx().resume?.(); sound.ding(); }
   };
+  // In a city, PageDown / Space / → move down a screen and PageUp / ← move back: classroom clickers send these.
+  document.addEventListener('keydown', (e) => {
+    const view = $('#city');
+    if (view.hidden || $$('.modal').some((m) => !m.hidden) || e.target.closest('input, textarea, select, button, a')) return;
+    const down = ['PageDown', ' ', 'ArrowRight'].includes(e.key) && !e.shiftKey, up = ['PageUp', 'ArrowLeft'].includes(e.key) || (e.key === ' ' && e.shiftKey);
+    if (!down && !up) return;
+    e.preventDefault();
+    view.scrollBy({ top: (down ? 1 : -1) * innerHeight * 0.85, behavior: reduced() ? 'auto' : 'smooth' });
+  });
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     const m = $$('.modal').find((x) => !x.hidden);
@@ -186,13 +195,8 @@ function setupStreet() {
       <div class="gaju-shadow"></div>
       <div class="gaju-body"><img src="assets/elephant.png" alt="Gaju the elephant" draggable="false"></div>
     </div>`);
-  const pins = [['udaipur', 'u', GATES.udaipur, 168, 'Udaipur'], ['kolkata', 'k', GATES.kolkata + 100, 178, 'Kolkata']];
-  layers.buildings.insertAdjacentHTML('beforeend', pins.filter(([id]) => CITIES[id]).map(([id, cls, x, y, label]) => `
-    <button class="pin ${cls}" data-go="${id}" style="left:${(x / VB.w) * 100}%;top:${(y / VB.h) * 100}%" aria-label="Walk to ${label}">
-      <span class="pin-face">${stampHTML(CITIES[id])}</span><span class="pin-label">${label}</span>
-    </button>`).join(''));
+  scene.layers = layers;
   $$('.gate', world).forEach((g) => g.addEventListener('click', () => goToCity(g.dataset.city)));
-  $$('[data-stamp]').forEach((el) => { if (CITIES[el.dataset.stamp]) el.innerHTML = stampHTML(CITIES[el.dataset.stamp]); });
 
   const gaju = $('#gaju');
   const tell = () => {
@@ -246,6 +250,16 @@ function setupStreet() {
   layout();
   window.addEventListener('resize', layout);
   startLoop();
+}
+
+// Pins and stamps need the cities from the database, so they arrive after the street is drawn.
+function addPins() {
+  const pins = [['udaipur', 'u', GATES.udaipur, 168, 'Udaipur'], ['kolkata', 'k', GATES.kolkata + 100, 178, 'Kolkata']];
+  scene.layers.buildings.insertAdjacentHTML('beforeend', pins.filter(([id]) => CITIES[id]).map(([id, cls, x, y, label]) => `
+    <button class="pin ${cls}" data-go="${id}" style="left:${(x / VB.w) * 100}%;top:${(y / VB.h) * 100}%" aria-label="Walk to ${label}">
+      <span class="pin-face">${stampHTML(CITIES[id])}</span><span class="pin-label">${label}</span>
+    </button>`).join(''));
+  $$('[data-stamp]').forEach((el) => { if (CITIES[el.dataset.stamp]) el.innerHTML = stampHTML(CITIES[el.dataset.stamp]); });
 }
 
 let lastT = 0;
@@ -341,12 +355,22 @@ function speedUp() {
 }
 function sequenceDone() { state.fast = false; $('#skipBtn').hidden = true; }
 
-async function goToCity(city) {
+// Each city has its own address (/udaipur), so it can be shared, bookmarked and left with the back button.
+const cityInPath = () => { const id = location.pathname.replace(/^\/|\/$/g, ''); return CITIES[id] ? id : null; };
+const HOME_TITLE = document.title;
+function setAddress(city) {
+  const path = (city ? `/${city}` : '/') + location.search;
+  if (location.pathname + location.search !== path) history.pushState({ city }, '', path);
+  document.title = city ? `${CITIES[city].name} · Virasat` : HOME_TITLE;
+}
+
+async function goToCity(city, { quick = false } = {}) {
   if (!CITIES[city] || state.busy) return;
   state.busy = true;
   const my = ++state.seq;
   const c = CITIES[city];
-  state.fast = seen.has(city);
+  setAddress(city);
+  state.fast = quick || seen.has(city);
   $('#skipBtn').hidden = state.fast || reduced();
   if (window.scrollY > 10) { window.scrollTo({ top: 0, behavior: 'smooth' }); await sleep(450); }
   startLoop();
@@ -384,6 +408,7 @@ function resetStreet() {
   document.body.classList.remove('locked');
   state.busy = false;
   sequenceDone();
+  setAddress(null);
   setTimeout(() => say('Where to next?', 3500), 600);
 }
 
@@ -719,7 +744,9 @@ async function checkFading() {
 
 // ---------------- boot ----------------
 async function boot() {
-  const cities = await api('/api/cities');
+  // Draw the street at once: it needs no data. Everything from the server is asked for together.
+  setupStreet();
+  const [cities, cfg, me] = await Promise.all([api('/api/cities'), api('/api/config'), api('/api/me')]);
   if (!cities.ok) {
     document.body.insertAdjacentHTML('afterbegin', '<p class="load-error">Virasat could not load right now. Please refresh the page.</p>');
     return;
@@ -738,16 +765,23 @@ async function boot() {
       document.body.insertAdjacentHTML('beforeend', '<div class="demo-badge" title="Shows content the team has not checked yet">Demo · includes drafts not yet checked</div>');
     }
   }
+  addPins();
   setupChrome();
-  setupStreet();
   setupAuth();
   initCity({ state, CITIES, api, sound, esc, firstName, openAuth, showEarned, goToCity, resetStreet, markSeen, sequenceDone });
   $('#skipBtn').onclick = speedUp;
-  const [cfg, me] = await Promise.all([api('/api/config'), api('/api/me')]);
   if (cfg.ok) state.config = cfg.data;
   if (me.ok && me.data.user) state.user = me.data.user;
   renderHeader();
   setTimeout(() => say(state.user ? `Namaste, ${firstName(state.user.name)}! Where shall we go?` : "Namaste! I'm Gaju. Where shall we go?", 0), 400);
   setTimeout(checkFading, 2600);
+  // arriving on /udaipur (a shared link) walks straight into the city, in the short version
+  const start = cityInPath();
+  if (start) setTimeout(() => goToCity(start, { quick: true }), 500);
+  addEventListener('popstate', () => {
+    const id = cityInPath();
+    if (!id && !$('#city').hidden) $('#cityBack').click();
+    else if (id && $('#city').hidden) goToCity(id, { quick: true });
+  });
 }
 boot();

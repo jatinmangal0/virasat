@@ -19,7 +19,7 @@ Keys go in a `.env` file (copy `.env.example`). Git ignores it, so never commit 
 ## How a change reaches the live site
 
 1. Make the change on a branch, run `npm test`, and push the branch to GitHub. Pushing a branch does **not** publish.
-2. Merge it into `main`. Vercel then applies any new migrations to the Neon database and publishes. (Vercel does not run the tests, so run `npm test` before merging.)
+2. Merge it into `main`. Vercel then applies any new migrations to the Neon database, builds each city's page, and publishes. GitHub runs `npm test` on every push and pull request (`.github/workflows/test.yml`); protect `main` so only passing pull requests can be merged.
 3. Every pull request also gets a Vercel preview link. Previews use the **live** database but never change its structure, so don't test destructive things on a preview.
 
 ## Common jobs
@@ -38,6 +38,8 @@ r.get('/api/badges', { role: 'learner' }, async ({ user }) => json(200, { badges
 1. Add a migration that inserts the city and its sections (copy the Udaipur part of `20261027100100_import_udaipur_kolkata.sql`). Facts and quiz questions can then be added on the editor page.
 2. Add its stamp and poster images to `server/public/assets/`, and its outline in the same migration (`UPDATE cities SET outline = '[[lng, lat], ...]'`, plus `outline_source` saying where the shape came from). The thread draws it at the end of the timeline.
 3. The street drawing is code: add a gate in `server/public/js/scene.js` (`GATES`) and a pin in `setupStreet()` in `server/public/js/app.js`.
+4. Give it an address: add its id to the city list in the second rewrite in `vercel.json` (`/:city(udaipur|kolkata)`). On every deploy `scripts/build-pages.js` writes its page with its own title and share card.
+5. Draw its stamp in `server/public/js/stamps.js` and its arrival scene in `hero.js` (without them the city uses its `stamp` image and no scene), and make its share image `assets/og-<city>.png` (1200 × 630).
 
 ### Change colours or layout
 `server/public/css/style.css` (website) and `server/public/css/admin.css` (editor page).

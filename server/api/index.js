@@ -32,7 +32,8 @@ export function createApi({ db, sms, verifyGoogle, googleClientId = '', secureCo
 
   // req: { method, path, body, cookieHeader, ip } → { status, body, cookies: [Set-Cookie values] }
   return async function handle({ method, path, body, cookieHeader, ip }) {
-    const match = router.find(method, path.replace(/\/+$/, ''));
+    // HEAD is GET without the body; uptime checks use it
+    const match = router.find(method === 'HEAD' ? 'GET' : method, path.replace(/\/+$/, ''));
     if (!match) return err(404, 'Not found');
     const { route, params } = match;
 
@@ -48,6 +49,8 @@ export function createApi({ db, sms, verifyGoogle, googleClientId = '', secureCo
         return err(403, route.role === 'admin' ? 'Only an admin can do this.' : 'Only team editors can do this.');
       }
     }
-    return route.fn({ params, body: body ?? {}, user, token, ip });
+    const out = await route.fn({ params, body: body ?? {}, user, token, ip });
+    if (route.cache && out.status === 200) out.cache = route.cache;
+    return out;
   };
 }

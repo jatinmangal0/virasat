@@ -41,3 +41,13 @@ test('no migration may mark content as verified: that is a second person\'s job 
     .filter((f) => /status\s*=\s*'verified'/i.test(readFileSync(new URL(f, dir), 'utf8').replace(/--.*$/gm, '').replace(/WHERE[^;]*/gi, '')));
   assert.deepEqual(offenders, []);
 });
+
+test('uptime checks get an answer without waking the database, and public data may be cached briefly', async () => {
+  const c = t.client();
+  assert.deepEqual((await c('/api/health')).body, { ok: true });
+  const res = await fetch(t.base + '/api/cities');
+  assert.match(res.headers.get('cache-control'), /s-maxage=60/);
+  const me = await fetch(t.base + '/api/me');
+  assert.equal(me.headers.get('cache-control'), 'no-store');
+});
+

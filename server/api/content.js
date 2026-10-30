@@ -31,10 +31,13 @@ export async function loadPublicCities(db) {
 }
 
 export default function content(r, { db }) {
-  r.get('/api/cities', async () => json(200, { cities: await loadPublicCities(db) }));
+  r.get('/api/cities', { cache: 60 }, async () => json(200, { cities: await loadPublicCities(db) }));
+
+  // For uptime checks: answers without touching the database, so it can stay asleep.
+  r.get('/api/health', async () => json(200, { ok: true }));
 
   // The greetings that scroll in the top bar.
-  r.get('/api/greetings', async () => {
+  r.get('/api/greetings', { cache: 60 }, async () => {
     const rows = (await db.query("SELECT word, native, language FROM greetings WHERE status = 'verified' ORDER BY sort_order, id")).rows;
     return json(200, { greetings: rows });
   });

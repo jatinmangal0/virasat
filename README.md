@@ -11,6 +11,8 @@ A frontend (the website), a backend API (the rules) and a Postgres database (all
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): how the whole thing works, in plain words. Start here, and use it to explain the project.
 - [docs/EDITOR-GUIDE.md](docs/EDITOR-GUIDE.md): for teammates adding and checking facts. No coding needed.
 - [docs/DEVELOPER-GUIDE.md](docs/DEVELOPER-GUIDE.md): running it locally, adding tables, routes and cities.
+- [docs/LANGUAGE-CHOICES.md](docs/LANGUAGE-CHOICES.md): the programming-language ideas behind the code, for the viva.
+- [docs/OWNERSHIP.md](docs/OWNERSHIP.md): who owns and explains each part.
 
 ## Quick start (developers)
 

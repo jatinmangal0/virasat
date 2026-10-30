@@ -15,11 +15,16 @@ export function createExpressApp(handle) {
         cookieHeader: req.headers.cookie, ip: req.ip,
       });
       if (out.cookies.length) res.setHeader('Set-Cookie', out.cookies);
+      res.setHeader('Cache-Control', out.cache ? `public, max-age=0, s-maxage=${out.cache}` : 'no-store');
       res.status(out.status).json(out.body);
     } catch (e) {
       next(e);
     }
   });
   app.use(express.static(publicDir, { extensions: ['html'] }));
+  // A city's own address (/udaipur) opens the home page, which then walks into that city. On Vercel,
+  // scripts/build-pages.js writes a page for each city instead, with its own title and share card.
+  app.get(/^\/[a-z-]+\/?$/, (req, res, next) => (req.path.startsWith('/api') ? next() : res.sendFile(publicDir + 'index.html')));
+  app.use((req, res) => res.status(404).sendFile(publicDir + '404.html'));
   return app;
 }

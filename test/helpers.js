@@ -51,5 +51,5 @@ export async function startServer(options = {}) {
   };
 
   const stop = async () => { server.close(); await db.end(); await local.stop(); };
-  return { db, sent, client, person, stop };
+  return { db, sent, client, person, stop, base };
 }

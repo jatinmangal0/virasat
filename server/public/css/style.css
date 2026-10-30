@@ -63,7 +63,7 @@ a { color: inherit; }
 .topnav a:hover { text-decoration: underline; text-underline-offset: 6px; text-decoration-thickness: 2px; }
 .logo { font-family: var(--display); font-size: clamp(30px, 4.6vw, 52px); letter-spacing: .02em; text-decoration: none; line-height: 1; transform: scaleY(1.12); }
 .topbar-right { display: flex; justify-content: flex-end; gap: clamp(4px, 1.6vw, 22px); }
-.icon-btn { background: none; border: 0; padding: 8px; border-radius: 50%; display: grid; place-items: center; position: relative; }
+.icon-btn { background: none; border: 0; padding: 8px; border-radius: 50%; display: grid; place-items: center; position: relative; min-width: 44px; min-height: 44px; }
 .icon-btn:hover { background: #00000008; }
 .icon-btn img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; position: absolute; inset: 6px; }
 .icon-btn.signed-in svg { visibility: hidden; }
@@ -82,7 +82,7 @@ a { color: inherit; }
 .drawer.open { transform: none; }
 .drawer a { text-decoration: none; font-size: 20px; font-weight: 600; padding: 10px 0; border-bottom: 1px dashed #00000020; }
 .drawer .drawer-logo { font-family: var(--display); font-size: 30px; border: 0; margin-bottom: 14px; }
-.drawer-close { position: absolute; top: 14px; right: 16px; background: none; border: 0; font-size: 32px; line-height: 1; }
+.drawer-close { position: absolute; top: 10px; right: 10px; background: none; border: 0; font-size: 32px; line-height: 1; min-width: 44px; min-height: 44px; }
 .scrim { position: fixed; inset: 0; background: #1d171466; z-index: 70; opacity: 0; pointer-events: none; transition: opacity .3s; }
 .scrim.show { opacity: 1; pointer-events: auto; }
 
@@ -490,7 +490,7 @@ a { color: inherit; }
 .place-card { position: absolute; right: 5vw; top: 50%; transform: translateY(-55%); width: min(340px, 28vw); background: #fbf3e0; color: #2a1d12; border-radius: 14px; padding: 16px 18px 14px;
   box-shadow: 0 0 0 4px #d8a93b, 0 0 0 6px #6b4a12, 0 30px 60px -20px #000; transition: opacity .3s; }
 .place-card[hidden] { display: none; }
-.pc-close { position: absolute; top: 6px; right: 8px; width: 30px; height: 30px; border: 0; border-radius: 50%; background: #2a1d1214; font-size: 20px; line-height: 1; color: #2a1d12; cursor: pointer; z-index: 1; }
+.pc-close { position: absolute; top: 4px; right: 4px; width: 44px; height: 44px; border: 0; border-radius: 50%; background: #2a1d1214; font-size: 20px; line-height: 1; color: #2a1d12; cursor: pointer; z-index: 1; }
 .pc-photo { margin: -4px -6px 12px; }
 .pc-photo img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; display: block; border-radius: 8px; background: #d9cdb4; }
 .pc-photo figcaption { font-size: 11px; margin-top: 4px; }
@@ -614,6 +614,9 @@ a { color: inherit; }
   .topnav { display: none; }
   :root { --top: 64px; --bar: 32px; }
   .ticker-track span { font-size: 12px; }
+  /* phones: the street is about two screen-widths of the scene, so its box is only as tall as that plus the card
+     above it; before, the box filled the screen and left an empty pink gap */
+  .street { height: min(calc(100svh - var(--bar) - var(--top)), calc(112.5vw + 190px)); min-height: 0; }
   /* phones: the street sits low, so the card lives in the open sky above it */
   .callout { left: 16px; right: 16px; width: auto; transform: none; top: 16px; padding: 14px 16px; }
   .callout.away { transform: translateY(-40px); }
@@ -627,6 +630,11 @@ a { color: inherit; }
   .gaju { width: 15%; }
 }
 @media (max-width: 420px) {
+  /* four header buttons, a menu and the logo must fit in one row on a small phone */
+  .topbar { padding: 0 6px; }
+  .topbar-right { gap: 0; }
+  .icon-btn { min-width: 42px; min-height: 44px; padding: 6px; }
+  .logo { font-size: 27px; }
   .mini-card { grid-template-columns: 72px 1fr; }
   .mini-card .card-stamp { width: 72px; }
   .tab { font-size: 13px; }
