@@ -4,6 +4,8 @@
 // They are inline SVG (not <img>), so the page's own fonts draw the city names in their scripts.
 // The value is in the city's own numerals (५, ৫). They are Virasat's stamps, not India Post's.
 
+import { fit } from './lib.js';
+
 const W = 300, H = 380;
 
 // Holes punched round the edge, so the stamp reads as torn from a sheet.
@@ -145,12 +147,12 @@ const CITY_STAMPS = {
 // The stamp for a city as inline SVG. Each copy gets its own ids: a pattern defined inside a hidden
 // dialog would otherwise leave every other copy on the page blank.
 // Cities without a drawn stamp fall back to their image.
-// A city with an artwork stamp (from the team) shows that picture instead of the drawn one.
-const IMAGE_STAMPS = { kolkata: 'assets/stamp-kolkata.webp' };
+// A city with stamp artwork from the team (cities.stamp: a Cloudinary link, or a file in assets/) shows
+// that picture; the others show the stamp drawn in code.
 let copies = 0;
 export function stampHTML(c, alt = '') {
-  if (IMAGE_STAMPS[c.id]) return `<img class="stamp-img" src="${IMAGE_STAMPS[c.id]}" alt="${alt}" width="480" height="643" loading="lazy" decoding="async">`;
+  if (c.stamp) return `<img class="stamp-img" src="${fit(c.stamp, 480)}" alt="${alt}" width="480" height="643" loading="lazy" decoding="async">`;
   if (CITY_STAMPS[c.id]) return CITY_STAMPS[c.id](`dak-${c.id}-${++copies}`);
-  return c.stamp ? `<img src="${c.stamp}" alt="${alt}">` : '';
+  return '';
 }
 export const hasStamp = (id) => !!CITY_STAMPS[id];

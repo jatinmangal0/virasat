@@ -100,3 +100,4 @@ th { color: var(--ink-soft); font-weight: 600; }
 .inbox-item del.whole, .inbox-item ins.whole { display: block; padding: 6px 10px; border-radius: 8px; margin: 4px 0; }
 .inbox-item del.whole::before { content: 'Before: '; font-weight: 700; }
 .inbox-item ins.whole::before { content: 'Now: '; font-weight: 700; }
+.upload-row { display: flex; gap: 10px; align-items: center; margin: 6px 0 4px; flex-wrap: wrap; }

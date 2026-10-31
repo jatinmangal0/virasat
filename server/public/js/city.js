@@ -12,6 +12,7 @@
 import { twineSVG, setTwine, Rope, GARLAND_DEFS, placeGarland } from './twine.js';
 import { motifSVG } from './motifs.js';
 import { stampHTML } from './stamps.js';
+import { fit } from './lib.js';
 import { heroSVG, archPath } from './hero.js';
 import { openKit } from './kit.js';
 import { initQuiz, startQuiz } from './quiz.js';
@@ -34,7 +35,6 @@ const speedUp = (anim) => { anim.playbackRate = 1 / pace(); return anim; };
 // The seal on each city's scroll carries Virasat's initial in the city's own script.
 const SEAL_MARK = { udaipur: 'वि', kolkata: 'বি' };
 const LANG = { udaipur: 'hi', kolkata: 'bn' };
-const LETTER_PHOTO = { udaipur: 'assets/letter-udaipur.webp', kolkata: 'assets/letter-kolkata.webp' };
 
 let ctx;      // what app.js shares: state, CITIES, api, sound, esc, firstName, openAuth, showEarned, goToCity, resetStreet
 let cur = null; // the open city: { id, c, my, rope, story, ... }
@@ -156,10 +156,10 @@ export async function openCity(id, my, from = null) {
   renderLetter(c);
   $('#citySky').innerHTML = heroSVG(id);
   // the picture above the letter: the team's poster for the city where there is one, else the drawn scene
-  $('#cityHero').innerHTML = LETTER_PHOTO[id]
-    ? `<img class="hero-photo" src="${LETTER_PHOTO[id]}" alt="${esc(c.name)}: scenes from the city" width="1600" height="900" decoding="async">`
+  $('#cityHero').innerHTML = c.poster
+    ? `<img class="hero-photo" src="${fit(c.poster, 1600)}" alt="${esc(c.name)}: scenes from the city" width="1600" height="900" decoding="async">`
     : heroSVG(id);
-  $('#cityHero').classList.toggle('photo', !!LETTER_PHOTO[id]);
+  $('#cityHero').classList.toggle('photo', !!c.poster);
   $('#sealMark').textContent = SEAL_MARK[id] || 'V';
   $('#postTitle').innerHTML = `<small>Virasat Dak</small>A scroll from ${esc(c.name)}`;
   $('#checkpoint').hidden = true;
@@ -457,8 +457,8 @@ function renderLetter(c) {
 // its licence asks for the author's name, so the credit is always shown, linked to the photo's page.
 function photoFigure(ph, cls) {
   const { esc } = ctx;
-  return `<figure class="${cls}"><img src="${esc(ph.src)}" alt="${esc(ph.caption || '')}" loading="lazy" decoding="async">
-    <figcaption>${ph.caption ? `<span>${esc(ph.caption)}</span>` : ''}<a href="${esc(ph.page || ph.src)}" target="_blank" rel="noopener">Photo: ${esc(ph.credit)}</a></figcaption></figure>`;
+  return `<figure class="${cls}"><img src="${esc(fit(ph.src, 800))}" alt="${esc(ph.caption || '')}" loading="lazy" decoding="async">
+    <figcaption>${ph.caption ? `<span>${esc(ph.caption)}</span>` : ''}<a href="${esc(ph.page || ph.original || ph.src)}" target="_blank" rel="noopener">Photo: ${esc(ph.credit)}</a></figcaption></figure>`;
 }
 
 // Drawn icons for the four parts of a letter, in the street's ink.
@@ -508,7 +508,7 @@ function buildStory() {
       <p>${ev.length ? 'Keep scrolling to follow the thread' : 'Our team is still checking the events for this timeline. Come back soon!'}</p></div>
     <div class="nodes">${ev.map((e, i) => `
       <button class="node" data-i="${i}" aria-label="${esc(e.year)}: ${esc(e.title)}">
-        <span class="medal">${e.images?.[0] ? `<img src="${esc(e.images[0].src)}" alt="" loading="lazy">` : motifSVG(e.motif) || `<b>${esc(e.year)}</b>`}</span>
+        <span class="medal">${e.images?.[0] ? `<img src="${esc(fit(e.images[0].src, 160))}" alt="" loading="lazy">` : motifSVG(e.motif) || `<b>${esc(e.year)}</b>`}</span>
         ${e.images?.[0] || motifSVG(e.motif) ? `<span class="node-year">${esc(e.year)}</span>` : ''}
       </button>`).join('')}</div>
     <div class="ev" id="ev" aria-live="polite"><div class="ev-media" id="evMedia"></div><div class="ev-info" id="evInfo"></div></div>
@@ -738,7 +738,7 @@ function showEvent(i) {
     ? imgs.map((im, k) => {
       // a caption reads "What it shows. Photo: who, licence": the words in hand, the credit in small print
       const [what, credit] = String(im.caption || '').split(/\s*Photo:\s*/);
-      return `<figure class="snap m${k}"><img src="${esc(im.src)}" alt="${esc(what)}" loading="lazy">${im.caption ? `<figcaption>${what ? `<span>${esc(what)}</span>` : ''}${credit ? `<small>Photo: ${esc(credit)}</small>` : ''}</figcaption>` : ''}</figure>`;
+      return `<figure class="snap m${k}"><img src="${esc(fit(im.src, 900))}" alt="${esc(what)}" loading="lazy">${im.caption ? `<figcaption>${what ? `<span>${esc(what)}</span>` : ''}${credit ? `<small>Photo: ${esc(credit)}</small>` : ''}</figcaption>` : ''}</figure>`;
     }).join('')
     : `<div class="ev-ghost" aria-hidden="true">${esc(e.year)}</div>
       ${motifSVG(e.motif) ? `<figure class="element"><div class="element-disc">${motifSVG(e.motif)}</div></figure>` : ''}

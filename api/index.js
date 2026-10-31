@@ -5,6 +5,7 @@ import { createApi } from '../server/api/index.js';
 import { makePool } from '../server/lib/db.js';
 import { toWebHandler } from '../server/lib/web-handler.js';
 import { makeSmsSender, makeGoogleVerifier } from '../server/lib/providers.js';
+import { parseCloudinaryUrl } from '../server/lib/cloudinary.js';
 
 const env = (k) => process.env[k] || '';
 const googleClientId = env('GOOGLE_CLIENT_ID');
@@ -19,6 +20,7 @@ const handle = createApi({
   // could log in as any number. Jatin chose this on 31 Oct 2026 so the scroll can ask for a phone login.
   // Set DEMO_PHONE_LOGIN=off on Vercel to switch phone login off again.
   allowDemoSms: env('DEMO_PHONE_LOGIN') !== 'off',
+  cloudinary: parseCloudinaryUrl(env('CLOUDINARY_URL')),
 });
 
 const web = toWebHandler(handle, {

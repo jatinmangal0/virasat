@@ -11,6 +11,7 @@
 //   places.js    heritage places (map positions), public and editor lists
 //   passport.js  the Fading Passport: stamps, and the spaced recall that keeps them inked
 //   classes.js   classes: a teacher's code, students who join with a nickname, and their results
+//   uploads.js   photo uploads from the editor page (signed, straight to Cloudinary)
 import { createRouter, err } from './router.js';
 import { sha256, rateLimiter } from '../lib/security.js';
 import { readSessionToken } from './session.js';
@@ -21,11 +22,12 @@ import admin from './admin.js';
 import places from './places.js';
 import passport from './passport.js';
 import classes from './classes.js';
+import uploads from './uploads.js';
 
-export function createApi({ db, sms, verifyGoogle, googleClientId = '', secureCookies = false, adminSetupCode = '', allowDemoSms = true }) {
-  const deps = { db, sms, verifyGoogle, googleClientId, secureCookies, adminSetupCode, allowDemoSms };
+export function createApi({ db, sms, verifyGoogle, googleClientId = '', secureCookies = false, adminSetupCode = '', allowDemoSms = true, cloudinary = null }) {
+  const deps = { db, sms, verifyGoogle, googleClientId, secureCookies, adminSetupCode, allowDemoSms, cloudinary };
   const router = createRouter();
-  for (const area of [auth, content, progress, admin, places, passport, classes]) area(router, deps);
+  for (const area of [auth, content, progress, admin, places, passport, classes, uploads]) area(router, deps);
 
   // Per IP is loose because a whole classroom can share one IP; auth.js adds tighter per-email/phone limits.
   // On Vercel these counters live per function instance, so they are a speed bump, not a hard wall.
