@@ -8,7 +8,8 @@
   "regions": ["sin1"],
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api?__p=:path*" },
-    { "source": "/:city(udaipur|kolkata)", "destination": "/index.html" }
+    { "source": "/:city(udaipur|kolkata)", "destination": "/index.html" },
+    { "source": "/:city(udaipur|kolkata)/explore", "destination": "/index.html" }
   ],
   "headers": [
     {

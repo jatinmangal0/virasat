@@ -149,15 +149,16 @@ export default function admin(r, { db, adminSetupCode }) {
         const out = { year_label: text(b.year, 20), title: text(b.title, 120), body: text(b.text, 700), images,
           source_url: text(b.sourceUrl, 500), city_id: text(b.cityId, 40), sort_order: Number(b.order) || 0,
           motif: /^[a-z]{0,20}$/.test(b.motif || '') ? b.motif || '' : '',
-          memory: text(b.memory, 500), memory_source_url: text(b.memorySourceUrl, 500), argued: text(b.argued, 400) };
+          memory: text(b.memory, 500), memory_source_url: text(b.memorySourceUrl, 500), argued: text(b.argued, 400),
+          hidden: b.hidden === true || b.hidden === 'true' };
         if (!out.year_label || !out.title || !out.body) return { error: 'An event needs a year, a title and a short paragraph.' };
         if (out.memory && !/^https?:\/\//i.test(out.memory_source_url)) return { error: 'The memory side needs its own source link.' };
         if (images.some((im) => !/^https:\/\/[^\s]+$/i.test(im.src))) return { error: 'Photo links must start with https://' };
         if (!(await one('SELECT 1 FROM cities WHERE id = $1', [out.city_id], c))) return { error: 'Pick a city.' };
         return out;
       },
-      // sort_order is set by the editor here (the place on the timeline), and moving an event is not a rewording.
-      columns: ['city_id', 'year_label', 'title', 'body', 'images', 'source_url', 'sort_order', 'motif', 'memory', 'memory_source_url', 'argued'],
+      // sort_order is set by the editor here (the place on the timeline), and moving or hiding an event is not a rewording.
+      columns: ['city_id', 'year_label', 'title', 'body', 'images', 'source_url', 'sort_order', 'motif', 'memory', 'memory_source_url', 'argued', 'hidden'],
       wording: ['city_id', 'year_label', 'title', 'body', 'images', 'source_url', 'memory', 'memory_source_url', 'argued'],
     },
     greeting: {

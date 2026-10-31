@@ -7,4 +7,5 @@ server/data/
 
 # made by scripts/build-pages.js on every build
 server/public/*/index.html
+server/public/*/explore/index.html
 server/public/sitemap.xml
