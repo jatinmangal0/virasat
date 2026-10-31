@@ -67,7 +67,7 @@ test('the deploy sync copies photos into Cloudinary once, keeps each original li
     const k = (await t.db.query("SELECT stamp, poster FROM cities WHERE id = 'kolkata'")).rows[0];
     assert.match(k.stamp, /virasat\/site\/stamp-kolkata$/);
     assert.match(k.poster, /virasat\/site\/letter-kolkata$/);
-    assert.equal((await t.db.query("SELECT stamp FROM cities WHERE id = 'udaipur'")).rows[0].stamp, '');
+    assert.match((await t.db.query("SELECT stamp FROM cities WHERE id = 'udaipur'")).rows[0].stamp, /virasat\/site\/stamp-udaipur$/);
     calls = 0;
     const second = await sync(t.db, cfg, () => {});
     assert.equal(second.copied, 0);
