@@ -39,7 +39,9 @@ export default function content(r, { db }) {
   // The greetings that scroll in the top bar.
   r.get('/api/greetings', { cache: 60 }, async () => {
     const rows = (await db.query("SELECT word, native, language FROM greetings WHERE status = 'verified' ORDER BY sort_order, id")).rows;
-    return json(200, { greetings: rows });
+    // An empty list is never kept on the CDN: otherwise the bar shows its fallback text for up to
+    // ten minutes after the first greetings are verified.
+    return { ...json(200, { greetings: rows }), noStore: rows.length === 0 };
   });
 
   // Demo mode (the website with ?demo in its address): everything that is written but not yet checked, so the

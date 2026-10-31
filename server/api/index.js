@@ -52,7 +52,8 @@ export function createApi({ db, sms, verifyGoogle, googleClientId = '', secureCo
       }
     }
     const out = await route.fn({ params, body: body ?? {}, user, token, ip });
-    if (route.cache && out.status === 200) out.cache = route.cache;
+    // a handler can say its answer must not be kept (e.g. an empty list that will soon fill)
+    if (route.cache && out.status === 200 && !out.noStore) out.cache = route.cache;
     return out;
   };
 }
