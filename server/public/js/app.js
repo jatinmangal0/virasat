@@ -1,5 +1,6 @@
 import { buildScene, grain, VB, GATES } from './scene.js';
 import { initCity, openCity } from './city.js';
+import { initExplore, openExplore, closeExplore, exploreIsOpen } from './explore.js';
 import { stampHTML } from './stamps.js';
 import { initClasses, openJoin } from './classes.js';
 import { $, $$, sleep, clamp, esc, reduced, api } from './lib.js';
@@ -105,7 +106,7 @@ function setupChrome() {
   // In a city, PageDown / Space / → move down a screen and PageUp / ← move back: classroom clickers send these.
   document.addEventListener('keydown', (e) => {
     const view = $('#city');
-    if (view.hidden || !$('#kit').hidden || $$('.modal').some((m) => !m.hidden) || e.target.closest('input, textarea, select, button, a')) return;
+    if (view.hidden || exploreIsOpen() || !$('#kit').hidden || $$('.modal').some((m) => !m.hidden) || e.target.closest('input, textarea, select, button, a')) return;
     const down = ['PageDown', ' ', 'ArrowRight'].includes(e.key) && !e.shiftKey, up = ['PageUp', 'ArrowLeft'].includes(e.key) || (e.key === ' ' && e.shiftKey);
     if (!down && !up) return;
     e.preventDefault();
@@ -115,6 +116,7 @@ function setupChrome() {
     if (e.key !== 'Escape') return;
     const m = $$('.modal').find((x) => !x.hidden);
     if (m) closeModal(m);
+    else if (exploreIsOpen()) leaveExplore();
     else if (!$('#city').hidden) $('#cityBack').click();
     else closeDrawer();
   });
@@ -317,12 +319,27 @@ function speedUp() {
 function sequenceDone() { state.fast = false; $('#skipBtn').hidden = true; }
 
 // Each city has its own address (/udaipur), so it can be shared, bookmarked and left with the back button.
-const cityInPath = () => { const id = location.pathname.replace(/^\/|\/$/g, ''); return CITIES[id] ? id : null; };
+// A city's Explore page has its own address too (/udaipur/explore).
+const pathParts = () => location.pathname.replace(/^\/|\/$/g, '').split('/');
+const cityInPath = () => { const id = pathParts()[0]; return CITIES[id] ? id : null; };
+const exploreInPath = () => (pathParts()[1] === 'explore' ? cityInPath() : null);
 const HOME_TITLE = document.title;
-function setAddress(city) {
-  const path = (city ? `/${city}` : '/') + location.search;
-  if (location.pathname + location.search !== path) history.pushState({ city }, '', path);
-  document.title = city ? `${CITIES[city].name} · Virasat` : HOME_TITLE;
+function setAddress(city, sub = '') {
+  const path = (city ? `/${city}${sub ? `/${sub}` : ''}` : '/') + location.search;
+  if (location.pathname + location.search !== path) history.pushState({ city, sub }, '', path);
+  document.title = city ? `${sub === 'explore' ? 'Explore ' : ''}${CITIES[city].name} · Virasat` : HOME_TITLE;
+}
+
+// The Explore page opens over the city (from the end of its timeline) or over the street (a shared link).
+function goExplore(city) {
+  if (!CITIES[city]) return;
+  setAddress(city, 'explore');
+  openExplore(city, { fromCity: !$('#city').hidden });
+}
+function leaveExplore() {
+  closeExplore();
+  const open = !$('#city').hidden ? state.city : null;
+  setAddress(open);
 }
 
 async function goToCity(city, { quick = false } = {}) {
@@ -613,7 +630,8 @@ async function boot() {
   addPins();
   setupChrome();
   setupAuth();
-  initCity({ state, CITIES, api, sound, esc, firstName, openAuth, showEarned, goToCity, resetStreet, markSeen, sequenceDone });
+  initCity({ state, CITIES, api, sound, esc, firstName, openAuth, showEarned, goToCity, goExplore, resetStreet, markSeen, sequenceDone });
+  initExplore({ state, CITIES, api, esc, onClose: leaveExplore });
   $('#skipBtn').onclick = speedUp;
   initPassport({ state, CITIES, openModal, closeModal, openAuth, logout, sound, showEarned, say });
   initClasses({ state, CITIES, api, esc, toast, openModal, closeModal, openJourney,
@@ -627,10 +645,13 @@ async function boot() {
   setTimeout(() => say(state.user ? `Namaste, ${firstName(state.user.name)}! Where shall we go?` : "Namaste! I'm Gaju. Where shall we go?", 0), 400);
   setTimeout(checkFading, 2600);
   // arriving on /udaipur (a shared link) walks straight into the city, in the short version
-  const start = cityInPath();
-  if (start) setTimeout(() => goToCity(start, { quick: true }), 500);
+  const start = cityInPath(), startExplore = exploreInPath();
+  if (startExplore) setTimeout(() => openExplore(startExplore), 300);
+  else if (start) setTimeout(() => goToCity(start, { quick: true }), 500);
   addEventListener('popstate', () => {
-    const id = cityInPath();
+    const id = cityInPath(), ex = exploreInPath();
+    if (ex) { if (!exploreIsOpen()) openExplore(ex, { fromCity: !$('#city').hidden }); return; }
+    if (exploreIsOpen()) closeExplore();
     if (!id && !$('#city').hidden) $('#cityBack').click();
     else if (id && $('#city').hidden) goToCity(id, { quick: true });
   });

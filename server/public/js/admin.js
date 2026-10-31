@@ -379,12 +379,12 @@ function editQuestion(q) {
 function renderTimeline() {
   const { timeline } = state.data;
   $('#view').innerHTML = `
-    <div class="row"><p class="muted" style="margin:0">The major events shown along the thread under the letter, in the order of their <b>place</b> number. Keep each one to a short paragraph.</p>
+    <div class="row"><p class="muted" style="margin:0">The major events shown along the thread under the letter (hidden ones are kept here but not shown), in the order of their <b>place</b> number. Keep each one to a short paragraph.</p>
       <span class="spacer"></span><button class="btn primary" id="addEv">+ Add an event</button></div>
     ${filters(timeline)}
     ${timeline.filter(shown).map((e) => `
       <article class="item ${e.status === 'verified' ? 'verified' : ''}">
-        <h4><span class="year">${esc(e.year_label)}</span> ${esc(e.title)} ${badge(e)} <span class="muted" style="font-weight:400;font-size:13px">place ${e.sort_order}</span></h4>
+        <h4><span class="year">${esc(e.year_label)}</span> ${esc(e.title)} ${badge(e)} <span class="muted" style="font-weight:400;font-size:13px">place ${e.sort_order}</span>${e.hidden ? ' <span class="badge">Hidden from the timeline</span>' : ''}</h4>
         <p>${esc(e.body)}</p>
         ${e.memory ? `<p class="memory"><b>Remembered as:</b> ${esc(e.memory)}${e.argued ? `<br><b>Why argued:</b> ${esc(e.argued)}` : ''}</p>` : ''}
         ${e.motif ? `<span class="motif">${motifSVG(e.motif)}</span>` : ''}
@@ -409,6 +409,8 @@ function editEvent(e) {
     { name: 'motif', label: 'Drawing', type: 'select', value: e?.motif ?? '', options: [['', 'None (show the city stamp)'], ...MOTIF_NAMES.map((m) => [m, m])],
       hint: 'shown when the event has no photo' },
     { name: 'order', label: 'Place on the timeline', type: 'text', value: e?.sort_order ?? last + 1, hint: 'events are shown from the smallest number to the largest' },
+    { name: 'hidden', label: 'On the timeline', type: 'select', value: e?.hidden ? 'true' : 'false', options: [['false', 'Show it (a major event)'], ['true', 'Hide it (kept here, not shown)']],
+      hint: 'the timeline shows only the major events of the city' },
     { name: 'sourceUrl', label: 'Source link', type: 'url', value: e?.source_url ?? '' },
     { name: 'memory', label: 'How it is remembered (optional)', type: 'textarea', value: e?.memory ?? '',
       hint: 'only when people remember this event differently from what the sources show. The paragraph above is the record; this is the memory. The page shows them side by side.' },
@@ -416,7 +418,7 @@ function editEvent(e) {
     { name: 'argued', label: 'Why people disagree (one line)', type: 'text', value: e?.argued ?? '' },
   ], async (v) => {
     const images = v.images.split('\n').map((l) => l.split('|').map((x) => x.trim())).filter((p) => p[0]).map((p) => ({ src: p[0], caption: p.slice(1).join(' | ') }));
-    const body = { cityId: state.city, year: v.year, title: v.title, text: v.text, images, motif: v.motif, order: Number(v.order) || 0, sourceUrl: v.sourceUrl,
+    const body = { cityId: state.city, year: v.year, title: v.title, text: v.text, images, motif: v.motif, order: Number(v.order) || 0, hidden: v.hidden === 'true', sourceUrl: v.sourceUrl,
       memory: v.memory, memorySourceUrl: v.memorySourceUrl, argued: v.argued };
     const r = e ? await api(`/api/admin/timeline/${e.id}`, body, 'PUT') : await api('/api/admin/timeline', body);
     if (!r.ok) return r.data.error;

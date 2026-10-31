@@ -6,7 +6,7 @@
 // with the city's own title, description, share card (Open Graph) and a structured-data summary for search
 // engines, plus the city's checked text inside <noscript> for readers and crawlers without JavaScript.
 // When the page loads, app.js sees the address and walks straight into that city.
-// It also writes sitemap.xml. If the database cannot be reached it says so and leaves the old files alone,
+// It also writes each city's Explore page (server/public/<city>/explore/index.html) and sitemap.xml. If the database cannot be reached it says so and leaves the old files alone,
 // so the build still works (the address then falls back to the home page, see vercel.json).
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -19,9 +19,10 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const firstSentence = (s) => (String(s).match(/^[^.!?]+[.!?]/) || [s])[0].trim();
 
 // The home page with this city's head tags and readable text. Pure: same city in, same page out.
-export function cityPage(template, city, site = SITE) {
-  const url = `${site}/${city.id}`;
-  const title = `${city.name} · ${city.nickname || 'Virasat'} | Virasat`;
+// sub = 'explore' makes the city's Explore page (/kolkata/explore): the map, later flashcards and games.
+export function cityPage(template, city, site = SITE, sub = '') {
+  const url = `${site}/${city.id}${sub ? `/${sub}` : ''}`;
+  const title = sub === 'explore' ? `Explore ${city.name}: map of heritage places | Virasat` : `${city.name} · ${city.nickname || 'Virasat'} | Virasat`;
   const desc = `${firstSentence(city.letter[0] || '')} Walk into ${city.name} with Gaju the elephant: a letter, fact cards, a timeline and a map, every fact checked against a source.`.slice(0, 300);
   const image = `${site}/assets/og-${city.id}.png`;
   const data = {
@@ -30,9 +31,8 @@ export function cityPage(template, city, site = SITE) {
     containedInPlace: city.state ? { '@type': 'State', name: city.state } : undefined,
     includesAttraction: city.sections.find((s) => s.id === 'landmarks')?.items.map((f) => ({ '@type': 'TouristAttraction', name: f.title, description: f.text })),
   };
-  // <base> keeps every relative link (css/, js/, assets/, and the ones app.js makes) pointing at the site root
-  const head = `<base href="/">
-  <title>${esc(title)}</title>
+  // the home page already carries <base href="/">, so relative links work from /kolkata and /kolkata/explore
+  const head = `<title>${esc(title)}</title>
   <meta name="description" content="${esc(desc)}">
   <link rel="canonical" href="${url}">
   <meta property="og:type" content="website"><meta property="og:site_name" content="Virasat">
@@ -56,7 +56,7 @@ export function cityPage(template, city, site = SITE) {
 }
 
 export function sitemap(cities, site = SITE) {
-  const urls = ['', ...cities.map((c) => c.id)].map((p) => `  <url><loc>${site}/${p}</loc></url>`).join('\n');
+  const urls = ['', ...cities.flatMap((c) => [c.id, `${c.id}/explore`])].map((p) => `  <url><loc>${site}/${p}</loc></url>`).join('\n');
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
 }
 
@@ -70,6 +70,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     for (const c of cities) {
       mkdirSync(publicDir + c.id, { recursive: true });
       writeFileSync(`${publicDir}${c.id}/index.html`, cityPage(template, c));
+      mkdirSync(`${publicDir}${c.id}/explore`, { recursive: true });
+      writeFileSync(`${publicDir}${c.id}/explore/index.html`, cityPage(template, c, SITE, 'explore'));
     }
     writeFileSync(publicDir + 'sitemap.xml', sitemap(cities));
     console.log(`Wrote pages for ${cities.map((c) => c.id).join(', ')} and sitemap.xml.`);

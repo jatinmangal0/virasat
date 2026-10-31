@@ -5,17 +5,16 @@
 //      still tied to the scroll
 //   3. the scroll unrolls under the city's picture, which fills the top half of the screen. Inside: the letter
 //      and four quick facts
-//   4. scrolling down follows the twine: it becomes a wave of events, moves to the left as a
-//      timeline while each event is shown in the middle, then swirls off, comes back and draws
-//      the outline of the city.
-//   5. the city's heritage places light up inside the outline, and each one opens a card.
+//   4. scrolling down follows the twine: it becomes a wave of the city's major events, then moves to the left
+//      as a timeline while each event is shown in the middle.
+//   5. after the last event, the event card turns into the way on: the city's Explore page (its own address,
+//      /<city>/explore: the map now, flashcards and games later), the other city, or the street.
 import { twineSVG, setTwine, Rope, GARLAND_DEFS, placeGarland } from './twine.js';
 import { motifSVG } from './motifs.js';
 import { stampHTML } from './stamps.js';
 import { fit } from './lib.js';
 import { heroSVG, archPath } from './hero.js';
 import { initQuiz } from './quiz.js';
-import { initPlaces, loadPlaces, renderPlaces, placePins } from './places.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -41,7 +40,6 @@ let cur = null; // the open city: { id, c, my, rope, story, ... }
 export function initCity(shared) {
   ctx = shared;
   initQuiz({ ctx, cur: () => cur, relayout: () => layoutAfterOpen(), marks: SEAL_MARK });
-  initPlaces({ ctx, cur: () => cur, relayout: () => layoutAfterOpen() });
   $('#pigeon').innerHTML = PIGEON;
   document.body.insertAdjacentHTML('beforeend', `<svg width="0" height="0" style="position:absolute" aria-hidden="true">${GARLAND_DEFS}</svg>`);
   $('#cityBack').onclick = closeCity;
@@ -113,8 +111,7 @@ export async function openCity(id, my, from = null) {
   const c = CITIES[id];
   state.city = id;
   const view = $('#city');
-  cur = { id, c, my, opened: false, places: [] };
-  loadPlaces(cur);
+  cur = { id, c, my, opened: false };
   view.className = 'city delivering arriving';
   view.style.setProperty('--accent', c.accent);
   renderLetter(c);
@@ -389,7 +386,6 @@ function renderLetter(c) {
     <h2 id="letterTitle">${esc(c.name)}${c.native ? `<span class="native" lang="${lang}">${esc(c.native)}</span>` : ''}</h2>
     <p class="greet">${esc(c.greeting.replace(/!$/, ''))}, ${esc(name)}! <span>(${esc(c.greetingNote)})</span></p>
     <div class="letter-body">${c.letter.map((p) => `<p>${esc(p)}</p>`).join('')}</div>
-    ${c.photos?.length ? `<div class="letter-photos">${c.photos.map((ph, k) => photoFigure(ph, `postcard p${k}`)).join('')}</div>` : ''}
     <div class="facts" role="list">${c.quickFacts.map(([k, v], i) => `
       <div class="fact" role="listitem" style="--i:${i}">
         <span class="fact-mark" aria-hidden="true">${factIcon(k)}</span>
@@ -412,14 +408,6 @@ function factIcon(label) {
     : /language|tongue|script|speak/.test(k) ? '<path d="M24 6c-8 2-13 8-15 18M24 6c0 7-5 12-12 13M9 24l-2 2"/>'
     : '<path d="M16 7l2.6 6 6.4.6-4.8 4.3 1.4 6.4L16 21l-5.6 3.3 1.4-6.4L7 13.6l6.4-.6z"/>';
   return `<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
-}
-
-// A real photograph with its caption and credit. Every photo is freely licensed (Wikimedia Commons) and
-// its licence asks for the author's name, so the credit is always shown, linked to the photo's page.
-function photoFigure(ph, cls) {
-  const { esc } = ctx;
-  return `<figure class="${cls}"><img src="${esc(fit(ph.src, 800))}" alt="${esc(ph.caption || '')}" loading="lazy" decoding="async">
-    <figcaption>${ph.caption ? `<span>${esc(ph.caption)}</span>` : ''}<a href="${esc(ph.page || ph.original || ph.src)}" target="_blank" rel="noopener">Photo: ${esc(ph.credit)}</a></figcaption></figure>`;
 }
 
 // Drawn icons for the four parts of a letter, in the street's ink.
@@ -463,7 +451,6 @@ function buildStory() {
   const otherId = Object.keys(CITIES).find((k) => k !== cur.id);
   const stage = $('#storyStage');
   stage.innerHTML = `
-    <svg class="story-water" id="storyWater" aria-hidden="true"></svg>
     <svg class="story-svg" id="storySvg" aria-hidden="true"></svg>
     <div class="story-head" id="storyHead"><small>The thread of time</small><h3>${esc(c.name)} through the years</h3>
       <p>${ev.length ? 'Keep scrolling to follow the thread' : 'Our team is still checking the events for this timeline. Come back soon!'}</p></div>
@@ -473,24 +460,21 @@ function buildStory() {
         ${e.images?.[0] || motifSVG(e.motif) ? `<span class="node-year">${esc(e.year)}</span>` : ''}
       </button>`).join('')}</div>
     <div class="ev" id="ev" aria-live="polite"><div class="ev-media" id="evMedia"></div><div class="ev-info" id="evInfo"></div></div>
-    <div class="place-legend" id="placeLegend"></div>
-    <div class="places" id="places"></div>
-    <aside class="place-card" id="placeCard" aria-live="polite" hidden></aside>
-    <aside class="place-list" id="placeList" hidden></aside>
-    <div class="map-end" id="mapEnd">
-      <h3>${esc(c.name)}</h3>
-      <p id="mapNote">Soon, this map will hold ${esc(c.name)}'s landmarks.</p>
-      <div class="map-btns">
-        <button class="btn" data-end="back">← Back to the street</button>
-        ${otherId ? `<button class="btn primary" data-end="${otherId}">Visit ${esc(CITIES[otherId].name)} next →</button>` : ''}
+    <div class="story-end" id="storyEnd">
+      <small>That was ${esc(c.name)} through the years</small>
+      <h3>There's more to explore in ${esc(c.name)}</h3>
+      <p>The map of its heritage places is on ${esc(c.name)}'s Explore page. Flashcards and games are coming there soon.</p>
+      <div class="end-btns">
+        <button class="btn primary big" data-end="explore">Explore ${esc(c.name)} →</button>
+        ${otherId ? `<button class="btn" data-end="${otherId}">Visit ${esc(CITIES[otherId].name)} next</button>` : ''}
+        <button class="btn ghost" data-end="back">Back to the street</button>
       </div>
-      ${c.outlineSource ? `<p class="map-src">City outline: ${esc(c.outlineSource.replace(/: https?:\/\/\S+$/, ''))}${c.waterSource ? ` · ${esc(c.waterSource)}` : ''}</p>` : ''}
     </div>`;
-  cur.story = { ev, active: -1, outline: null, place: null };
-  renderPlaces();
+  cur.story = { ev, active: -1 };
   $$('.node', stage).forEach((b) => b.addEventListener('click', () => jumpTo(Number(b.dataset.i))));
   $$('[data-end]', stage).forEach((b) => b.addEventListener('click', async () => {
     const to = b.dataset.end;
+    if (to === 'explore') return ctx.goExplore(cur.id);
     await closeCity();
     if (to !== 'back') { await sleep(300); ctx.goToCity(to, { quick: true }); } // the street was walked once already: the short version
   }));
@@ -502,71 +486,10 @@ function measureStory() {
   const H = innerHeight, W = stage.clientWidth, N = s.ev.length;
   const mob = W < 720;
   s.g = { W, H, N, mob, x0: anchor()[0] - stage.getBoundingClientRect().left, w: threadWidth() };
-  s.seg = { wave: H * 1.1, left: N ? H * 0.7 : H * 0.2, events: N ? H * 0.75 * N : 0, swirl: H * 1.7, map: H * 1.1 };
+  s.seg = { wave: H * 1.1, left: N ? H * 0.7 : H * 0.2, events: N ? H * 0.75 * N : 0, end: H * 0.9 };
   const total = Object.values(s.seg).reduce((a, b) => a + b, 0) + H * 0.5;
   $('#story').style.height = total + H + 'px';
   $('#storySvg').innerHTML = twineSVG(s.g.w, 'main') + '<g class="garland" id="storyGarland"></g>';
-  const water = cur.c.water || {};
-  const wet = [...(water.areas || []).flatMap((a) => a.ring), ...(water.lines || []).flatMap((l) => l.line)];
-  s.outline = fitOutline(cur.c.outline || [], s.g, cur.places.length > 0, wet);
-  drawWater(water, s.outline);
-  placePins();
-}
-
-// The city boundary, [lng, lat], fitted into the middle of the screen and spaced evenly along its edge.
-// With places to show on a wide screen, the map moves left to make room for the place card.
-// `extra` are more [lng, lat] points the frame must hold (the lakes and the river), so the map is framed around
-// the city and its water together.
-function fitOutline(ring, { W, H, mob }, roomForCard, extra = []) {
-  if (ring.length < 3) {
-    return Array.from({ length: M }, (_, i) => { const a = (i / (M - 1)) * Math.PI * 2; return [W / 2 + Math.cos(a) * H * 0.25, H * 0.45 + Math.sin(a) * H * 0.25]; });
-  }
-  const lat0 = ring.reduce((a, p) => a + p[1], 0) / ring.length;
-  const k = Math.cos((lat0 * Math.PI) / 180);
-  const xy = ring.map(([lng, lat]) => [lng * k, -lat]);
-  const frame = [...xy, ...extra.map(([lng, lat]) => [lng * k, -lat])];
-  const xs = frame.map((p) => p[0]), ys = frame.map((p) => p[1]);
-  const bw = Math.max(...xs) - Math.min(...xs), bh = Math.max(...ys) - Math.min(...ys);
-  const card = roomForCard && !mob;
-  const boxW = mob ? W * 0.8 : Math.min(W * (card ? 0.46 : 0.5), 620), boxH = H * (mob ? 0.36 : card ? 0.58 : 0.52); // on a phone the map sits between the filters above and the city's name below
-  const sc = Math.min(boxW / bw, boxH / bh);
-  const cx = card ? W * 0.38 : W / 2, cy = H * (mob ? 0.36 : card ? 0.43 : 0.41);
-  const ox = cx - ((Math.min(...xs) + bw / 2) * sc), oy = cy - ((Math.min(...ys) + bh / 2) * sc);
-  const pts = xy.map(([x, y]) => [x * sc + ox, y * sc + oy]);
-  if (pts[0][0] !== pts[pts.length - 1][0] || pts[0][1] !== pts[pts.length - 1][1]) pts.push(pts[0]);
-  const lens = [0];
-  for (let i = 1; i < pts.length; i++) lens.push(lens[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
-  const total = lens[lens.length - 1], out = [];
-  let j = 0;
-  for (let i = 0; i < M; i++) {
-    const d = (i / (M - 1)) * total;
-    while (j < lens.length - 2 && lens[j + 1] < d) j++;
-    const t = (d - lens[j]) / (lens[j + 1] - lens[j] || 1);
-    out.push([lerp(pts[j][0], pts[j + 1][0], t), lerp(pts[j][1], pts[j + 1][1], t)]);
-  }
-  // where a [lng, lat] lands on screen (toXY), or null when it is well outside the city (project)
-  const minX = Math.min(...xs), minY = Math.min(...ys);
-  out.toXY = (lng, lat) => [lng * k * sc + ox, -lat * sc + oy];
-  out.project = (lng, lat) => {
-    const x = lng * k, y = -lat;
-    if (x < minX - bw * 0.2 || x > minX + bw * 1.2 || y < minY - bh * 0.2 || y > minY + bh * 1.2) return null;
-    return [x * sc + ox, y * sc + oy];
-  };
-  return out;
-}
-
-// Lakes as filled shapes and rivers as wide strokes, under the thread. Shown as the map is drawn.
-function drawWater(water, outline) {
-  const svg = $('#storyWater');
-  if (!svg || !outline.toXY) return;
-  const pts = (list) => list.map(([lng, lat]) => outline.toXY(lng, lat).map((v) => v.toFixed(1)).join(',')).join(' ');
-  svg.innerHTML = (water.areas || []).map((a) => `<polygon class="lake" points="${pts(a.ring)}"><title>${ctx.esc(a.name)}</title></polygon>`).join('')
-    + (water.lines || []).map((l) => `<polyline class="river" points="${pts(l.line)}"><title>${ctx.esc(l.name)}</title></polyline>`).join('')
-    + [...(water.areas || []).filter((a) => a.ring.length > 40), ...(water.lines || [])].map((w) => {
-      const pts2 = (w.ring || w.line).map(([lng, lat]) => outline.toXY(lng, lat));
-      const [x, y] = pts2[Math.floor(pts2.length / (w.ring ? 2.6 : 2))];
-      return `<text class="water-name" x="${x.toFixed(0)}" y="${y.toFixed(0)}">${ctx.esc(w.name)}</text>`;
-    }).join('');
 }
 
 // ----- the shapes the thread takes; each maps u (0 at the scroll end, 1 at the far end) to a point
@@ -596,14 +519,6 @@ function leftAt(u, g, uAct) {
   return [colX + amp * Math.sin(v * Math.max(N, 1) * Math.PI), H * 0.5 + (u - uAct) * K];
 }
 
-const offAt = (u, g) => [g.W * 1.12 + u * g.W * 1.5, g.H * 0.5 + g.H * 0.3 * Math.sin(u * Math.PI * 2.2)];
-
-function spiralAt(u, g, phase) {
-  const R = Math.min(g.W, g.H) * (g.mob ? 0.44 : 0.4);
-  const a = phase + u * Math.PI * 2 * 3, r = R * (1 - 0.82 * u);
-  return [g.W / 2 + Math.cos(a) * r, g.H * 0.46 + Math.sin(a) * r];
-}
-
 const mixP = (p, q, t) => [lerp(p[0], q[0], t), lerp(p[1], q[1], t)];
 
 let storyQueued = false;
@@ -619,7 +534,7 @@ function drawStory() {
   const y = view.scrollTop - $('#story').offsetTop;
   let t = y;
   const part = (len) => { const p = len ? clamp(t / len) : 1; t -= len; return p; };
-  const a = part(seg.wave), b = part(seg.left), e = part(seg.events), d = part(seg.swirl), m = part(seg.map);
+  const a = part(seg.wave), b = part(seg.left), e = part(seg.events), d = part(seg.end);
 
   // which event is in focus: each one waits a moment, then the thread glides to the next
   const ef = Math.min(N - 1, e * Math.max(N - 0.4, 0)), k = Math.floor(ef), frac = ef - k;
@@ -630,14 +545,10 @@ function drawStory() {
   let shape, visible = 1;
   if (b === 0) { shape = (u) => waveAt(u, g); visible = U0 + (1 - U0) * ease(a); }
   else if (e === 0 && b < 1) { const tb = ease(b); shape = (u) => mixP(waveAt(u, g), leftAt(u, g, nodeU(0, N)), tb); }
-  else if (d === 0) shape = (u) => leftAt(u, g, uAct);
-  else if (m === 0) {
-    if (d < 0.32) { const td = ease(d / 0.32); shape = (u) => mixP(leftAt(u, g, uLast), offAt(u, g), td); }
-    else if (d < 0.42) shape = (u) => offAt(u, g);
-    else { const td = (d - 0.42) / 0.58, ph = td * Math.PI * 3; shape = (u) => mixP(offAt(u, g), spiralAt(u, g, ph), ease(td)); }
-  } else {
-    const ph = Math.PI * 3 + m * Math.PI, tm = ease(clamp(m / 0.85));
-    shape = (u, i) => mixP(spiralAt(u, g, ph), s.outline[i], tm);
+  else {
+    // after the last event the thread drifts up a little and rests, so the end card takes the event card's place
+    const lift = ease(clamp(d / 0.6)) * g.H * 0.18;
+    shape = (u) => { const [x, y] = leftAt(u, g, d === 0 ? uAct : uLast); return [x, y - lift]; };
   }
 
   const pts = [];
@@ -647,30 +558,28 @@ function drawStory() {
   placeGarland($('#storyGarland'), pts, gardenGap(), gardenScale());
 
   // event medallions ride on the thread
-  const nodeOpacity = d > 0 ? clamp(1 - d / 0.15) : 1;
+  const nodeOpacity = 1;
   $$('.node', stage).forEach((n, i) => {
     const u = nodeU(i, N), [nx, ny] = shape(u, Math.round(u * (M - 1)));
     const shown = b > 0 || visible >= u;
     n.style.transform = `translate(${nx}px, ${ny}px)`;
     n.style.opacity = shown ? nodeOpacity : 0;
-    n.classList.toggle('on', b > 0.5 && d === 0 && i === Math.round(eEff));
+    n.classList.toggle('on', b > 0.5 && (d === 0 ? i === Math.round(eEff) : false));
     n.classList.toggle('row', b < 0.5);
     n.tabIndex = shown && nodeOpacity > 0.5 ? 0 : -1;
   });
 
   $('#storyHead').style.opacity = b > 0 ? clamp(1 - b * 2.5) : clamp(a * 3 + 0.2);
-  const evOpacity = N ? (d > 0 ? clamp(1 - d / 0.12) : clamp((b - 0.55) / 0.4)) : 0;
+  // the last event's card fades out and the end card rises in its place straight after: never an empty screen
+  const out = smooth(clamp((d - 0.05) / 0.25)), cross = smooth(clamp((d - 0.28) / 0.3));
+  const evOpacity = N ? clamp((b - 0.55) / 0.4) * (1 - out) : 0;
   $('#ev').style.opacity = evOpacity;
   $('#ev').style.visibility = evOpacity > 0 ? 'visible' : 'hidden';
   if (N && b > 0.5) showEvent(Math.round(eEff));
-  const end = clamp((m - 0.7) / 0.25);
-  for (const el of [$('#mapEnd'), $('#placeLegend'), $('#placeCard')]) {
-    el.style.opacity = end;
-    el.style.visibility = end > 0 ? 'visible' : 'hidden';
-  }
-  $('#places').classList.toggle('on', m > 0.8);
-  const water = $('#storyWater');
-  if (water) water.style.opacity = clamp((m - 0.45) / 0.4);
+  const endEl = $('#storyEnd'), endOp = N ? cross : clamp(b * 2);
+  endEl.style.opacity = endOp;
+  endEl.style.transform = `translateY(${(1 - endOp) * 24}px)`;
+  endEl.style.visibility = endOp > 0 ? 'visible' : 'hidden';
 }
 
 function showEvent(i) {

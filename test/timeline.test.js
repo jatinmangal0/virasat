@@ -65,7 +65,7 @@ test('demo mode is for the team only', async () => {
 test('demo mode lists unchecked events and greetings, marked as drafts, with their drawings', async () => {
   const { body } = await asha('/api/demo');
   const k = body.timeline.kolkata;
-  assert.ok(k.length >= 9 && k.every((e) => e.draft === true));
+  assert.ok(k.length >= 8 && k.every((e) => e.draft === true));
   assert.equal(k.find((e) => e.year === '1943').motif, 'bridge');
   assert.ok(body.greetings.some((g) => g.word === 'Namaste'));
   assert.ok(!body.greetings.some((g) => g.word === 'Vanakkam'), 'verified greetings are not repeated');
@@ -93,4 +93,21 @@ test('the record and the memory: seeded on contested events, needs its own sourc
     images: [], motif: ev.motif, order: ev.sort_order, sourceUrl: ev.source_url, memory: ev.memory, memorySourceUrl: ev.memory_source_url, argued: ev.argued, ...over }, 'PUT');
   assert.equal((await save({ memorySourceUrl: '' })).status, 400, 'the memory side needs a source');
   assert.equal((await save({ argued: ev.argued + ' More.' })).status, 200);
+});
+
+test('only major events are shown: minor ones stay in the editor, hidden, and an editor can show one again', async () => {
+  const minor = (await t.db.query("SELECT id FROM timeline_events WHERE city_id = 'kolkata' AND title = 'The first trams'")).rows[0].id;
+  const major = (await t.db.query("SELECT id FROM timeline_events WHERE city_id = 'kolkata' AND title = 'The Battle of Plassey'")).rows[0].id;
+  await neel(`/api/admin/timeline/${minor}/verify`, {});
+  await neel(`/api/admin/timeline/${major}/verify`, {});
+  const kolkata = async () => (await t.client()('/api/cities')).body.cities.find((c) => c.id === 'kolkata').timeline.map((e) => e.title);
+  assert.ok((await kolkata()).includes('The Battle of Plassey'));
+  assert.ok(!(await kolkata()).includes('The first trams'), 'a minor event is hidden even when verified');
+  const ev = (await neel('/api/admin/cities/kolkata')).body.timeline.find((e) => e.id === minor);
+  assert.equal(ev.hidden, true, 'the editor still lists it, marked hidden');
+  const r = await neel(`/api/admin/timeline/${minor}`, { cityId: 'kolkata', year: ev.year_label, title: ev.title, text: ev.body, order: ev.sort_order, images: ev.images, sourceUrl: ev.source_url,
+    motif: ev.motif, memory: ev.memory, memorySourceUrl: ev.memory_source_url, argued: ev.argued, hidden: false }, 'PUT');
+  assert.equal(r.status, 200);
+  assert.ok(!r.body.backToCheck, 'showing an event again is not a rewording');
+  assert.ok((await kolkata()).includes('The first trams'));
 });

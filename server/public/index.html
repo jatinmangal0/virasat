@@ -3,6 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- every relative link (css/, js/, assets/) points at the site root, also on /kolkata and /kolkata/explore -->
+  <base href="/">
   <title>Virasat · Walk into Udaipur and Kolkata</title>
   <meta name="description" content="Virasat is a playful way to learn the heritage of Udaipur and Kolkata. Pick a city, follow Gaju the elephant, and open a letter from the city.">
   <link rel="canonical" href="https://virasat-psi.vercel.app/">
@@ -152,6 +154,9 @@
     </div>
     <div class="open-hint" id="openHint" hidden>Tap the seal to open your scroll</div>
   </section>
+
+  <!-- a city's Explore page (/udaipur/explore): the map of its heritage places, later flashcards and games -->
+  <section class="explore" id="explore" role="dialog" aria-modal="true" aria-labelledby="exTitle" tabindex="-1" hidden></section>
 
   <svg class="arch-frame" id="archFrame" aria-hidden="true"></svg>
   <button class="skip" id="skipBtn" hidden>Skip ›</button>
