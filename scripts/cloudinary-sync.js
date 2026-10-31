@@ -19,13 +19,31 @@ const assets = fileURLToPath(new URL('../server/public/', import.meta.url));
 const onCloudinary = (u) => /^https:\/\/res\.cloudinary\.com\//.test(u || '');
 const idFor = (url) => 'virasat/photos/' + createHash('sha1').update(url).digest('hex').slice(0, 20);
 
+// Big Wikimedia Commons originals can be over Cloudinary's per-file limit (10 MB on the free plan), so when
+// a copy fails we ask Commons for its standard 1920px-wide version of the same file instead.
+export function commonsThumb(url) {
+  const m = /^https:\/\/upload\.wikimedia\.org\/wikipedia\/commons\/(\w)\/(\w\w)\/([^/?#]+)/.exec(url || '');
+  if (!m) return null;
+  const [, a, ab, name] = m;
+  const ext = /\.(tiff?|svg)$/i.test(name) ? '.png' : /\.pdf$/i.test(name) ? '.jpg' : '';
+  return `https://upload.wikimedia.org/wikipedia/commons/thumb/${a}/${ab}/${name}/1920px-${name}${ext}`;
+}
+
 export async function sync(db, cfg, log = console.log) {
   const cache = new Map();
   let copied = 0, failed = 0;
   // one upload per distinct link, a few at a time
   const copy = async (url) => {
     if (!/^https:\/\//.test(url || '') || onCloudinary(url)) return null;
-    if (!cache.has(url)) cache.set(url, upload(cfg, url, idFor(url)).then((u) => { copied++; return u; }, (e) => { failed++; log(`  could not copy ${url}: ${e.message}`); return null; }));
+    if (!cache.has(url)) cache.set(url, (async () => {
+      try { const u = await upload(cfg, url, idFor(url)); copied++; return u; } catch (e) {
+        const thumb = commonsThumb(url);
+        if (thumb) {
+          try { const u = await upload(cfg, thumb, idFor(url)); copied++; return u; } catch (e2) { e = e2; }
+        }
+        failed++; log(`  could not copy ${url}: ${e.message}`); return null;
+      }
+    })());
     return cache.get(url);
   };
   const logChange = (entity, id, before, after) => db.query(
