@@ -76,3 +76,31 @@ test('the deploy sync copies photos into Cloudinary once, keeps each original li
     globalThis.fetch = realFetch;
   }
 });
+
+test('a photo too big for Cloudinary is copied from the 1920px Commons version instead', async () => {
+  const { sync, commonsThumb } = await import('../scripts/cloudinary-sync.js');
+  const big = 'https://upload.wikimedia.org/wikipedia/commons/2/20/Monsoon_Palace.jpg?utm_source=commons.wikimedia.org';
+  assert.equal(commonsThumb(big), 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/Monsoon_Palace.jpg/1920px-Monsoon_Palace.jpg');
+  assert.equal(commonsThumb('https://example.com/a.jpg'), null);
+  const id = (await t.db.query("SELECT id FROM facts ORDER BY id LIMIT 1")).rows[0].id;
+  await t.db.query("UPDATE facts SET image = jsonb_build_object('src', $2::text, 'credit', 'Commons') WHERE id = $1", [id, big]);
+  const realFetch = globalThis.fetch;
+  const files = [];
+  globalThis.fetch = async (url, opts) => {
+    if (!String(url).startsWith('https://api.cloudinary.com/')) return realFetch(url, opts);
+    const file = opts.body.get('file');
+    files.push(file);
+    if (file === big) return new Response(JSON.stringify({ error: { message: 'File size too large' } }), { status: 400 });
+    return new Response(JSON.stringify({ secure_url: `https://res.cloudinary.com/virasat-demo/image/upload/v1/${opts.body.get('public_id')}` }), { status: 200 });
+  };
+  try {
+    const r = await sync(t.db, parseCloudinaryUrl('cloudinary://123456:s3cr3t@virasat-demo'), () => {});
+    assert.equal(r.failed, 0);
+    assert.ok(files.includes(commonsThumb(big)));
+    const f = (await t.db.query('SELECT image FROM facts WHERE id = $1', [id])).rows[0].image;
+    assert.match(f.src, /^https:\/\/res\.cloudinary\.com\//);
+    assert.equal(f.original, big);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
