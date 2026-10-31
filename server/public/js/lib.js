@@ -6,6 +6,10 @@ export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+// A Cloudinary photo at the width it is shown, in the best format the browser takes (WebP or AVIF).
+// Any other link (our own files, Wikimedia) is returned as it is.
+export const fit = (src, w) => String(src || '').replace(/^(https:\/\/res\.cloudinary\.com\/[\w-]+\/image\/upload\/)(?!f_auto)/, `$1f_auto,q_auto,c_limit,w_${w}/`);
+
 // Every call to the server goes through here: GET without a body, POST with one. It never throws:
 // the result is { ok, status, data }, and data.error explains what went wrong.
 export async function api(path, body) {

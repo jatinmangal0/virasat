@@ -6,7 +6,8 @@ import { json, err } from './router.js';
 export default function places(r, { db }) {
   r.get('/api/cities/:id/places', { cache: 60 }, async ({ params }) => {
     const rows = (await db.query(`SELECT p.id, p.name, p.native_name, p.category, p.subcategory, p.description,
-        p.latitude, p.longitude, p.year, p.image_url, p.image_license, p.source_url
+        p.latitude, p.longitude, p.year, p.image_url, p.image_license, p.source_url,
+        p.details->>'image_original' AS image_original
       FROM heritage_places p JOIN cities c ON c.id = p.city_id
       WHERE p.city_id = $1 AND c.published AND p.status = 'verified' ORDER BY p.sort_order, p.id`, [params.id])).rows;
     return json(200, { places: rows });

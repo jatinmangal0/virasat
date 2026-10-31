@@ -24,5 +24,5 @@ npm test
 
 ## Good to know
 
-- **Images:** Gaju (`assets/gaju.webp`), the Kolkata stamp (`assets/stamp-kolkata.webp`) and the city posters above the letter (`assets/letter-*.webp`) are the team's artwork. The Udaipur stamp and the arrival scenes are drawn in code (`server/public/js/stamps.js`, `hero.js`). Photographs in the letter, timeline and map are freely licensed from Wikimedia Commons and show their author and licence.
+- **Images:** files live in Cloudinary and the database keeps only their links and credits. Set `CLOUDINARY_URL` on Vercel; each production build then runs `scripts/cloudinary-sync.js`, which uploads the team's artwork (Kolkata stamp, city posters) and copies any photo still linked elsewhere (Wikimedia Commons) into Cloudinary, keeping the original link beside it. Editors can upload photos on the editor page. Gaju (`assets/gaju.webp`) ships with the site. The Udaipur stamp and the arrival scenes are drawn in code (`server/public/js/stamps.js`, `hero.js`).
 - **Phone login** runs as a demo until Twilio keys are added on Vercel: the code is shown on screen, so anyone could log in as any number. The scroll asks for a phone login before it opens. Set `DEMO_PHONE_LOGIN=off` on Vercel to switch phone login off.

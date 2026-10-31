@@ -1,6 +1,6 @@
 // Heritage places on the city map: marigolds coloured by kind, clusters where pins crowd, a list view,
 // and a card for each place with its photo credited. Places come from the team's research (the Places tab).
-import { $, $$ } from './lib.js';
+import { $, $$, fit } from './lib.js';
 
 // what city.js shares: its ctx, the open city (cur) and relayout()
 let ctx, cur, layoutAfterOpen;
@@ -17,8 +17,14 @@ const PLACE_KINDS = [
 const kindOf = (p) => (PLACE_KINDS.find((k) => k[2].test(p.category || '')) || PLACE_KINDS[0])[0];
 
 // Commons "Special:FilePath" links become a sized https image, plus the file's page for the credit.
-function photoOf(url) {
-  const m = /^https?:\/\/commons\.wikimedia\.org\/wiki\/Special:FilePath\/(.+)$/i.exec(url || '');
+// original: where a photo copied into Cloudinary came from, so the credit can still link to its page
+function photoOf(url, original) {
+  const commons = (u) => /^https?:\/\/commons\.wikimedia\.org\/wiki\/Special:FilePath\/(.+)$/i.exec(u || '');
+  if (/^https:\/\/res\.cloudinary\.com\//.test(url || '')) {
+    const m = commons(original);
+    return { src: fit(url, 640), page: m ? `https://commons.wikimedia.org/wiki/File:${m[1]}` : original || url };
+  }
+  const m = commons(url);
   if (m) return { src: `https://commons.wikimedia.org/wiki/Special:FilePath/${m[1]}?width=640`, page: `https://commons.wikimedia.org/wiki/File:${m[1]}` };
   return /^https:\/\//i.test(url || '') ? { src: url, page: url } : null;
 }
@@ -65,7 +71,7 @@ export function renderPlaces() {
   $('#placeLegend [data-list]').addEventListener('click', () => showList(null));
   // wide screens open on a place with a photo and a description, so the card is never empty
   if (innerWidth >= 720) {
-    const pick = list.findLastIndex((p) => p.description && photoOf(p.image_url));
+    const pick = list.findLastIndex((p) => p.description && photoOf(p.image_url, p.image_original));
     showPlace(pick >= 0 ? pick : list.findLastIndex((p) => p.description));
   }
 }
@@ -140,7 +146,7 @@ function showPlace(i) {
   cur().story.place = i;
   $('#placeList').hidden = true;
   $$('#places .pp').forEach((b) => b.classList.toggle('sel', Number(b.dataset.i) === i));
-  const photo = photoOf(p.image_url);
+  const photo = photoOf(p.image_url, p.image_original);
   card.innerHTML = `
     <button class="pc-close" aria-label="Close">×</button>
     ${photo ? `<figure class="pc-photo"><img src="${esc(photo.src)}" alt="${esc(p.name)}" loading="lazy">

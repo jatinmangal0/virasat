@@ -44,8 +44,11 @@ function openForm(title, fields, onSave) {
     if (f.type === 'textarea') input = `<textarea id="${id}" name="${f.name}">${esc(f.value)}</textarea>`;
     else if (f.type === 'select') input = `<select id="${id}" name="${f.name}">${f.options.map(([v, l]) => `<option value="${esc(v)}" ${String(v) === String(f.value) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
     else input = `<input id="${id}" name="${f.name}" type="${f.type === 'url' ? 'url' : 'text'}" value="${esc(f.value)}" ${f.type === 'url' ? 'placeholder="https://…"' : ''}>`;
-    return `<label for="${id}">${esc(f.label)}${hint}</label>${input}`;
+    const up = f.upload ? `<div class="upload-row"><button type="button" class="btn small" data-upload="${f.name}">Upload a photo</button>
+      <input type="file" accept="image/*" hidden data-file="${f.name}"><span class="muted" data-upstate="${f.name}"></span></div>` : '';
+    return `<label for="${id}">${esc(f.label)}${hint}</label>${input}${up}`;
   }).join('');
+  $$('[data-upload]', dlg).forEach((b) => wireUpload(b.dataset.upload));
   $('#dlgCancel').onclick = () => dlg.close();
   $('#dlgForm').onsubmit = async (e) => {
     e.preventDefault();
@@ -57,6 +60,35 @@ function openForm(title, fields, onSave) {
     else dlg.close();
   };
   dlg.showModal();
+}
+
+// A photo from the editor's computer goes straight to Cloudinary (our server only signs the request);
+// its https link then fills the field, like a pasted link. A textarea of photos gets one more line.
+function wireUpload(name) {
+  const btn = $(`[data-upload="${name}"]`), file = $(`[data-file="${name}"]`), say = $(`[data-upstate="${name}"]`), field = $(`#f_${name}`);
+  btn.onclick = () => file.click();
+  file.onchange = async () => {
+    const f = file.files[0];
+    if (!f) return;
+    if (f.size > 10e6) { say.textContent = 'That photo is over 10 MB. Pick a smaller one.'; return; }
+    btn.disabled = true; say.textContent = 'Uploading…';
+    const s = await api('/api/admin/uploads/sign', {});
+    if (!s.ok) { btn.disabled = false; say.textContent = s.data.error; return; }
+    const form = new FormData();
+    form.append('file', f);
+    for (const k of ['api_key', 'timestamp', 'folder', 'signature']) form.append(k, s.data[k === 'api_key' ? 'apiKey' : k]);
+    try {
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${s.data.cloudName}/image/upload`, { method: 'POST', body: form });
+      const d = await res.json();
+      if (!res.ok || !d.secure_url) throw new Error(d.error?.message || 'upload failed');
+      if (field.tagName === 'TEXTAREA') field.value = (field.value.trim() ? field.value.trim() + '\n' : '') + `${d.secure_url} | `;
+      else field.value = d.secure_url;
+      say.textContent = 'Uploaded. Add the credit and caption.';
+    } catch (e) {
+      say.textContent = `The upload did not work (${e.message}). Try again, or paste a link.`;
+    }
+    btn.disabled = false; file.value = '';
+  };
 }
 
 // ---------------------------------------------------------------- start
@@ -294,8 +326,8 @@ function editFact(f) {
     { name: 'title', label: 'Title', type: 'text', value: f?.title ?? '' },
     { name: 'text', label: 'Text', type: 'textarea', value: f?.body ?? '', hint: 'one or two short sentences' },
     { name: 'sourceUrl', label: 'Source link', type: 'url', value: f?.source_url ?? '', hint: 'where a teammate can check this' },
-    { name: 'imageSrc', label: 'Photo link (optional)', type: 'url', value: f?.image?.src ?? '',
-      hint: 'a freely licensed photo, e.g. from Wikimedia Commons (CC BY, CC BY-SA, CC0 or public domain)' },
+    { name: 'imageSrc', label: 'Photo (optional)', type: 'url', value: f?.image?.src ?? '', upload: true,
+      hint: 'upload one, or paste a link to a freely licensed photo, e.g. from Wikimedia Commons (CC BY, CC BY-SA, CC0 or public domain)' },
     { name: 'imagePage', label: "Photo's page", type: 'url', value: f?.image?.page ?? '', hint: 'the page that shows its licence' },
     { name: 'imageCredit', label: 'Photo credit', type: 'text', value: f?.image?.credit ?? '', hint: 'author and licence, e.g. "Henrik Bennetsen, CC BY-SA 2.0, via Wikimedia Commons"' },
     { name: 'imageCaption', label: 'Photo caption', type: 'text', value: f?.image?.caption ?? '', hint: 'what the photo shows' },
@@ -372,8 +404,8 @@ function editEvent(e) {
     { name: 'year', label: 'Year', type: 'text', value: e?.year_label ?? '', hint: 'as it should appear, e.g. 1559, 1620s or c. 1360' },
     { name: 'title', label: 'Title', type: 'text', value: e?.title ?? '' },
     { name: 'text', label: 'Short paragraph', type: 'textarea', value: e?.body ?? '', hint: 'two or three sentences' },
-    { name: 'images', label: 'Photos', type: 'textarea', value: (e?.images ?? []).map((im) => `${im.src} | ${im.caption}`).join('\n'),
-      hint: 'up to 4, one per line: https://link-to-photo | caption. Use photos you may share (e.g. Wikimedia Commons) and put the credit in the caption.' },
+    { name: 'images', label: 'Photos', type: 'textarea', value: (e?.images ?? []).map((im) => `${im.src} | ${im.caption}`).join('\n'), upload: true,
+      hint: 'up to 4, one per line: https://link-to-photo | caption. Upload adds a line for you. Use photos you may share (e.g. Wikimedia Commons) and put the credit in the caption.' },
     { name: 'motif', label: 'Drawing', type: 'select', value: e?.motif ?? '', options: [['', 'None (show the city stamp)'], ...MOTIF_NAMES.map((m) => [m, m])],
       hint: 'shown when the event has no photo' },
     { name: 'order', label: 'Place on the timeline', type: 'text', value: e?.sort_order ?? last + 1, hint: 'events are shown from the smallest number to the largest' },
