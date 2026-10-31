@@ -281,7 +281,7 @@ a { color: inherit; }
 .post-title {
   position: fixed; top: max(64px, 10vh); left: 0; right: 0; z-index: 5; text-align: center; color: var(--ink); pointer-events: none;
   font-family: var(--display); font-size: clamp(22px, 3.4vw, 38px); line-height: 1.1; opacity: 0; transform: translateY(10px);
-  transition: opacity .5s, transform .5s;
+  transition: opacity 1.1s ease, transform 1.1s cubic-bezier(.2,.8,.2,1);
 }
 .post-title small { display: block; font-family: var(--font); font-weight: 600; font-size: 15px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
 .city.show-title .post-title { opacity: 1; transform: none; }

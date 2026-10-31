@@ -15,6 +15,7 @@ const firstName = (n) => String(n || '').split(' ')[0] || 'Explorer';
 const state = { user: null, config: { googleClientId: null, smsMode: 'demo' }, busy: false, city: null, seq: 0, afterAuth: null, sound: false, fast: false };
 
 // Cities you have already flown into get the short version of the arrival: same beats, much faster.
+const WALK = 150; // Gaju's walking speed, in street units per second
 const SEEN_KEY = 'virasat.seen';
 const seen = (() => { try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || '[]')); } catch { return new Set(); } })();
 function markSeen(id) {
@@ -236,7 +237,7 @@ function frame(t) {
   const gaju = $('#gaju');
   if (scene.walk) {
     const w = scene.walk, dir = Math.sign(w.to - scene.gx) || 1;
-    scene.gx += dir * 230 * (state.fast ? 5 : 1) * dt;
+    scene.gx += dir * WALK * (state.fast ? 5 : 1) * dt;
     if ((dir > 0 && scene.gx >= w.to) || (dir < 0 && scene.gx <= w.to)) {
       scene.gx = w.to; scene.walk = null; gaju.classList.remove('walking'); w.done();
     } else if (t - scene.lastDust > 170) {
@@ -300,13 +301,13 @@ function walkTo(x) {
     const guard = setTimeout(() => {
       if (scene.walk?.done !== done) return;
       scene.gx = x; scene.walk = null; gaju.classList.remove('walking'); gaju.style.left = (x / VB.w) * 100 + '%'; done();
-    }, (Math.abs(x - scene.gx) / (230 * (state.fast ? 5 : 1))) * 1000 + 400);
+    }, (Math.abs(x - scene.gx) / (WALK * (state.fast ? 5 : 1))) * 1000 + 400);
     scene.walk = { to: x, done };
   });
 }
 
 // The arrival is one shot: Gaju walks to the gate, the camera pushes in, and the city opens inside the
-// gate's arch. Skip (or a city seen before) runs the same shot at about five times the speed.
+// gate's arch. Skip runs the same shot at about five times the speed; every other visit plays at full speed.
 const pace = (ms) => sleep(ms * (state.fast ? 0.18 : 1));
 function speedUp() {
   state.fast = true;
@@ -330,7 +331,8 @@ async function goToCity(city, { quick = false } = {}) {
   const my = ++state.seq;
   const c = CITIES[city];
   setAddress(city);
-  state.fast = quick || seen.has(city);
+  // every visit plays at full, unhurried speed; only the Skip button hurries it
+  state.fast = false;
   $('#skipBtn').hidden = state.fast || reduced();
   $('#dragHint')?.classList.add('gone'); // Skip takes that corner
   if (window.scrollY > 10) { window.scrollTo({ top: 0, behavior: 'smooth' }); await sleep(450); }
@@ -343,7 +345,7 @@ async function goToCity(city, { quick = false } = {}) {
   const gaju = $('#gaju');
   gaju.classList.remove('cheer'); void gaju.offsetWidth; gaju.classList.add('cheer');
   say(`${c.greeting} A letter is waiting for you…`);
-  await pace(800);
+  await pace(1500);
   if (my !== state.seq) return;
   // push the camera into the gate; the city opens in the arch while the push is still going
   $('#street').classList.add('zooming');
@@ -351,12 +353,12 @@ async function goToCity(city, { quick = false } = {}) {
   scene.poyT = ((city === 'udaipur' ? 470 : 460) / VB.h) * 100;
   scene.zoomT = 1050;
   scene.rxT = scene.ryT = 0;
-  await pace(reduced() ? 300 : 650);
+  await pace(reduced() ? 300 : 1100);
   if (my !== state.seq) return;
   const portal = $(`#gate-${city} .portal`)?.getBoundingClientRect();
   const from = portal && portal.width > 4 ? { x: portal.left, y: portal.top, w: portal.width, h: portal.height } : null;
   openCity(city, my, from);
-  await pace(1200);
+  await pace(2000);
   if (my === state.seq) scene.running = false; // the street is hidden behind the city; let it rest
 }
 

@@ -138,7 +138,7 @@ export async function openCity(id, my, from = null) {
   view.scrollTop = 0;
   document.body.classList.add('locked');
   document.querySelector('main').inert = true;
-  if (!reduced()) await archTo(id, from, 'open', 1150);
+  if (!reduced()) await archTo(id, from, 'open', 2000);
   if (my !== state.seq) return;
   view.focus({ preventScroll: true });
   drawTie();
@@ -147,7 +147,7 @@ export async function openCity(id, my, from = null) {
     await deliver(my);
   } catch { return; }
   if (my !== state.seq) return;
-  await wait(500);
+  await wait(1000);
   if (my !== state.seq) return;
   // The scroll is addressed to someone: it opens once the visitor has logged in with their phone number.
   if (state.user) return breakSeal(my);
@@ -215,12 +215,14 @@ async function deliver(my) {
   pg.hidden = false;
   pg.classList.add('flying');
   sound.whoosh();
-  const timing = { duration: 2300, easing: 'cubic-bezier(.35,.1,.3,1)', fill: 'both' };
+  const timing = { duration: 4600, easing: 'cubic-bezier(.45,.05,.35,1)', fill: 'both' };
   const flyPg = speedUp(pg.animate(path.map(([x, y, rot], i) => ({ transform: `translate(${x + px}px, ${y + py}px) rotate(${rot}deg)`, offset: offs[i] })), timing));
   const flySc = speedUp(sc.animate(path.map(([x, y, rot], i) => ({ transform: `translate(${x}px, ${y}px) rotate(${rot * 0.6}deg) scale(${small})`, offset: offs[i] })), timing));
   cur.flying = [flyPg, flySc];
   view.classList.remove('arriving'); // the scroll is off-screen with the pigeon now, so it can be shown
   await Promise.all([settle(flyPg), settle(flySc)]);
+  check();
+  await wait(700); // a moment's hover before it lets go
   check();
   // let go: the feet open, the scroll drops and grows, lands with a bump, and the pigeon leaves
   pg.classList.add('released');
@@ -228,23 +230,23 @@ async function deliver(my) {
     { transform: `translate(0px, ${-hover}px) scale(${small})` },
     { transform: `translate(0px, ${-hover * 0.35}px) scale(${lerp(small, 1, 0.55)})`, offset: 0.55 },
     { transform: 'translate(0px, 0px) scale(1)' },
-  ], { duration: 750, easing: 'cubic-bezier(.5,0,.75,.6)', fill: 'both' }));
+  ], { duration: 1600, easing: 'cubic-bezier(.45,.05,.55,.95)', fill: 'both' }));
   flySc.cancel();
   flyPg.cancel();
   const away = pg.animate([
     { transform: `translate(${px}px, ${py - hover}px) rotate(0deg)` },
     { transform: `translate(${px - innerWidth * 0.2}px, ${py - hover - innerHeight * 0.16}px) rotate(-10deg)`, offset: 0.4 },
     { transform: `translate(${-pw - 60}px, ${-innerHeight * 0.45}px) rotate(-16deg)` },
-  ], { duration: 1300, easing: 'cubic-bezier(.5,0,.6,1)', fill: 'both' });
+  ], { duration: 2800, easing: 'cubic-bezier(.45,0,.55,1)', fill: 'both' });
   sound.whoosh();
   settle(away).then(() => { pg.hidden = true; pg.classList.remove('flying', 'released'); away.cancel(); });
   await settle(drop);
   check();
   sound.thunk();
   drop.cancel();
-  sc.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(6px) scaleY(.97)' }, { transform: 'translateY(0)' }], { duration: 380, easing: 'ease-out' });
+  sc.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(6px) scaleY(.97)' }, { transform: 'translateY(0)' }], { duration: 600, easing: 'ease-out' });
   view.classList.add('show-title');
-  await wait(300);
+  await wait(700);
 }
 
 // ---------------------------------------------------------------- break the seal and unroll
@@ -261,7 +263,7 @@ async function breakSeal(my) {
     const check = () => { if (my !== state.seq) throw new Error('cancelled'); };
     sc.classList.add('broken');
     sound.crack();
-    await wait(320);
+    await wait(700);
     check();
     if (state.user) api('/api/progress/visit', { city: cur.id }).then(showEarned);
     ctx.markSeen(cur.id);
@@ -270,14 +272,14 @@ async function breakSeal(my) {
     const L = $('#runway').offsetHeight + $('.roll-top').offsetHeight / 2;
     startRope(L);
     $('#tie').style.opacity = '0';
-    await wait(reduced() ? 0 : 900);
+    await wait(reduced() ? 0 : 1500);
     check();
 
     // unroll: the bottom roller travels down, the city's picture fills the top half
     const target = $('#letter').offsetHeight;
     view.classList.add('opened');
     sound.paper();
-    const roll = speedUp(sheet.animate([{ height: '0px' }, { height: target + 'px' }], { duration: reduced() ? 1 : 1700, easing: 'cubic-bezier(.45,.05,.25,1)', fill: 'forwards' }));
+    const roll = speedUp(sheet.animate([{ height: '0px' }, { height: target + 'px' }], { duration: reduced() ? 1 : 3400, easing: 'cubic-bezier(.45,.05,.3,1)', fill: 'forwards' }));
     await settle(roll);
     check();
     sheet.style.height = 'auto';
