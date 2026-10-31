@@ -16,10 +16,12 @@ const handle = createApi({
   verifyGoogle: makeGoogleVerifier(googleClientId),
   secureCookies: true,
   adminSetupCode: env('ADMIN_SETUP_CODE'),
-  // Until Twilio is set up, phone login runs as a demo everywhere: the code is shown on screen, so anyone
-  // could log in as any number. Jatin chose this on 31 Oct 2026 so the scroll can ask for a phone login.
-  // Set DEMO_PHONE_LOGIN=off on Vercel to switch phone login off again.
-  allowDemoSms: env('DEMO_PHONE_LOGIN') !== 'off',
+  // Demo phone login shows the code on screen, so anyone could log in as any number. It was the scroll's
+  // login until Google sign-in; once GOOGLE_CLIENT_ID is set it switches off by itself (Jatin, 31 Oct 2026).
+  // DEMO_PHONE_LOGIN=on keeps it on anyway, =off switches it off even without Google.
+  allowDemoSms: env('DEMO_PHONE_LOGIN') === 'on' || (env('DEMO_PHONE_LOGIN') !== 'off' && !googleClientId),
+  // comma-separated emails that are always admins when they sign in with Google (also the admin_emails table)
+  adminEmails: env('ADMIN_EMAILS'),
   cloudinary: cloudinaryFromEnv(env),
 });
 

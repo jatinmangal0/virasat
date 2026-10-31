@@ -23,6 +23,7 @@ await local.applyMigrations(root + 'db/migrations');
 const sms = makeSmsSender();
 const app = createExpressApp(createApi({
   db, sms, googleClientId, verifyGoogle: makeGoogleVerifier(googleClientId), adminSetupCode,
+  adminEmails: process.env.ADMIN_EMAILS || '',
   cloudinary: cloudinaryFromEnv(),
 }));
 app.listen(port, () => {

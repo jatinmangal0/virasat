@@ -23,9 +23,11 @@ import places from './places.js';
 import passport from './passport.js';
 import classes from './classes.js';
 import uploads from './uploads.js';
+import { makeAdminList } from './admin-list.js';
 
-export function createApi({ db, sms, verifyGoogle, googleClientId = '', secureCookies = false, adminSetupCode = '', allowDemoSms = true, cloudinary = null }) {
-  const deps = { db, sms, verifyGoogle, googleClientId, secureCookies, adminSetupCode, allowDemoSms, cloudinary };
+export function createApi({ db, sms, verifyGoogle, googleClientId = '', secureCookies = false, adminSetupCode = '', allowDemoSms = true, cloudinary = null, adminEmails = '', adminListTtlMs = 60_000 }) {
+  const applyAdminList = makeAdminList({ db, adminEmails, ttlMs: adminListTtlMs });
+  const deps = { db, sms, verifyGoogle, googleClientId, secureCookies, adminSetupCode, allowDemoSms, cloudinary, applyAdminList };
   const router = createRouter();
   for (const area of [auth, content, progress, admin, places, passport, classes, uploads]) area(router, deps);
 
@@ -42,9 +44,11 @@ export function createApi({ db, sms, verifyGoogle, googleClientId = '', secureCo
     const { route, params } = match;
 
     const token = readSessionToken(cookieHeader);
-    const user = token ? (await db.query(
+    const sessionUser = token ? (await db.query(
       `SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id
        WHERE s.token_hash = $1 AND s.expires_at > $2`, [sha256(token), Date.now()])).rows[0] || null : null;
+    // someone added to the admin email list after signing in becomes admin on their next request
+    const user = await applyAdminList(sessionUser);
 
     if (route.limit && !ipLimit(ip || 'unknown')) return err(429, 'Too many attempts. Try again in a few minutes.');
     if (route.role) {

@@ -110,14 +110,16 @@ function renderWho() {
   $('#who').innerHTML = u
     ? `<span>${esc(u.name)}</span><span class="role">${esc(u.role)}</span><a href="/">Website</a><button class="btn small" id="logout">Log out</button>`
     : '<a href="/">Back to the website</a>';
-  if (u) $('#logout').onclick = async () => { await api('/api/auth/logout', {}); location.reload(); };
+  if (u) $('#logout').onclick = async () => { await api('/api/auth/logout', {}); window.google?.accounts?.id?.disableAutoSelect(); location.reload(); };
 }
 
 function renderLogin() {
   $('#app').innerHTML = `
     <div class="panel" style="max-width:420px">
       <h1>Editor log in</h1>
-      <p class="muted">Use the email and password of your Virasat account. If you signed up with a phone number,
+      <div id="googleSlot" style="margin:12px 0 4px"></div>
+      <p class="muted" id="googleNote" hidden>Admins on the admin email list: use "Sign in with Google" with that address.</p>
+      <p class="muted">Or use the email and password of your Virasat account. If you signed up with a phone number,
         log in on <a href="/">the website</a> first and then come back here.</p>
       <form id="login">
         <label for="em">Email</label><input id="em" type="email" autocomplete="email" required>
@@ -132,6 +134,31 @@ function renderLogin() {
     if (!r.ok) { $('#loginErr').textContent = r.data.error; return; }
     boot();
   };
+  googleButton();
+}
+
+// "Sign in with Google" on the editor page too, so people on the admin email list can get in with one tap.
+async function googleButton() {
+  const cfg = await api('/api/config');
+  const id = cfg.data?.googleClientId;
+  if (!id) return;
+  await new Promise((res, rej) => {
+    if (window.google?.accounts?.id) return res();
+    const s = document.createElement('script');
+    s.src = 'https://accounts.google.com/gsi/client'; s.async = true; s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+  }).catch(() => null);
+  if (!window.google?.accounts?.id || !$('#googleSlot')) return;
+  google.accounts.id.initialize({
+    client_id: id, use_fedcm_for_prompt: true,
+    callback: async ({ credential }) => {
+      const r = await api('/api/auth/google', { credential });
+      if (!r.ok) { $('#loginErr').textContent = r.data.error; return; }
+      boot();
+    },
+  });
+  google.accounts.id.renderButton($('#googleSlot'), { theme: 'outline', size: 'large', shape: 'pill', text: 'signin_with' });
+  $('#googleNote').hidden = false;
 }
 
 function renderNotEditor() {

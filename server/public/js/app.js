@@ -90,12 +90,12 @@ function setupChrome() {
     if (op) {
       e.preventDefault(); closeDrawer();
       if (op.dataset.open === 'journey') openJourney();
-      if (op.dataset.open === 'auth') state.user ? logout() : openAuth('phone');
+      if (op.dataset.open === 'auth') state.user ? logout() : openAuth();
       if (op.dataset.open === 'class') openJoin();
     }
   });
 
-  $('#accountBtn').onclick = () => (state.user ? openJourney() : openAuth('phone'));
+  $('#accountBtn').onclick = () => (state.user ? openJourney() : openAuth());
   $('#journeyBtn').onclick = openJourney;
   $('#soundBtn').onclick = () => {
     state.sound = !state.sound;
@@ -133,7 +133,10 @@ function renderHeader() {
     if (state.user.avatar) { av.src = state.user.avatar; av.hidden = false; }
     else { av.hidden = true; btn.insertAdjacentHTML('beforeend', `<span class="initial">${esc(state.user.name[0]?.toUpperCase() || 'V')}</span>`); }
     $('#drawerAuth').textContent = 'Log out';
+    $('#drawerAdmin').hidden = !['editor', 'admin'].includes(state.user.role);
+    $('#drawerAdmin').textContent = state.user.role === 'admin' ? 'Admin page' : 'Editor page';
   } else {
+    $('#drawerAdmin').hidden = true;
     btn.classList.remove('signed-in');
     btn.setAttribute('aria-label', 'Log in or sign up');
     av.hidden = true;
@@ -410,20 +413,23 @@ function setAuthTab(tab) {
   $('#authTitle').textContent = tab === 'signup' ? 'Sign your passport' : 'Welcome back';
 }
 
-function openAuth(tab = 'phone', reason) {
+// Google is the main way in; email (and phone, where it is switched on) are below it.
+function openAuth(tab, reason) {
   // the live site has no real SMS yet, so phone login is switched off there (smsMode 'off')
   const phoneOn = state.config.smsMode !== 'off';
   $('#authModal .tab[data-tab="phone"]').hidden = !phoneOn;
+  if (!tab) tab = phoneOn && !state.config.googleClientId ? 'phone' : 'login';
   if (tab === 'phone' && !phoneOn) tab = 'login';
   setAuthTab(tab === 'signup' ? 'signup' : tab === 'login' ? 'login' : 'phone');
   $('#authSub').textContent = reason || 'Sign your passport and Virasat keeps your stamps, seals and points on any device.';
   openModal($('#authModal'));
-  renderGoogle();
+  renderGoogle({ oneTap: true });
 }
 
 function onAuthed(user, isNew) {
   state.user = user;
   renderHeader();
+  window.google?.accounts?.id?.cancel();
   closeModal($('#authModal'));
   $('#checkpoint').hidden = true;
   checkFading();
@@ -563,12 +569,12 @@ function setupAuth() {
 
   // Google
   $('#googleFallback').onclick = () => {
-    $('#authError').textContent = 'Google sign-in is not switched on for this site yet (the owner needs to add a Google Client ID). Use your phone or email for now.';
+    $('#authError').textContent = 'Google sign-in is not switched on for this site yet (the owner needs to add a Google Client ID). Use your email for now.';
   };
 }
 
 let gisLoaded = null;
-function renderGoogle() {
+function renderGoogle({ oneTap = false } = {}) {
   const id = state.config.googleClientId;
   // No Google client ID yet: hide the button rather than offer one that only shows an error.
   $('#authModal .or').hidden = !id;
@@ -581,6 +587,10 @@ function renderGoogle() {
   }).then(() => {
     google.accounts.id.initialize({
       client_id: id,
+      auto_select: false,
+      cancel_on_tap_outside: true,
+      use_fedcm_for_prompt: true,
+      context: 'signin',
       callback: async ({ credential }) => {
         const r = await api('/api/auth/google', { credential });
         if (!r.ok) { $('#authError').textContent = r.data.error; return; }
@@ -593,11 +603,14 @@ function renderGoogle() {
     slot.innerHTML = '';
     google.accounts.id.renderButton(slot, { theme: 'outline', size: 'large', shape: 'pill', text: 'continue_with', width: Math.min(360, slot.clientWidth || 360) });
     $('#googleFallback').hidden = true;
+    // One Tap: Google offers the account already signed in on this device, so it is a single tap
+    if (oneTap && !state.user) google.accounts.id.prompt();
   }).catch(() => { $('#googleFallback').hidden = false; });
 }
 
 async function logout() {
   await api('/api/auth/logout', {});
+  window.google?.accounts?.id?.disableAutoSelect();
   state.user = null;
   renderHeader();
   closeModal($('#journeyModal'));
