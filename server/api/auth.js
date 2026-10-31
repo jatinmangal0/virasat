@@ -11,7 +11,12 @@ const OTP_MAX_ATTEMPTS = 5;
 
 export const cleanName = (n) => (typeof n === 'string' ? n.trim().replace(/\s+/g, ' ').slice(0, 60) : '');
 
-export default function auth(r, { db, sms, verifyGoogle, googleClientId, secureCookies }) {
+export default function auth(r, { db, sms, verifyGoogle, googleClientId, secureCookies, allowDemoSms = true }) {
+  // Demo SMS hands the code back to whoever asked for it, so anyone could log in as any number.
+  // That is fine on your own computer and in tests, never on the live site: there, phone login
+  // stays switched off until real SMS (Twilio) is set up.
+  const phoneOff = sms.mode === 'demo' && !allowDemoSms;
+  const PHONE_OFF = 'Phone login is not switched on yet. Use your email for now.';
   const loginPerEmail = rateLimiter({ windowMs: 15 * 60_000, max: 10 });
   const otpPerPhone = rateLimiter({ windowMs: 60 * 60_000, max: 5 });
   const one = async (text, params) => (await db.query(text, params)).rows[0] || null;
@@ -24,7 +29,7 @@ export default function auth(r, { db, sms, verifyGoogle, googleClientId, secureC
     json(status, { user: publicUser(await userById(userId)) }, await startSession(db, userId, secureCookies));
 
   // ---- what the browser needs to know before anyone logs in ----
-  r.get('/api/config', async () => json(200, { googleClientId: googleClientId || null, smsMode: sms.mode }));
+  r.get('/api/config', async () => json(200, { googleClientId: googleClientId || null, smsMode: phoneOff ? 'off' : sms.mode }));
 
   // ---- email + password ----
   r.post('/api/auth/signup', { limit: true }, async ({ body }) => {
@@ -51,6 +56,7 @@ export default function auth(r, { db, sms, verifyGoogle, googleClientId, secureC
 
   // ---- phone + one-time code ----
   r.post('/api/auth/otp/request', { limit: true }, async ({ body }) => {
+    if (phoneOff) return err(503, PHONE_OFF);
     const phone = normalizePhone(body.phone);
     if (!phone) return err(400, 'Enter a valid mobile number, e.g. 98765 43210.');
     const prev = await one('SELECT sent_at FROM otps WHERE phone = $1', [phone]);
@@ -78,6 +84,7 @@ export default function auth(r, { db, sms, verifyGoogle, googleClientId, secureC
   });
 
   r.post('/api/auth/otp/verify', { limit: true }, async ({ body }) => {
+    if (phoneOff) return err(503, PHONE_OFF);
     const phone = normalizePhone(body.phone);
     const code = String(body.code || '').replace(/\D/g, '');
     if (!phone || code.length !== 6) return err(400, 'Enter the 6-digit code.');

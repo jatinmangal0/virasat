@@ -35,16 +35,22 @@ test('reading a section pays 5 points once and is remembered', async () => {
   assert.equal(p.points, 15);
 });
 
+// A round as the website plays it: each answer is checked, then the round is sent.
+async function play(answers) {
+  for (const a of answers) await me('/api/quiz/check', a);
+  return me('/api/progress/quiz', { city: 'kolkata', answers });
+}
+
 test('the server marks the quiz and pays only for improvement', async () => {
   const answers = (right) => questions.map((q, i) => ({ id: q.id, choice: i < right ? q.answer_index : (q.answer_index + 1) % 4 }));
-  let r = await me('/api/progress/quiz', { city: 'kolkata', answers: answers(3) });
+  let r = await play(answers(3));
   assert.equal(r.status, 201);
   assert.deepEqual([r.body.score, r.body.total, r.body.earned], [3, 5, 30]);
-  r = await me('/api/progress/quiz', { city: 'kolkata', answers: answers(2) });
+  r = await play(answers(2));
   assert.equal(r.body.earned, 0, 'a worse score earns nothing');
-  r = await me('/api/progress/quiz', { city: 'kolkata', answers: answers(5) });
+  r = await play(answers(5));
   assert.equal(r.body.earned, 20, 'beating your best pays the difference');
-  r = await me('/api/progress/quiz', { city: 'kolkata', answers: answers(5) });
+  r = await play(answers(5));
   assert.equal(r.body.earned, 0);
   const p = (await me('/api/progress')).body;
   assert.equal(p.points, 65);
@@ -56,3 +62,17 @@ test('a quiz with nothing verified cannot be submitted, and faked scores are ign
   const r = await me('/api/progress/quiz', { city: 'kolkata', answers: [], score: 5, total: 5 });
   assert.equal(r.body.score, 0, 'the server ignores a score the browser makes up');
 });
+
+test('looking up the answers first does not buy a perfect round: the first try counts', async () => {
+  const wrongFirst = questions.map((q) => ({ id: q.id, choice: (q.answer_index + 1) % 4 }));
+  for (const a of wrongFirst) {
+    const r = await me('/api/quiz/check', a);
+    assert.equal(r.body.answer, questions.find((q) => q.id === a.id).answer_index, 'the page is told the right answer, to teach');
+  }
+  const perfect = questions.map((q) => ({ id: q.id, choice: q.answer_index }));
+  const r = await play(perfect);
+  assert.equal(r.body.score, 0, 'marked by the first choice of the round');
+  const unchecked = await me('/api/progress/quiz', { city: 'kolkata', answers: perfect });
+  assert.equal(unchecked.body.score, 0, 'answers never checked in this round count as wrong');
+});
+

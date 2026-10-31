@@ -21,9 +21,9 @@ test('imported timeline events and greetings are hidden until verified', async (
   assert.match(c.outlineSource, /DataMeet/);
   assert.deepEqual((await t.client()('/api/greetings')).body.greetings, []);
 
-  const { rows } = await t.db.query("SELECT id FROM timeline_events WHERE city_id = 'udaipur' AND year_label = '1559'");
+  const { rows } = await t.db.query("SELECT id FROM timeline_events WHERE city_id = 'udaipur' AND year_label = '1553'");
   assert.equal((await asha(`/api/admin/timeline/${rows[0].id}/verify`, {})).status, 200, 'any editor may verify imported events');
-  assert.deepEqual((await udaipur()).timeline.map((e) => [e.year, e.title]), [['1559', 'Udaipur is founded']]);
+  assert.deepEqual((await udaipur()).timeline.map((e) => [e.year, e.title]), [['1553', 'Udaipur is founded']]);
 
   const g = (await asha('/api/admin/greetings')).body.greetings;
   assert.ok(g.length >= 10);
@@ -57,18 +57,40 @@ test('a new greeting needs the word and the language', async () => {
   assert.equal(r.body.greeting.status, 'needs_check');
 });
 
+test('demo mode is for the team only', async () => {
+  assert.equal((await t.client()('/api/demo')).status, 401);
+  assert.equal((await (await t.person('Lina'))('/api/demo')).status, 403);
+});
+
 test('demo mode lists unchecked events and greetings, marked as drafts, with their drawings', async () => {
-  const { body } = await t.client()('/api/demo');
+  const { body } = await asha('/api/demo');
   const k = body.timeline.kolkata;
   assert.ok(k.length >= 9 && k.every((e) => e.draft === true));
   assert.equal(k.find((e) => e.year === '1943').motif, 'bridge');
   assert.ok(body.greetings.some((g) => g.word === 'Namaste'));
   assert.ok(!body.greetings.some((g) => g.word === 'Vanakkam'), 'verified greetings are not repeated');
+  assert.ok(body.facts.udaipur.landmarks.length > 0 && body.facts.udaipur.landmarks.every((f) => f.draft === true), 'draft fact cards by section');
+  assert.ok(body.quiz.kolkata.length > 0 && body.quiz.kolkata.every((q) => Number.isInteger(q.answer)), 'draft quiz with answers, for the team only');
 });
 
-test('demo mode does not repeat heritage places that are already live', async () => {
-  // Aksh's places were verified on import (20261027110100_verify_aksh_places.sql), so the real
-  // map shows them and demo mode has no unchecked ones left to add.
-  const { body } = await t.client()('/api/demo');
-  assert.deepEqual(body.places, {});
+test('demo mode lists places that went back to draft, and only those', async () => {
+  // 20261030120000_content_fixes.sql sends places with no source, or with research notes in their
+  // text, back to "needs check". They show in demo mode as drafts; the rest stay on the real map.
+  const { body } = await asha('/api/demo');
+  assert.ok(body.places.udaipur.length > 0 && body.places.udaipur.every((p) => p.draft === true && !p.source_url));
+  const live = (await t.client()('/api/cities/udaipur/places')).body.places;
+  assert.ok(live.every((p) => p.source_url), 'every live place has a source');
+});
+
+test('the record and the memory: seeded on contested events, needs its own source, and is part of the wording', async () => {
+  const { body } = await asha('/api/demo');
+  const hg = body.timeline.udaipur.find((e) => e.title === 'The Battle of Haldighati');
+  assert.match(hg.memory, /remembered/);
+  assert.match(hg.memorySrc, /^https:/);
+  assert.ok(hg.argued.length > 20);
+  const ev = (await asha('/api/admin/cities/udaipur')).body.timeline.find((e) => e.title === 'The Battle of Haldighati');
+  const save = (over) => asha(`/api/admin/timeline/${ev.id}`, { cityId: 'udaipur', year: ev.year_label, title: ev.title, text: ev.body,
+    images: [], motif: ev.motif, order: ev.sort_order, sourceUrl: ev.source_url, memory: ev.memory, memorySourceUrl: ev.memory_source_url, argued: ev.argued, ...over }, 'PUT');
+  assert.equal((await save({ memorySourceUrl: '' })).status, 400, 'the memory side needs a source');
+  assert.equal((await save({ argued: ev.argued + ' More.' })).status, 200);
 });

@@ -6,7 +6,8 @@ export function createRouter() {
     if (typeof opts === 'function') [fn, opts] = [opts, {}];
     const names = [];
     const re = new RegExp('^' + pattern.replace(/:(\w+)/g, (_, n) => { names.push(n); return '([^/]+)'; }) + '$');
-    routes.push({ method, re, names, fn, role: opts.role || null, limit: !!opts.limit });
+    // cache: seconds the CDN may keep the answer (only for public answers that are the same for everyone)
+    routes.push({ method, re, names, fn, role: opts.role || null, limit: !!opts.limit, cache: opts.cache || 0 });
   };
   return {
     get: add('GET'), post: add('POST'), put: add('PUT'), delete: add('DELETE'),

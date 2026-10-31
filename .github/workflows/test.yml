@@ -1,0 +1,15 @@
+# Runs every test on every push and pull request. Vercel publishes without testing, so this is the check:
+# protect the main branch on GitHub (Settings → Branches) so a pull request can only be merged when it passes.
+name: Tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
