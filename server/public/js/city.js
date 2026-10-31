@@ -1,10 +1,10 @@
 // A city, from delivery to map:
 //   0. the camera flies through the gate's arch: the city view opens inside the arch, which grows past the screen
-//   1. a pigeon flies in over the city with a sealed scroll tied to its leg, drops it and flies off
+//   1. a white dove flies in over the city with the sealed scroll in its feet, drops it and flies off
 //   2. the seal stays shut until the visitor logs in with their phone; then it breaks and the twine falls,
 //      still tied to the scroll
-//   3. the scroll unrolls under the city's picture, which fills the top half of the screen. Inside: the letter,
-//      fact cards by section, and "Seal the letter", a short quiz that presses the city's seal into the wax
+//   3. the scroll unrolls under the city's picture, which fills the top half of the screen. Inside: the letter
+//      and four quick facts
 //   4. scrolling down follows the twine: it becomes a wave of events, moves to the left as a
 //      timeline while each event is shown in the middle, then swirls off, comes back and draws
 //      the outline of the city.
@@ -14,8 +14,7 @@ import { motifSVG } from './motifs.js';
 import { stampHTML } from './stamps.js';
 import { fit } from './lib.js';
 import { heroSVG, archPath } from './hero.js';
-import { openKit } from './kit.js';
-import { initQuiz, startQuiz } from './quiz.js';
+import { initQuiz } from './quiz.js';
 import { initPlaces, loadPlaces, renderPlaces, placePins } from './places.js';
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -103,45 +102,10 @@ function archTo(id, from, to, ms) {
 }
 
 // ---------------------------------------------------------------- the pigeon
-// A white homing pigeon, drawn facing left: soft shading on the body, a fanned tail, layered flight feathers,
-// a dark eye with a pale ring, a white cere over the beak and pink feet. Its wings flap with CSS; the
-// tether hangs from its feet (x 104, y 107 in the 200 × 130 drawing).
-const PIGEON = `
-<svg class="pg" viewBox="0 0 200 130">
-  <defs>
-    <radialGradient id="pgBody" cx=".42" cy=".32" r=".75"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#f1f2f5"/><stop offset="1" stop-color="#c7ccd6"/></radialGradient>
-    <radialGradient id="pgHead" cx=".38" cy=".3" r=".8"><stop offset="0" stop-color="#ffffff"/><stop offset=".7" stop-color="#eef0f3"/><stop offset="1" stop-color="#cdd2db"/></radialGradient>
-    <linearGradient id="pgWing" x1="0" y1="1" x2=".6" y2="0"><stop offset="0" stop-color="#e9ecf1"/><stop offset=".5" stop-color="#ffffff"/><stop offset="1" stop-color="#f4f5f8"/></linearGradient>
-    <linearGradient id="pgFar" x1="0" y1="1" x2=".6" y2="0"><stop offset="0" stop-color="#c4cad4"/><stop offset="1" stop-color="#dfe3ea"/></linearGradient>
-    <linearGradient id="pgTail" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#e8ebf0"/><stop offset="1" stop-color="#ffffff"/></linearGradient>
-  </defs>
-  <g class="pg-wing far">
-    <path d="M100,62 C112,36 134,18 160,12 C168,10 176,10 182,12 C174,17 168,21 164,26 C172,27 178,30 181,34 C168,38 156,42 146,46 C154,48 160,51 162,55 C142,62 122,68 104,72 Z" fill="url(#pgFar)"/>
-    <path d="M142,30 C156,23 168,17 182,12 M140,38 C154,33 166,31 181,34 M134,47 C146,46 154,49 162,55" stroke="#aab1bd" stroke-width="1.2" fill="none" stroke-linecap="round"/>
-  </g>
-  <path d="M138,70 C152,64 172,60 188,60 C194,64 197,72 196,80 C190,86 176,88 160,86 C150,84 142,80 138,76 Z" fill="url(#pgTail)" stroke="#c3c9d3" stroke-width="1"/>
-  <path d="M150,68 L190,64 M152,74 L195,73 M150,80 L192,83" stroke="#cfd4dc" stroke-width="1" fill="none"/>
-  <path d="M186,61 C192,64 196,72 196,80 C193,83 190,85 186,86 C189,78 189,69 186,61 Z" fill="#d9dde4"/>
-  <path d="M60,64 C66,50 88,46 110,51 C132,56 150,64 151,75 C152,88 130,98 106,98 C84,98 68,91 62,81 C59,75 58,69 60,64 Z" fill="url(#pgBody)"/>
-  <path d="M66,84 C80,96 106,100 128,93 C112,96 86,94 66,84 Z" fill="#c9ced8" opacity=".7"/>
-  <path d="M45,53 C48,63 56,72 68,80 C72,72 74,64 72,56 C66,50 60,44 56,38 Z" fill="url(#pgHead)"/>
-  <circle cx="53" cy="45" r="12.5" fill="url(#pgHead)"/>
-  <path d="M60,36 C64,40 66,46 64,52" stroke="#d5dae2" stroke-width="1.2" fill="none"/>
-  <circle cx="49.5" cy="42.5" r="3.4" fill="#f1e6dc" stroke="#cdbcab" stroke-width=".8"/>
-  <circle cx="49.2" cy="42.5" r="2" fill="#24170f"/>
-  <circle cx="48.5" cy="41.8" r=".65" fill="#ffffff"/>
-  <path d="M44.5,43.5 C42.5,42.6 41.2,43.6 41.4,45.4 C42.6,45.2 43.8,44.8 44.5,43.5 Z" fill="#fbfbfb" stroke="#dfe2e7" stroke-width=".6"/>
-  <path d="M42,45.2 L32.5,48.2 L41.8,49.6 C43,48.6 43.2,46.4 42,45.2 Z" fill="#c8a294"/>
-  <path d="M35,47.6 L32.5,48.2 L35,48.8 Z" fill="#6b5148"/>
-  <path d="M100,95 L102,106 M110,95 L106,106" stroke="#d27377" stroke-width="3.2" stroke-linecap="round" fill="none"/>
-  <path d="M102,106 l-6,3 M102,106 l-1,5 M102,106 l4,4 M106,106 l6,2 M106,106 l1,5" stroke="#c9666b" stroke-width="2" stroke-linecap="round" fill="none"/>
-  <g class="pg-wing near">
-    <path d="M94,60 C104,34 128,14 152,8 C164,5 176,5 186,8 C178,13 172,17 168,22 C178,22 186,25 190,30 C178,34 166,38 154,42 C164,44 172,48 174,53 C152,61 126,71 104,75 Z" fill="url(#pgWing)" stroke="#bcc3ce" stroke-width="1.2"/>
-    <path d="M140,28 C156,20 170,13 186,8 M138,36 C154,31 172,27 190,30 M132,45 C148,44 162,47 174,53 M146,24 C160,17 172,12 184,9" stroke="#c6ccd6" stroke-width="1.1" fill="none" stroke-linecap="round"/>
-    <path d="M104,62 q5,-6 11,-1 q5,-6 11,-1 q5,-6 11,-1 M100,69 q5,-6 11,-1 q5,-6 11,-1 q5,-6 11,-1 q5,-6 11,-1" stroke="#d3d8e0" stroke-width="1" fill="none"/>
-  </g>
-</svg>
-<svg class="tether" viewBox="0 0 20 90">${twineSVG(3.5)}</svg>`;
+// A white dove (Jatin's watercolour, assets/dove.webp, 595 × 609, facing left) carries the rolled scroll
+// in its feet. The feet's midpoint is at x 49%, y 77.6% of the picture's width.
+const PIGEON = `<img class="pg" src="assets/dove.webp" width="595" height="609" alt="" decoding="async">`;
+const FOOT = { x: 0.492, y: 0.776 };
 
 // ---------------------------------------------------------------- open a city
 export async function openCity(id, my, from = null) {
@@ -228,22 +192,17 @@ async function deliver(my) {
     view.classList.add('show-title');
     return;
   }
-  // The pigeon's feet sit straight above the knot, with the tether between them. While it flies, the scroll is
-  // small (tied to a pigeon's leg); it hovers, lets go, and the scroll drops and grows to full size.
+  // The dove holds the rolled scroll in its feet. While it flies, the scroll is small (about half the dove's
+  // width); it hovers, lets go, and the scroll drops and grows to full size.
   const r = sc.getBoundingClientRect();
   const R = $('.roll-top').offsetHeight;
   const knot = { x: r.left + r.width / 2, y: r.top + R };
-  const pw = Math.min(210, innerWidth * 0.36), tether = Math.min(70, innerHeight * 0.08);
-  const small = clamp(64 / r.width, 0.12, 0.4);        // the tied scroll is about 64 px across
-  const hover = Math.min(150, innerHeight * 0.18);     // how high the pigeon lets go
-  sc.style.transformOrigin = `50% ${R}px`;             // scale around the knot, so it stays under the feet
+  const pw = Math.min(230, innerWidth * 0.42);
+  const small = clamp((pw * 0.45) / r.width, 0.1, 0.4);
+  const hover = Math.min(150, innerHeight * 0.18);     // how high the dove lets go
+  sc.style.transformOrigin = `50% ${R}px`;             // scale around the roll, so it stays in the feet
   pg.style.width = pw + 'px';
-  pg.style.setProperty('--tether', tether + 'px');
-  const ts = $('.tether', pg);
-  ts.setAttribute('viewBox', `0 0 20 ${tether}`);
-  setTwine($('g.twine', ts), [[10, 0], [12, tether * 0.45], [10, tether]], true);
-  const footX = pw * 0.52, footY = pw * 0.535; // the feet, in the drawing's 200 × 130 box
-  const px = knot.x - footX, py = knot.y - tether - footY;
+  const px = knot.x - pw * FOOT.x, py = knot.y - R * small * 0.55 - pw * FOOT.y;
   // The path: in from the top right, a dip, and a hover above the spot where the scroll will land.
   const path = [
     [innerWidth - r.left + 60, -innerHeight * 0.45, -8],
@@ -263,7 +222,7 @@ async function deliver(my) {
   view.classList.remove('arriving'); // the scroll is off-screen with the pigeon now, so it can be shown
   await Promise.all([settle(flyPg), settle(flySc)]);
   check();
-  // let go: the tether slips off the leg, the scroll drops and grows, lands with a bump, and the pigeon leaves
+  // let go: the feet open, the scroll drops and grows, lands with a bump, and the pigeon leaves
   pg.classList.add('released');
   const drop = speedUp(sc.animate([
     { transform: `translate(0px, ${-hover}px) scale(${small})` },
@@ -421,7 +380,6 @@ function renderLetter(c) {
   const { state, esc, firstName } = ctx;
   const name = state.user ? firstName(state.user.name) : 'Explorer';
   const lang = LANG[c.id] || '';
-  const sections = c.sections.filter((s) => s.items.length);
   $('#letter').dataset.city = c.id;
   $('#letter').innerHTML = `
     <div class="letter-stamp">${stampHTML(c, `${esc(c.name)} stamp`)}</div>
@@ -430,27 +388,28 @@ function renderLetter(c) {
     <p class="greet">${esc(c.greeting.replace(/!$/, ''))}, ${esc(name)}! <span>(${esc(c.greetingNote)})</span></p>
     <div class="letter-body">${c.letter.map((p) => `<p>${esc(p)}</p>`).join('')}</div>
     ${c.photos?.length ? `<div class="letter-photos">${c.photos.map((ph, k) => photoFigure(ph, `postcard p${k}`)).join('')}</div>` : ''}
-    <div class="facts">${c.quickFacts.map(([k, v]) => `<div class="fact"><span>${esc(k)}</span><strong>${esc(v)}</strong></div>`).join('')}</div>
-    ${c.sources?.length ? `<p class="letter-src">Sources for this letter: ${c.sources.map(([t, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)}</a>`).join(' · ')}</p>` : ''}
-    <section class="inside" aria-labelledby="insideTitle">
-      <div class="inside-h"><h3 id="insideTitle">Inside this letter</h3><small>${sections.length ? `${sections.reduce((n, s) => n + s.items.length, 0)} cards` : ''}</small></div>
-      ${sections.length ? sections.map((s) => `
-        <div class="sec" data-sec="${esc(s.id)}">
-          <p class="sec-label">${SECTION_ICONS[s.id] || ''}${esc(s.label)}<span class="done">Read ✓</span></p>
-          <div class="cards">${s.items.map((f) => `
-            <article class="card${f.image ? ' has-photo' : ''}">${f.image ? photoFigure(f.image, 'card-photo') : ''}
-              <h4>${esc(f.title)}${f.draft ? '<span class="draft">draft</span>' : ''}</h4><p>${esc(f.text)}</p>
-              ${f.src ? `<a href="${esc(f.src)}" target="_blank" rel="noopener">Source</a>` : ''}</article>`).join('')}</div>
-        </div>`).join('')
-        : `<p class="inside-empty">Our team is checking the fact cards for ${esc(c.name)} against their sources. Each one appears here once a second teammate has verified it.</p>`}
-    </section>
-    ${c.quiz.length ? '<section class="sealq" id="sealq" aria-live="polite"></section>' : ''}
-    <div class="kit-call"><div><b>Making a school project?</b><span>One page about ${esc(c.name)}: key facts, landmarks, photos, the timeline and every source, ready to print.</span></div>
-      <button class="btn primary" id="kitBtn">Make my Project Kit</button></div>
-    <p class="signoff">With love, Gaju <img src="assets/gaju.svg" alt=""></p>`;
-  if (c.quiz.length) startQuiz(c);
+    <div class="facts" role="list">${c.quickFacts.map(([k, v], i) => `
+      <div class="fact" role="listitem" style="--i:${i}">
+        <span class="fact-mark" aria-hidden="true">${factIcon(k)}</span>
+        <span class="fact-k">${esc(k)}</span>
+        <strong class="fact-v">${esc(v)}</strong>
+      </div>`).join('')}</div>`;
   $$('#letter img').forEach((im) => im.addEventListener('load', () => { if (cur?.opened) layoutAfterOpen(); }, { once: true }));
-  $('#kitBtn').addEventListener('click', () => openKit(c, { esc, user: state.user }));
+}
+
+// A small drawn mark for each quick fact, inside a postmark ring: an hourglass for when, a crown for who,
+// a fort for the kingdom, a quill for the language.
+function factIcon(label) {
+  const k = String(label).toLowerCase();
+  const d = /found(ed)?$|year|built|since|date/.test(k) && !/founder/.test(k) ? '<path d="M10 7h12M10 25h12M11 7c0 6 10 7 10 9s-10 3-10 9M21 7c0 6-10 7-10 9s10 3 10 9"/>'
+    : /founder|ruler|^king$|built by|by$/.test(k) ? '<path d="M7 22l-1-11 6 5 4-8 4 8 6-5-1 11zM8 25h16"/>'
+    : /kingdom|empire|state|dynasty|province|region/.test(k) ? '<path d="M6 25V13l3 2V11l3 2V9h8v4l3-2v4l3-2v12zM14 25v-5h4v5"/>'
+    : /capital|seat|court/.test(k) ? '<path d="M5 12l11-6 11 6zM7 12v11M12 12v11M20 12v11M25 12v11M5 25h22"/>'
+    : /trad|port|post|harbour|river/.test(k) ? '<path d="M5 20h22l-3 5H8zM16 6v14M16 7l8 10h-8M16 9l-6 8h6"/>'
+    : /renamed|name|called/.test(k) ? '<path d="M6 16l9-9h9v9l-9 9zM20 12h.01"/>'
+    : /language|tongue|script|speak/.test(k) ? '<path d="M24 6c-8 2-13 8-15 18M24 6c0 7-5 12-12 13M9 24l-2 2"/>'
+    : '<path d="M16 7l2.6 6 6.4.6-4.8 4.3 1.4 6.4L16 21l-5.6 3.3 1.4-6.4L7 13.6l6.4-.6z"/>';
+  return `<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
 }
 
 // A real photograph with its caption and credit. Every photo is freely licensed (Wikimedia Commons) and

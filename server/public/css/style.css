@@ -373,10 +373,33 @@ a { color: inherit; }
 .greet span { font-size: .6em; color: #6b5034; }
 .letter-body p { font-family: var(--read); font-size: clamp(18px, 2.1vw, 21px); line-height: 1.6; margin: 0 0 14px; max-width: 64ch; }
 .letter-body p:first-child::first-letter { float: left; font-family: var(--display); font-size: 3.1em; line-height: .9; padding: 4px 8px 0 0; color: var(--accent); }
-.facts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 22px 0 24px; }
-.fact { border: 1.5px dashed #6b503499; border-radius: 10px; padding: 8px 12px; background: #fff8e526; }
-.fact span { display: block; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #7a5c3c; }
-.fact strong { font-size: 18px; line-height: 1.2; display: block; }
+/* Four quick facts, set like postal labels on the letter: a postmark ring with a drawn mark, a small-caps
+   label in the city's colour, the value in the display face, a double rule and a faint tilt. */
+.facts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px clamp(10px, 1.6vw, 18px); margin: 26px 0 8px; }
+.fact {
+  position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px;
+  padding: 18px 12px 16px; border-radius: 4px;
+  background: linear-gradient(180deg, #fffaf0cc, #f6e8c9cc), radial-gradient(circle at 30% 20%, #fff6, transparent 60%);
+  border: 1.5px solid color-mix(in srgb, var(--accent) 55%, #6b5034);
+  box-shadow: inset 0 0 0 4px #fdf6e6, inset 0 0 0 5px color-mix(in srgb, var(--accent) 35%, transparent), 0 6px 14px -8px #3a281666, 0 1px 0 #fff8 inset;
+  transform: rotate(calc((var(--i) - 1.5) * .6deg));
+  animation: factIn .6s cubic-bezier(.2,.9,.3,1.2) both; animation-delay: calc(var(--i) * 90ms);
+}
+.fact::before, .fact::after { content: ''; position: absolute; width: 9px; height: 9px; border: 1.5px solid color-mix(in srgb, var(--accent) 55%, transparent); transform: rotate(45deg); background: #fdf6e6; top: -6px; }
+.fact::before { left: calc(50% - 5px); }
+.fact::after { top: auto; bottom: -6px; left: calc(50% - 5px); }
+.fact-mark {
+  width: 46px; height: 46px; display: grid; place-items: center; border-radius: 50%; color: var(--accent);
+  border: 1.5px dashed color-mix(in srgb, var(--accent) 70%, transparent); box-shadow: 0 0 0 4px #fdf6e6, 0 0 0 5.5px color-mix(in srgb, var(--accent) 40%, transparent);
+  margin-bottom: 4px;
+}
+.fact-mark svg { width: 26px; height: 26px; }
+.fact-k { font-size: 11.5px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; color: var(--accent); }
+.fact-k { text-wrap: balance; line-height: 1.35; }
+.fact-k::after { content: ''; display: block; width: 28px; height: 1.5px; margin: 7px auto 2px; background: currentColor; opacity: .45; }
+.fact-v { font-family: var(--display); font-weight: 400; font-size: clamp(18px, 2vw, 23px); line-height: 1.15; color: #2c1e10; text-wrap: balance; }
+@keyframes factIn { from { opacity: 0; transform: translateY(10px) rotate(0deg) scale(.96); } }
+@media (max-width: 720px) { .facts { grid-template-columns: repeat(2, 1fr); } }
 .letter-src { margin: 14px 0 0; font-size: 13px; color: #6b5034; }
 .letter-src a { color: #5a3a1a; }
 .signoff { font-family: var(--hand); font-size: 30px; margin: 26px 0 0; text-align: right; color: #2c1e10; display: flex; justify-content: flex-end; align-items: center; gap: 14px; }
@@ -390,14 +413,11 @@ a { color: inherit; }
 
 /* ----- the pigeon ----- */
 .pigeon { position: fixed; left: 0; top: 0; z-index: 8; pointer-events: none; will-change: transform; }
-.pigeon .pg { display: block; width: 100%; overflow: visible; filter: drop-shadow(0 10px 10px #0003); }
-.pigeon .tether { position: absolute; left: 52%; top: 82%; width: 20px; height: var(--tether); margin-left: -10px; overflow: visible; transform-origin: top; transition: transform .35s ease-in, opacity .35s; }
-.pigeon.released .tether { transform: scaleY(.15) rotate(30deg); opacity: 0; }
-.pg-wing { transform-box: view-box; transform-origin: 100px 68px; }
-.pigeon.flying .pg-wing.near { animation: flapNear .26s ease-in-out infinite alternate; }
-.pigeon.flying .pg-wing.far { animation: flapFar .26s ease-in-out infinite alternate; }
-@keyframes flapNear { from { transform: rotate(-8deg) scaleY(1); } to { transform: rotate(10deg) scaleY(-.75); } }
-@keyframes flapFar { from { transform: rotate(-4deg) scaleY(.9); } to { transform: rotate(8deg) scaleY(-.5); } }
+.pigeon .pg { display: block; width: 100%; height: auto; filter: drop-shadow(0 12px 12px #0003); transform-origin: 50% 40%; }
+/* a photo-like dove can't flap, so it glides: a slow rise and fall with a little tilt */
+.pigeon.flying .pg { animation: glide .9s ease-in-out infinite alternate; }
+.pigeon.released .pg { animation-duration: .5s; }
+@keyframes glide { from { transform: translateY(-3px) rotate(-1.5deg) scaleY(1); } to { transform: translateY(4px) rotate(1.5deg) scaleY(.96); } }
 
 .checkpoint {
   position: fixed; left: 50%; bottom: max(20px, 5vh); z-index: 9; width: min(460px, calc(100vw - 32px)); transform: translateX(-50%);
