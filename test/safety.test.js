@@ -53,6 +53,16 @@ test('uptime checks get an answer without waking the database, and public data m
   assert.equal(me.headers.get('cache-control'), 'no-store');
 });
 
+test('an empty greetings list is never cached, so the bar shows greetings as soon as one is verified', async () => {
+  const empty = await fetch(t.base + '/api/greetings');
+  assert.deepEqual((await empty.json()).greetings, []);
+  assert.equal(empty.headers.get('cache-control'), 'no-store');
+  await t.db.query("UPDATE greetings SET status = 'verified' WHERE id = (SELECT min(id) FROM greetings)");
+  const full = await fetch(t.base + '/api/greetings');
+  assert.equal((await full.json()).greetings.length, 1);
+  assert.match(full.headers.get('cache-control'), /s-maxage=60/);
+});
+
 test('a city has its own address, and an unknown one gets the 404 page', async () => {
   const city = await fetch(t.base + '/udaipur');
   assert.equal(city.status, 200);

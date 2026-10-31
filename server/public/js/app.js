@@ -51,7 +51,7 @@ async function setupTicker() {
   const greetings = [...(r.ok ? r.data.greetings : []), ...(state.demo?.greetings || [])];
   const items = greetings.length
     ? greetings.map((g) => `${g.native ? `<b class="native">${esc(g.native)}</b>` : ''}<b>${esc(g.word)}</b><em>${esc(g.language)}</em>`)
-    : ['Walk into two cities with Gaju the elephant', 'Udaipur · City of Lakes', 'Kolkata · City of Joy', 'Collect stamps in your Virasat passport', 'Learn · Play · Explore'].map(esc);
+    : ['Walk into two cities with Gaju the elephant', 'Udaipur · City of Lakes', 'Kolkata · On the Hooghly', 'Collect stamps in your Virasat passport', 'Learn · Play · Explore'].map(esc);
   const run = items.map((t) => `<span>${t} ${star}</span>`).join('');
   const track = $('#ticker');
   track.classList.toggle('greetings', greetings.length > 0);

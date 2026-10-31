@@ -321,7 +321,7 @@ function kolkataGate() {
   g += `<g class="gate-sign">${r(x + 28, top + 170, w - 56, 44, '#fff7df', `stroke="${INK}" stroke-width="2.5" rx="3"`)}
     ${r(x + 33, top + 175, w - 66, 34, 'none', `stroke="#c0392b" stroke-width="1" stroke-dasharray="3 3"`)}
     <text x="${cx}" y="${top + 199}" text-anchor="middle" font-family="Bowlby One, sans-serif" font-size="19" fill="#b9503a" letter-spacing="1">KOLKATA</text>
-    <text x="${cx}" y="${top + 212}" text-anchor="middle" font-family="Anek Bangla, sans-serif" font-weight="700" font-size="11" fill="#b9503a">কলকাতা · City of Joy</text></g>`;
+    <text x="${cx}" y="${top + 212}" text-anchor="middle" font-family="Anek Bangla, sans-serif" font-weight="700" font-size="11" fill="#b9503a">কলকাতা · On the Hooghly</text></g>`;
   // portal: Howrah Bridge over the Hooghly, a yellow taxi crossing
   const ax = cx - 64, ay = top + 232, aw = 128, ah = GROUND - ay;
   let truss = '';
