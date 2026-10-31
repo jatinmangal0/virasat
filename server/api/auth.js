@@ -11,7 +11,7 @@ const OTP_MAX_ATTEMPTS = 5;
 
 export const cleanName = (n) => (typeof n === 'string' ? n.trim().replace(/\s+/g, ' ').slice(0, 60) : '');
 
-export default function auth(r, { db, sms, verifyGoogle, googleClientId, secureCookies, allowDemoSms = true }) {
+export default function auth(r, { db, sms, verifyGoogle, googleClientId, secureCookies, allowDemoSms = true, applyAdminList = async (u) => u }) {
   // Demo SMS hands the code back to whoever asked for it, so anyone could log in as any number.
   // That is fine on your own computer and in tests, never on the live site: there, phone login
   // stays switched off until real SMS (Twilio) is set up.
@@ -125,8 +125,10 @@ export default function auth(r, { db, sms, verifyGoogle, googleClientId, secureC
         user = byEmail;
       }
     }
-    if (user) return signedIn(200, user.id);
-    return signedIn(201, await insertUser({ name: cleanName(g.name) || 'Explorer', email: g.email, google_sub: g.sub, avatar: g.picture }));
+    const isNew = !user;
+    const id = user ? user.id : await insertUser({ name: cleanName(g.name) || 'Explorer', email: g.email, google_sub: g.sub, avatar: g.picture });
+    await applyAdminList(await userById(id)); // listed admin emails get the admin view from their first sign-in
+    return signedIn(isNew ? 201 : 200, id);
   });
 
   // ---- session ----

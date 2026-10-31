@@ -1,7 +1,7 @@
 // A city, from delivery to map:
 //   0. the camera flies through the gate's arch: the city view opens inside the arch, which grows past the screen
 //   1. a white dove flies in over the city with the sealed scroll in its feet, drops it and flies off
-//   2. the seal stays shut until the visitor logs in with their phone; then it breaks and the twine falls,
+//   2. the seal stays shut until the visitor signs in (Google, or email); then it breaks and the twine falls,
 //      still tied to the scroll
 //   3. the scroll unrolls under the city's picture, which fills the top half of the screen. Inside: the letter
 //      and four quick facts
@@ -146,10 +146,10 @@ export async function openCity(id, my, from = null) {
   if (my !== state.seq) return;
   await wait(1000);
   if (my !== state.seq) return;
-  // The scroll is addressed to someone: it opens once the visitor has logged in with their phone number.
+  // The scroll is addressed to someone: it opens once the visitor has signed in (Google, or email).
   if (state.user) return breakSeal(my);
   view.classList.add('locked');
-  $('#openHint').textContent = 'Log in with your phone number to open your scroll';
+  $('#openHint').textContent = 'Sign in to open your scroll';
   $('#openHint').hidden = false;
   askToOpen();
 }
@@ -158,7 +158,7 @@ function askToOpen() {
   if (!cur) return;
   const my = cur.my;
   ctx.state.afterAuth = () => { if (cur && my === ctx.state.seq) breakSeal(my); };
-  ctx.openAuth('phone', `Gaju has a scroll for you from ${cur.c.name}. Log in with your phone number to break the seal.`);
+  ctx.openAuth(undefined, `Gaju has a scroll for you from ${cur.c.name}. Sign in to break the seal.`);
 }
 
 // The twine wrapped round the closed scroll: crossing strands, a knot, two loose ends.

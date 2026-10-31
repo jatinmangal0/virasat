@@ -50,7 +50,8 @@ r.get('/api/badges', { role: 'learner' }, async ({ user }) => json(200, { badges
 |---|---|
 | `DATABASE_URL` | the Neon connection string (required) |
 | `ADMIN_SETUP_CODE` | code for claiming the first admin account |
-| `GOOGLE_CLIENT_ID` | Google sign-in (optional) |
+| `GOOGLE_CLIENT_ID` | Google sign-in and One Tap. Once set, demo phone login switches off (`DEMO_PHONE_LOGIN=on` keeps it) |
+| `ADMIN_EMAILS` | comma-separated emails that are always admins when they sign in with Google (the `admin_emails` table works the same way and needs no redeploy) |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM` | real SMS login codes (optional). Without them, phone login is switched off on the live site and runs in demo mode (code shown on screen) on preview links and your own computer |
 
 Changes to these only take effect after the next publish.

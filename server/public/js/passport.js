@@ -13,7 +13,7 @@ export function initPassport(shared) {
 export async function openJourney() {
   if (!state.user) {
     state.afterAuth = () => openJourney();
-    return openAuth('phone', 'Log in to see your Virasat passport.');
+    return openAuth(undefined, 'Log in to see your Virasat passport.');
   }
   const body = $('#journeyBody');
   body.innerHTML = '<p>Loading your passport…</p>';
