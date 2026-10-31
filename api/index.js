@@ -15,8 +15,10 @@ const handle = createApi({
   verifyGoogle: makeGoogleVerifier(googleClientId),
   secureCookies: true,
   adminSetupCode: env('ADMIN_SETUP_CODE'),
-  // demo SMS shows the login code on screen; allow it on preview links, never on the live site
-  allowDemoSms: env('VERCEL_ENV') !== 'production',
+  // Until Twilio is set up, phone login runs as a demo everywhere: the code is shown on screen, so anyone
+  // could log in as any number. Jatin chose this on 31 Oct 2026 so the scroll can ask for a phone login.
+  // Set DEMO_PHONE_LOGIN=off on Vercel to switch phone login off again.
+  allowDemoSms: env('DEMO_PHONE_LOGIN') !== 'off',
 });
 
 const web = toWebHandler(handle, {

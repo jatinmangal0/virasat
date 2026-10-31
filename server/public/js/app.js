@@ -1,7 +1,6 @@
 import { buildScene, grain, VB, GATES } from './scene.js';
 import { initCity, openCity } from './city.js';
 import { stampHTML } from './stamps.js';
-import { gajuSVG } from './gaju.js';
 import { initClasses, openJoin } from './classes.js';
 import { $, $$, sleep, clamp, esc, reduced, api } from './lib.js';
 import { makeSound } from './sound.js';
@@ -45,12 +44,16 @@ const sound = makeSound(() => state.sound);
 // ---------------- ticker, drawer, header ----------------
 // Greetings from across India scroll in the top bar. They come from the database (checked by the
 // team like facts); until some are verified, the bar shows the site's own lines instead.
+// so the browser picks the right shaping and font for each script
+const LANG_CODES = { hindi: 'hi', tamil: 'ta', bengali: 'bn', rajasthani: 'raj', kannada: 'kn', punjabi: 'pa', telugu: 'te', gujarati: 'gu', marathi: 'mr', malayalam: 'ml', urdu: 'ur', odia: 'or', assamese: 'as', ladakhi: 'lbj', bhutia: 'sip' };
+const langCode = (l = '') => LANG_CODES[l.toLowerCase().split(/[ (]/)[0]] || '';
+
 async function setupTicker() {
   const star = `<svg viewBox="0 0 32 32"><g fill="#8a4b1c">${Array.from({ length: 8 }, (_, i) => `<path transform="rotate(${i * 45} 16 16)" d="M16 16 L14 4 Q16 1 18 4 Z"/>`).join('')}<circle cx="16" cy="16" r="3.2" fill="#5a2e10"/></g></svg>`;
   const r = await api('/api/greetings');
   const greetings = [...(r.ok ? r.data.greetings : []), ...(state.demo?.greetings || [])];
   const items = greetings.length
-    ? greetings.map((g) => `${g.native ? `<b class="native">${esc(g.native)}</b>` : ''}<b>${esc(g.word)}</b><em>${esc(g.language)}</em>`)
+    ? greetings.map((g) => `${g.native ? `<b class="native" lang="${esc(langCode(g.language))}">${esc(g.native)}</b>` : ''}<b class="latin">${esc(g.word)}</b>`)
     : ['Walk into two cities with Gaju the elephant', 'Udaipur · City of Lakes', 'Kolkata · On the Hooghly', 'Collect stamps in your Virasat passport', 'Learn · Play · Explore'].map(esc);
   const run = items.map((t) => `<span>${t} ${star}</span>`).join('');
   const track = $('#ticker');
@@ -150,7 +153,7 @@ function setupStreet() {
     <div class="gaju" id="gaju" role="button" tabindex="0" aria-label="Gaju the elephant. Tap for a fact.">
       <div class="bubble" id="bubble">Namaste! I'm Gaju. Where shall we go?</div>
       <div class="gaju-shadow"></div>
-      <div class="gaju-body">${gajuSVG()}</div>
+      <div class="gaju-body"><span class="gaju-waddle"><img class="gaju-img" src="assets/gaju.webp" alt="" width="418" height="301"></span></div>
     </div>`);
   scene.layers = layers;
   $$('.gate', world).forEach((g) => g.addEventListener('click', () => goToCity(g.dataset.city)));

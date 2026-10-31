@@ -108,7 +108,7 @@ On every publish to the live site, Vercel runs `scripts/migrate.js`, which runs 
 
 | Folder / file | Part | What it is |
 |---|---|---|
-| `server/public/` | frontend | the website: `index.html`; `js/app.js` (start-up, the street, logging in), `js/scene.js` and `js/gaju.js` (the street and Gaju, drawn in code), `js/city.js` (the arrival through the arch, the scroll, the timeline), `js/quiz.js` (Seal the letter), `js/places.js` (the map's places), `js/passport.js` (passport and memory letters), `js/classes.js`, `js/kit.js` (Project Kit), `js/stamps.js` and `js/hero.js` (stamps and arrival scenes), `js/lib.js` (shared helpers), `css/`, `assets/` |
+| `server/public/` | frontend | the website: `index.html`; `js/app.js` (start-up, the street, logging in), `js/scene.js` (the street, drawn in code; Gaju is `assets/gaju.webp`), `js/city.js` (the arrival through the arch, the scroll, the timeline), `js/quiz.js` (Seal the letter), `js/places.js` (the map's places), `js/passport.js` (passport and memory letters), `js/classes.js`, `js/kit.js` (Project Kit), `js/stamps.js` and `js/hero.js` (stamps and arrival scenes), `js/lib.js` (shared helpers), `css/`, `assets/` |
 | `server/public/admin.html`, `js/admin.js` | frontend | the editor page |
 | `server/api/` | backend | the rules: `auth.js` (log in), `content.js` (what visitors see), `progress.js` (points), `admin.js` (editing) |
 | `api/index.js` | backend | connects Vercel to `server/api/` |

@@ -4,7 +4,7 @@ Each part of Virasat has one owner who can explain it end to end, change it with
 
 | Part | Files | Owner | What to be able to explain |
 |---|---|---|---|
-| The street and Gaju | `server/public/js/scene.js`, `gaju.js`, `night.js`, the street parts of `app.js`, `sound.js` | _name_ | Layers at different depths, the camera that follows Gaju, his walk (parts rotated by CSS), night mode's mask |
+| The street and Gaju | `server/public/js/scene.js`, `night.js`, the street parts of `app.js`, `sound.js` | _name_ | Layers at different depths, the camera that follows Gaju, his walk (the picture rocks from foot to foot in CSS), night mode's mask |
 | Arrival and the scroll | `server/public/js/hero.js`, `stamps.js`, the arrival and delivery parts of `city.js` | _name_ | The arch fly-through (a clip path grown frame by frame), the pigeon's flight, skip and the short repeat version |
 | The letter, cards and quiz | the letter parts of `city.js`, `quiz.js`, `kit.js`, `server/api/content.js`, `progress.js` | _name_ | Marking on the server, first tries, the points ledger and why it cannot pay twice, the Project Kit |
 | Timeline, map and places | the story parts of `city.js`, `places.js`, `twine.js`, `motifs.js`, `server/api/places.js` | _name_ (Aksh?) | The Verlet rope, the thread's shapes along the scroll, map projection, water from OpenStreetMap, clustering |

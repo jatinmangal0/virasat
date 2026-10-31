@@ -24,5 +24,5 @@ npm test
 
 ## Good to know
 
-- **Images:** the city stamps, the arrival scenes and Gaju are drawn in code (`server/public/js/stamps.js`, `hero.js`, `gaju.js`), so they carry no outside artwork. Every photograph is freely licensed from Wikimedia Commons and shows its author and licence. The old stamp, poster and elephant images, whose sources were unknown, are removed.
-- **Phone login** is switched off on the live site until Twilio keys are added on Vercel. On preview links and your own computer it runs in demo mode (the code is shown on screen).
+- **Images:** Gaju (`assets/gaju.webp`), the Kolkata stamp (`assets/stamp-kolkata.webp`) and the city posters above the letter (`assets/letter-*.webp`) are the team's artwork. The Udaipur stamp and the arrival scenes are drawn in code (`server/public/js/stamps.js`, `hero.js`). Photographs in the letter, timeline and map are freely licensed from Wikimedia Commons and show their author and licence.
+- **Phone login** runs as a demo until Twilio keys are added on Vercel: the code is shown on screen, so anyone could log in as any number. The scroll asks for a phone login before it opens. Set `DEMO_PHONE_LOGIN=off` on Vercel to switch phone login off.
