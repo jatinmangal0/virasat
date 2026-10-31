@@ -6,7 +6,7 @@ import { signParams, UPLOAD_FOLDER } from '../lib/cloudinary.js';
 
 export default function uploads(r, { cloudinary }) {
   r.post('/api/admin/uploads/sign', { role: 'editor' }, async () => {
-    if (!cloudinary) return err(503, 'Photo upload is not switched on yet: the site owner needs to add CLOUDINARY_URL on Vercel.');
+    if (!cloudinary) return err(503, 'Photo upload is not switched on yet: the site owner needs to add CLOUDINARY_URL (or CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET) on Vercel.');
     const timestamp = Math.floor(Date.now() / 1000);
     const params = { folder: UPLOAD_FOLDER, timestamp };
     return json(200, { cloudName: cloudinary.cloudName, apiKey: cloudinary.apiKey, ...params,

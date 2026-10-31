@@ -1,5 +1,6 @@
 // Cloudinary keeps Virasat's image files; the database keeps only their links (and each photo's credit).
 //   CLOUDINARY_URL=cloudinary://<api key>:<api secret>@<cloud name>   (set on Vercel, never in git)
+//   or the three parts separately: CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
 // Editors upload straight from the browser to Cloudinary with a short-lived signature from our server,
 // so the secret never leaves the server and big files never pass through a Vercel function.
 import { createHash } from 'node:crypto';
@@ -7,6 +8,15 @@ import { createHash } from 'node:crypto';
 export function parseCloudinaryUrl(url = '') {
   const m = /^cloudinary:\/\/([^:]+):([^@]+)@([\w-]+)$/.exec(String(url).trim());
   return m ? { apiKey: m[1], apiSecret: m[2], cloudName: m[3] } : null;
+}
+
+// Reads either form from the environment; CLOUDINARY_URL wins when both are set.
+export function cloudinaryFromEnv(get = (k) => process.env[k]) {
+  const fromUrl = parseCloudinaryUrl(get('CLOUDINARY_URL') || '');
+  if (fromUrl) return fromUrl;
+  const [cloudName, apiKey, apiSecret] = ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET']
+    .map((k) => String(get(k) || '').trim());
+  return cloudName && apiKey && apiSecret && /^[\w-]+$/.test(cloudName) ? { apiKey, apiSecret, cloudName } : null;
 }
 
 // Cloudinary's signature: the parameters sorted by name as a=1&b=2, the secret appended, SHA-1 in hex.
