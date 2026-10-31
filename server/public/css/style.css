@@ -43,13 +43,14 @@ a { color: inherit; }
 .ticker-track { display: flex; gap: 48px; white-space: nowrap; animation: tick 40s linear infinite; padding-left: 24px; }
 .ticker-track span { font-weight: 700; font-size: 14px; letter-spacing: .06em; text-transform: uppercase; display: inline-flex; align-items: center; gap: 48px; }
 .ticker-track svg { width: 26px; height: 26px; flex: none; }
-.ticker-track.greetings span { text-transform: none; letter-spacing: .02em; font-size: 15px; gap: 0; }
-.ticker-track.greetings b { font-weight: 800; }
+.ticker-track.greetings span { text-transform: none; letter-spacing: .02em; font-size: 15px; gap: 0; align-items: center; }
+/* the two words sit on one centre line: a line drawn through the middle of one crosses the middle of the other */
+.ticker-track.greetings b { font-weight: 800; display: inline-flex; align-items: center; height: 24px; line-height: 1; }
+.ticker-track.greetings .latin { margin-right: 26px; }
 .ticker-track.greetings .native {
   font-family: 'Anek Devanagari', 'Anek Bangla', 'Anek Tamil', 'Anek Kannada', 'Anek Telugu', 'Anek Malayalam', 'Anek Gujarati', 'Anek Gurmukhi', 'Anek Odia', system-ui, sans-serif;
-  font-weight: 600; font-size: 17px; margin-right: 8px;
+  font-weight: 600; font-size: 17px; margin-right: 10px; position: relative; top: var(--native-shift, 0);
 }
-.ticker-track.greetings em { font-style: normal; font-weight: 600; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; opacity: .65; margin: 0 26px 0 8px; }
 @keyframes tick { to { transform: translateX(-50%); } }
 
 /* ---------- header ---------- */
@@ -111,7 +112,7 @@ a { color: inherit; }
   display: flex; flex-direction: column; align-items: center; gap: 2px; animation: bob 2.4s ease-in-out infinite;
 }
 .pin-face { width: clamp(40px, 3.8vw, 58px); aspect-ratio: 300 / 380; position: relative; transform: rotate(-4deg); filter: drop-shadow(0 6px 8px #0005); }
-.pin-face svg, .pin-face img { width: 100%; height: 100%; display: block; }
+.pin-face svg, .pin-face img { width: 100%; height: 100%; display: block; object-fit: contain; }
 .pin-face::after { content: ''; position: absolute; inset: -5px; border-radius: 6px; border: 3px solid currentColor; animation: ping 2s ease-out infinite; }
 .pin-label { font-weight: 800; font-size: clamp(11px, 1vw, 14px); color: #fff; padding: 1px 12px; border-radius: 99px; box-shadow: 0 4px 10px #0003; letter-spacing: .02em; }
 .pin.u { color: var(--u); } .pin.u .pin-label { background: var(--u); }
@@ -130,6 +131,12 @@ a { color: inherit; }
   pointer-events: auto; cursor: pointer; z-index: 2;
 }
 .gaju-body { transform-origin: 50% 100%; animation: idle 3s ease-in-out infinite; }
+/* Gaju is a picture now (assets/gaju.webp): he rocks from foot to foot when he walks, and lifts when he cheers */
+.gaju-waddle { display: block; transform-origin: 50% 100%; }
+.gaju.walking .gaju-waddle { animation: gj-waddle .42s ease-in-out infinite alternate; }
+.gaju.cheer .gaju-waddle { animation: gj-cheer .7s ease-in-out 2; }
+@keyframes gj-waddle { from { transform: rotate(-3deg) translateY(0); } to { transform: rotate(3deg) translateY(-4%); } }
+@keyframes gj-cheer { 50% { transform: rotate(-6deg) translateY(-8%); } }
 .gaju-body img, .gaju-body svg { width: 100%; height: auto; display: block; overflow: visible; filter: drop-shadow(0 6px 0 #00000022); transform: scaleX(var(--face, 1)); transition: transform .35s; }
 /* Gaju's parts move: legs in pairs when he walks, the ear flaps, the trunk sways, the eyes blink */
 .gaju-svg .gj-leg, .gaju-svg .gj-ear, .gaju-svg .gj-trunk, .gaju-svg .gj-eye, .gaju-svg .gj-tail, .gaju-svg .gj-bell { transform-box: view-box; }
@@ -218,7 +225,7 @@ a { color: inherit; }
   box-shadow: 0 3px 0 var(--ink);
 }
 .btn-stamp { width: 26px; flex: none; transform: rotate(-4deg); }
-.btn-stamp svg { width: 100%; height: auto; display: block; }
+.btn-stamp svg, .btn-stamp img { width: 100%; height: auto; display: block; }
 .city-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 0 var(--ink); }
 .city-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
 .city-btn.u { color: var(--u); } .city-btn.k { color: var(--k); }
@@ -242,7 +249,7 @@ a { color: inherit; }
 .mini-card { background: #fff; border-radius: var(--radius); padding: 22px; display: grid; grid-template-columns: 96px 1fr; gap: 4px 20px; align-items: start; box-shadow: var(--shadow); border-top: 6px solid; }
 .mini-card.u { border-color: var(--u); } .mini-card.k { border-color: var(--k); }
 .mini-card .card-stamp { grid-row: span 3; width: 96px; transform: rotate(-3deg); filter: drop-shadow(0 4px 6px #0003); }
-.card-stamp svg { width: 100%; height: auto; display: block; }
+.card-stamp svg, .card-stamp img { width: 100%; height: auto; display: block; }
 .mini-card h3 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 24px; }
 .mini-card p { margin: 0; font-size: 16px; }
 .link-btn { background: none; border: 0; padding: 0; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; justify-self: start; }
@@ -283,6 +290,10 @@ a { color: inherit; }
 /* the city's picture fills the top half of the screen */
 .city-hero { position: relative; z-index: 1; height: 50vh; height: 50svh; overflow: hidden; background: #f7a28a; opacity: 0; transition: opacity 1.1s ease .3s; }
 .city.opened .city-hero { opacity: 1; }
+/* the team's city poster (16:9, the city's name across the top): shown whole on narrow screens */
+.city-hero.photo { background: #221a16; height: min(56.25vw, 70vh); height: min(56.25vw, 70svh); }
+.city-hero .hero-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; display: block; }
+.city.opened .city-hero .hero-photo { animation: kenburns 18s ease-in-out 3s infinite alternate; transform-origin: 50% 0; }
 /* the scene in the top half keeps drifting, slowly, like a long camera take */
 .city.opened .city-hero .hero-svg { animation: kenburns 18s ease-in-out 3s infinite alternate; transform-origin: 60% 60%; }
 @keyframes kenburns { to { transform: scale(1.06); } }
@@ -380,7 +391,7 @@ a { color: inherit; }
 /* ----- the pigeon ----- */
 .pigeon { position: fixed; left: 0; top: 0; z-index: 8; pointer-events: none; will-change: transform; }
 .pigeon .pg { display: block; width: 100%; overflow: visible; filter: drop-shadow(0 10px 10px #0003); }
-.pigeon .tether { position: absolute; left: 52%; top: 55%; width: 20px; height: var(--tether); margin-left: -10px; overflow: visible; transform-origin: top; transition: transform .35s ease-in, opacity .35s; }
+.pigeon .tether { position: absolute; left: 52%; top: 82%; width: 20px; height: var(--tether); margin-left: -10px; overflow: visible; transform-origin: top; transition: transform .35s ease-in, opacity .35s; }
 .pigeon.released .tether { transform: scaleY(.15) rotate(30deg); opacity: 0; }
 .pg-wing { transform-box: view-box; transform-origin: 100px 68px; }
 .pigeon.flying .pg-wing.near { animation: flapNear .26s ease-in-out infinite alternate; }
@@ -679,7 +690,7 @@ a { color: inherit; }
   position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); bottom: max(16px, env(safe-area-inset-bottom, 0px)); z-index: 70;
   border: 2px solid var(--ink); background: #fff; color: var(--ink); border-radius: 99px; padding: 8px 18px; font-weight: 800; box-shadow: 0 3px 0 var(--ink);
 }
-.snap.stamp svg { width: 100%; height: auto; display: block; }
+.snap.stamp svg, .snap.stamp img { width: 100%; height: auto; display: block; }
 
 /* the arrival scenes move a little: boats drift, the taxi and bus cross the bridge */
 .hero-boat { animation: boat 9s ease-in-out infinite alternate; }

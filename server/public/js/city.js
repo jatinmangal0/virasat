@@ -1,7 +1,8 @@
 // A city, from delivery to map:
 //   0. the camera flies through the gate's arch: the city view opens inside the arch, which grows past the screen
 //   1. a pigeon flies in over the city with a sealed scroll tied to its leg, drops it and flies off
-//   2. the seal breaks (no login needed) and the twine falls, still tied to the scroll
+//   2. the seal stays shut until the visitor logs in with their phone; then it breaks and the twine falls,
+//      still tied to the scroll
 //   3. the scroll unrolls under the city's picture, which fills the top half of the screen. Inside: the letter,
 //      fact cards by section, and "Seal the letter", a short quiz that presses the city's seal into the wax
 //   4. scrolling down follows the twine: it becomes a wave of events, moves to the left as a
@@ -33,6 +34,7 @@ const speedUp = (anim) => { anim.playbackRate = 1 / pace(); return anim; };
 // The seal on each city's scroll carries Virasat's initial in the city's own script.
 const SEAL_MARK = { udaipur: 'वि', kolkata: 'বি' };
 const LANG = { udaipur: 'hi', kolkata: 'bn' };
+const LETTER_PHOTO = { udaipur: 'assets/letter-udaipur.webp', kolkata: 'assets/letter-kolkata.webp' };
 
 let ctx;      // what app.js shares: state, CITIES, api, sound, esc, firstName, openAuth, showEarned, goToCity, resetStreet
 let cur = null; // the open city: { id, c, my, rope, story, ... }
@@ -48,7 +50,7 @@ export function initCity(shared) {
   $('#cityNight').onclick = () => document.getElementById('nightBtn')?.click();
   $('#seal').addEventListener('click', () => {
     if (!cur) return;
-    if ($('#city').classList.contains('locked')) ctx.openAuth('phone');
+    if ($('#city').classList.contains('locked')) askToOpen();
     else breakSeal(cur.my);
   });
   $('#city').addEventListener('scroll', () => cur?.story && requestStoryFrame());
@@ -101,27 +103,42 @@ function archTo(id, from, to, ms) {
 }
 
 // ---------------------------------------------------------------- the pigeon
-// Drawn facing left. Its wings flap with CSS; its tether hangs from its feet.
+// A white homing pigeon, drawn facing left: soft shading on the body, a fanned tail, layered flight feathers,
+// a dark eye with a pale ring, a white cere over the beak and pink feet. Its wings flap with CSS; the
+// tether hangs from its feet (x 104, y 107 in the 200 × 130 drawing).
 const PIGEON = `
 <svg class="pg" viewBox="0 0 200 130">
   <defs>
-    <linearGradient id="pgNeck" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5d8f7a"/><stop offset=".5" stop-color="#7a5f9a"/><stop offset="1" stop-color="#8d95a6"/></linearGradient>
-    <linearGradient id="pgBody" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a7aebd"/><stop offset="1" stop-color="#868ea0"/></linearGradient>
+    <radialGradient id="pgBody" cx=".42" cy=".32" r=".75"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#f1f2f5"/><stop offset="1" stop-color="#c7ccd6"/></radialGradient>
+    <radialGradient id="pgHead" cx=".38" cy=".3" r=".8"><stop offset="0" stop-color="#ffffff"/><stop offset=".7" stop-color="#eef0f3"/><stop offset="1" stop-color="#cdd2db"/></radialGradient>
+    <linearGradient id="pgWing" x1="0" y1="1" x2=".6" y2="0"><stop offset="0" stop-color="#e9ecf1"/><stop offset=".5" stop-color="#ffffff"/><stop offset="1" stop-color="#f4f5f8"/></linearGradient>
+    <linearGradient id="pgFar" x1="0" y1="1" x2=".6" y2="0"><stop offset="0" stop-color="#c4cad4"/><stop offset="1" stop-color="#dfe3ea"/></linearGradient>
+    <linearGradient id="pgTail" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#e8ebf0"/><stop offset="1" stop-color="#ffffff"/></linearGradient>
   </defs>
-  <g class="pg-wing far"><path d="M100,64 C114,26 146,8 172,12 C158,24 152,34 148,42 C160,44 168,48 170,54 C148,60 126,68 104,72 Z" fill="#7b8397"/></g>
-  <path d="M138,68 L192,56 L196,70 L190,86 L138,82 Z" fill="#6f7789"/>
-  <path d="M176,58 L192,56 L196,70 L190,86 L178,84 Z" fill="#3f4555"/>
-  <ellipse cx="104" cy="72" rx="46" ry="25" fill="url(#pgBody)"/>
-  <path d="M70,80 Q100,104 140,84 Q110,92 70,80 Z" fill="#c3c8d3"/>
-  <path d="M60,58 Q68,38 88,50 Q92,72 74,82 Q62,74 60,58 Z" fill="url(#pgNeck)"/>
-  <circle cx="57" cy="47" r="15" fill="#8e96a8"/>
-  <circle cx="51" cy="44" r="3.4" fill="#f0a030"/><circle cx="50.6" cy="44" r="1.7" fill="#141414"/>
-  <ellipse cx="44" cy="47.5" rx="3.2" ry="2.2" fill="#ece8df"/>
-  <path d="M42,48 L30,51.5 L42,54 Z" fill="#3b3b3b"/>
-  <path d="M98,94 l-3,13 M110,94 l3,13 M95,107 l-6,3 M95,107 l1,5 M113,107 l6,3 M113,107 l-1,5" stroke="#d0605a" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <g class="pg-wing far">
+    <path d="M100,62 C112,36 134,18 160,12 C168,10 176,10 182,12 C174,17 168,21 164,26 C172,27 178,30 181,34 C168,38 156,42 146,46 C154,48 160,51 162,55 C142,62 122,68 104,72 Z" fill="url(#pgFar)"/>
+    <path d="M142,30 C156,23 168,17 182,12 M140,38 C154,33 166,31 181,34 M134,47 C146,46 154,49 162,55" stroke="#aab1bd" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+  </g>
+  <path d="M138,70 C152,64 172,60 188,60 C194,64 197,72 196,80 C190,86 176,88 160,86 C150,84 142,80 138,76 Z" fill="url(#pgTail)" stroke="#c3c9d3" stroke-width="1"/>
+  <path d="M150,68 L190,64 M152,74 L195,73 M150,80 L192,83" stroke="#cfd4dc" stroke-width="1" fill="none"/>
+  <path d="M186,61 C192,64 196,72 196,80 C193,83 190,85 186,86 C189,78 189,69 186,61 Z" fill="#d9dde4"/>
+  <path d="M60,64 C66,50 88,46 110,51 C132,56 150,64 151,75 C152,88 130,98 106,98 C84,98 68,91 62,81 C59,75 58,69 60,64 Z" fill="url(#pgBody)"/>
+  <path d="M66,84 C80,96 106,100 128,93 C112,96 86,94 66,84 Z" fill="#c9ced8" opacity=".7"/>
+  <path d="M45,53 C48,63 56,72 68,80 C72,72 74,64 72,56 C66,50 60,44 56,38 Z" fill="url(#pgHead)"/>
+  <circle cx="53" cy="45" r="12.5" fill="url(#pgHead)"/>
+  <path d="M60,36 C64,40 66,46 64,52" stroke="#d5dae2" stroke-width="1.2" fill="none"/>
+  <circle cx="49.5" cy="42.5" r="3.4" fill="#f1e6dc" stroke="#cdbcab" stroke-width=".8"/>
+  <circle cx="49.2" cy="42.5" r="2" fill="#24170f"/>
+  <circle cx="48.5" cy="41.8" r=".65" fill="#ffffff"/>
+  <path d="M44.5,43.5 C42.5,42.6 41.2,43.6 41.4,45.4 C42.6,45.2 43.8,44.8 44.5,43.5 Z" fill="#fbfbfb" stroke="#dfe2e7" stroke-width=".6"/>
+  <path d="M42,45.2 L32.5,48.2 L41.8,49.6 C43,48.6 43.2,46.4 42,45.2 Z" fill="#c8a294"/>
+  <path d="M35,47.6 L32.5,48.2 L35,48.8 Z" fill="#6b5148"/>
+  <path d="M100,95 L102,106 M110,95 L106,106" stroke="#d27377" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+  <path d="M102,106 l-6,3 M102,106 l-1,5 M102,106 l4,4 M106,106 l6,2 M106,106 l1,5" stroke="#c9666b" stroke-width="2" stroke-linecap="round" fill="none"/>
   <g class="pg-wing near">
-    <path d="M96,62 C110,18 150,2 182,8 C164,20 154,30 150,40 C162,40 172,44 176,50 C152,60 126,72 104,76 Z" fill="#b8bfcc" stroke="#7b8397" stroke-width="1.5"/>
-    <path d="M120,48 C136,38 150,34 164,34 M114,58 C132,50 148,46 168,46" stroke="#3f4555" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+    <path d="M94,60 C104,34 128,14 152,8 C164,5 176,5 186,8 C178,13 172,17 168,22 C178,22 186,25 190,30 C178,34 166,38 154,42 C164,44 172,48 174,53 C152,61 126,71 104,75 Z" fill="url(#pgWing)" stroke="#bcc3ce" stroke-width="1.2"/>
+    <path d="M140,28 C156,20 170,13 186,8 M138,36 C154,31 172,27 190,30 M132,45 C148,44 162,47 174,53 M146,24 C160,17 172,12 184,9" stroke="#c6ccd6" stroke-width="1.1" fill="none" stroke-linecap="round"/>
+    <path d="M104,62 q5,-6 11,-1 q5,-6 11,-1 q5,-6 11,-1 M100,69 q5,-6 11,-1 q5,-6 11,-1 q5,-6 11,-1 q5,-6 11,-1" stroke="#d3d8e0" stroke-width="1" fill="none"/>
   </g>
 </svg>
 <svg class="tether" viewBox="0 0 20 90">${twineSVG(3.5)}</svg>`;
@@ -138,7 +155,11 @@ export async function openCity(id, my, from = null) {
   view.style.setProperty('--accent', c.accent);
   renderLetter(c);
   $('#citySky').innerHTML = heroSVG(id);
-  $('#cityHero').innerHTML = heroSVG(id);
+  // the picture above the letter: the team's poster for the city where there is one, else the drawn scene
+  $('#cityHero').innerHTML = LETTER_PHOTO[id]
+    ? `<img class="hero-photo" src="${LETTER_PHOTO[id]}" alt="${esc(c.name)}: scenes from the city" width="1600" height="900" decoding="async">`
+    : heroSVG(id);
+  $('#cityHero').classList.toggle('photo', !!LETTER_PHOTO[id]);
   $('#sealMark').textContent = SEAL_MARK[id] || 'V';
   $('#postTitle').innerHTML = `<small>Virasat Dak</small>A scroll from ${esc(c.name)}`;
   $('#checkpoint').hidden = true;
@@ -162,9 +183,21 @@ export async function openCity(id, my, from = null) {
     await deliver(my);
   } catch { return; }
   if (my !== state.seq) return;
-  // Reading is free: the seal breaks for everyone. An account only keeps your stamps and points.
   await wait(500);
-  breakSeal(my);
+  if (my !== state.seq) return;
+  // The scroll is addressed to someone: it opens once the visitor has logged in with their phone number.
+  if (state.user) return breakSeal(my);
+  view.classList.add('locked');
+  $('#openHint').textContent = 'Log in with your phone number to open your scroll';
+  $('#openHint').hidden = false;
+  askToOpen();
+}
+
+function askToOpen() {
+  if (!cur) return;
+  const my = cur.my;
+  ctx.state.afterAuth = () => { if (cur && my === ctx.state.seq) breakSeal(my); };
+  ctx.openAuth('phone', `Gaju has a scroll for you from ${cur.c.name}. Log in with your phone number to break the seal.`);
 }
 
 // The twine wrapped round the closed scroll: crossing strands, a knot, two loose ends.
@@ -195,53 +228,64 @@ async function deliver(my) {
     view.classList.add('show-title');
     return;
   }
-  // The pigeon's feet sit straight above the knot, with the tether between them.
+  // The pigeon's feet sit straight above the knot, with the tether between them. While it flies, the scroll is
+  // small (tied to a pigeon's leg); it hovers, lets go, and the scroll drops and grows to full size.
   const r = sc.getBoundingClientRect();
-  const knot = { x: r.left + r.width / 2, y: r.top + $('.roll-top').offsetHeight };
-  const pw = Math.min(210, innerWidth * 0.36), tether = Math.min(86, innerHeight * 0.1);
+  const R = $('.roll-top').offsetHeight;
+  const knot = { x: r.left + r.width / 2, y: r.top + R };
+  const pw = Math.min(210, innerWidth * 0.36), tether = Math.min(70, innerHeight * 0.08);
+  const small = clamp(64 / r.width, 0.12, 0.4);        // the tied scroll is about 64 px across
+  const hover = Math.min(150, innerHeight * 0.18);     // how high the pigeon lets go
+  sc.style.transformOrigin = `50% ${R}px`;             // scale around the knot, so it stays under the feet
   pg.style.width = pw + 'px';
   pg.style.setProperty('--tether', tether + 'px');
   const ts = $('.tether', pg);
   ts.setAttribute('viewBox', `0 0 20 ${tether}`);
   setTwine($('g.twine', ts), [[10, 0], [12, tether * 0.45], [10, tether]], true);
-  const footX = pw * 0.52, footY = pw * 0.55; // the feet, in the drawing's 200 × 130 box
+  const footX = pw * 0.52, footY = pw * 0.535; // the feet, in the drawing's 200 × 130 box
   const px = knot.x - footX, py = knot.y - tether - footY;
-  // The path: in from the top right, a dip, a little hover, and down.
+  // The path: in from the top right, a dip, and a hover above the spot where the scroll will land.
   const path = [
     [innerWidth - r.left + 60, -innerHeight * 0.45, -8],
-    [innerWidth * 0.45, -innerHeight * 0.28, -4],
-    [innerWidth * 0.12, -innerHeight * 0.06, 3],
-    [0, -14, -2],
-    [0, 0, 0],
+    [innerWidth * 0.45, -innerHeight * 0.3, -4],
+    [innerWidth * 0.12, -hover - innerHeight * 0.06, 3],
+    [0, -hover - 14, -2],
+    [0, -hover, 0],
   ];
+  const offs = [0, 0.35, 0.7, 0.88, 1];
   pg.hidden = false;
   pg.classList.add('flying');
   sound.whoosh();
-  const kf = (extra) => path.map(([x, y, rot], i) => ({ transform: `translate(${x + extra.x}px, ${y + extra.y}px) rotate(${rot}deg)`, offset: [0, 0.35, 0.7, 0.88, 1][i] }));
   const timing = { duration: 2300, easing: 'cubic-bezier(.35,.1,.3,1)', fill: 'both' };
-  const flyPg = speedUp(pg.animate(kf({ x: px, y: py }), timing));
-  const flySc = speedUp(sc.animate(path.map(([x, y, rot], i) => ({ transform: `translate(${x}px, ${y}px) rotate(${rot * 0.6}deg)`, offset: [0, 0.35, 0.7, 0.88, 1][i] })), timing));
+  const flyPg = speedUp(pg.animate(path.map(([x, y, rot], i) => ({ transform: `translate(${x + px}px, ${y + py}px) rotate(${rot}deg)`, offset: offs[i] })), timing));
+  const flySc = speedUp(sc.animate(path.map(([x, y, rot], i) => ({ transform: `translate(${x}px, ${y}px) rotate(${rot * 0.6}deg) scale(${small})`, offset: offs[i] })), timing));
   cur.flying = [flyPg, flySc];
   view.classList.remove('arriving'); // the scroll is off-screen with the pigeon now, so it can be shown
   await Promise.all([settle(flyPg), settle(flySc)]);
   check();
-  // touch down: the scroll settles with a bump, the tether slips off the leg and the pigeon leaves
-  sound.thunk();
-  sc.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(6px) scaleY(.97)' }, { transform: 'translateY(0)' }], { duration: 380, easing: 'ease-out' });
-  view.classList.add('show-title');
+  // let go: the tether slips off the leg, the scroll drops and grows, lands with a bump, and the pigeon leaves
   pg.classList.add('released');
-  await wait(420);
-  check();
+  const drop = speedUp(sc.animate([
+    { transform: `translate(0px, ${-hover}px) scale(${small})` },
+    { transform: `translate(0px, ${-hover * 0.35}px) scale(${lerp(small, 1, 0.55)})`, offset: 0.55 },
+    { transform: 'translate(0px, 0px) scale(1)' },
+  ], { duration: 750, easing: 'cubic-bezier(.5,0,.75,.6)', fill: 'both' }));
+  flySc.cancel();
   flyPg.cancel();
   const away = pg.animate([
-    { transform: `translate(${px}px, ${py}px) rotate(0deg)` },
-    { transform: `translate(${px - innerWidth * 0.2}px, ${py - innerHeight * 0.18}px) rotate(-10deg)`, offset: 0.4 },
-    { transform: `translate(${-pw - 60}px, ${-innerHeight * 0.4}px) rotate(-16deg)` },
+    { transform: `translate(${px}px, ${py - hover}px) rotate(0deg)` },
+    { transform: `translate(${px - innerWidth * 0.2}px, ${py - hover - innerHeight * 0.16}px) rotate(-10deg)`, offset: 0.4 },
+    { transform: `translate(${-pw - 60}px, ${-innerHeight * 0.45}px) rotate(-16deg)` },
   ], { duration: 1300, easing: 'cubic-bezier(.5,0,.6,1)', fill: 'both' });
   sound.whoosh();
-  await wait(500);
-  flySc.cancel();
   settle(away).then(() => { pg.hidden = true; pg.classList.remove('flying', 'released'); away.cancel(); });
+  await settle(drop);
+  check();
+  sound.thunk();
+  drop.cancel();
+  sc.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(6px) scaleY(.97)' }, { transform: 'translateY(0)' }], { duration: 380, easing: 'ease-out' });
+  view.classList.add('show-title');
+  await wait(300);
 }
 
 // ---------------------------------------------------------------- break the seal and unroll
