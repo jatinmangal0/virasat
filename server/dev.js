@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { createApi } from './api/index.js';
 import { createExpressApp } from './express-app.js';
 import { makeSmsSender, makeGoogleVerifier } from './lib/providers.js';
-import { parseCloudinaryUrl } from './lib/cloudinary.js';
+import { cloudinaryFromEnv } from './lib/cloudinary.js';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const port = Number(process.env.PORT) || 3024;
@@ -23,7 +23,7 @@ await local.applyMigrations(root + 'db/migrations');
 const sms = makeSmsSender();
 const app = createExpressApp(createApi({
   db, sms, googleClientId, verifyGoogle: makeGoogleVerifier(googleClientId), adminSetupCode,
-  cloudinary: parseCloudinaryUrl(process.env.CLOUDINARY_URL),
+  cloudinary: cloudinaryFromEnv(),
 }));
 app.listen(port, () => {
   console.log(`Virasat running at http://localhost:${port}   (editor page: /admin)`);

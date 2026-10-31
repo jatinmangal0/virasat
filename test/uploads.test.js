@@ -2,7 +2,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { startServer } from './helpers.js';
-import { parseCloudinaryUrl, signParams } from '../server/lib/cloudinary.js';
+import { parseCloudinaryUrl, cloudinaryFromEnv, signParams } from '../server/lib/cloudinary.js';
 
 let t;
 before(async () => { t = await startServer({ cloudinary: parseCloudinaryUrl('cloudinary://123456:s3cr3t@virasat-demo') }); });
@@ -12,6 +12,11 @@ test('the Cloudinary URL is read into its three parts, and anything else is igno
   assert.deepEqual(parseCloudinaryUrl('cloudinary://123456:s3cr3t@virasat-demo'), { apiKey: '123456', apiSecret: 's3cr3t', cloudName: 'virasat-demo' });
   assert.equal(parseCloudinaryUrl(''), null);
   assert.equal(parseCloudinaryUrl('https://example.com'), null);
+  const env = (o) => (k) => o[k];
+  assert.deepEqual(cloudinaryFromEnv(env({ CLOUDINARY_CLOUD_NAME: 'virasat-demo', CLOUDINARY_API_KEY: '123456', CLOUDINARY_API_SECRET: 's3cr3t' })),
+    { apiKey: '123456', apiSecret: 's3cr3t', cloudName: 'virasat-demo' });
+  assert.equal(cloudinaryFromEnv(env({ CLOUDINARY_CLOUD_NAME: 'virasat-demo' })), null);
+  assert.equal(cloudinaryFromEnv(env({ CLOUDINARY_URL: 'cloudinary://1:x@a', CLOUDINARY_CLOUD_NAME: 'b', CLOUDINARY_API_KEY: '2', CLOUDINARY_API_SECRET: 'y' })).cloudName, 'a');
 });
 
 test("signatures follow Cloudinary's rule (the example from its documentation)", () => {

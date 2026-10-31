@@ -1,6 +1,6 @@
 // Moves Virasat's images into Cloudinary and keeps only their links in the database.
 //   CLOUDINARY_URL=... DATABASE_URL=... node scripts/cloudinary-sync.js
-// Vercel runs it on production builds, after the migrations. Without CLOUDINARY_URL it does nothing.
+// Vercel runs it on production builds, after the migrations. Without Cloudinary settings it does nothing.
 //   1. The team's artwork for the cities (stamp, poster) is uploaded from server/public/assets, and
 //      cities.stamp / cities.poster are set to the Cloudinary links.
 //   2. Every photo that still points elsewhere (Wikimedia Commons links on facts, timeline events, the
@@ -13,7 +13,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { makePool } from '../server/lib/db.js';
-import { parseCloudinaryUrl, upload } from '../server/lib/cloudinary.js';
+import { cloudinaryFromEnv, upload } from '../server/lib/cloudinary.js';
 
 const assets = fileURLToPath(new URL('../server/public/', import.meta.url));
 const onCloudinary = (u) => /^https:\/\/res\.cloudinary\.com\//.test(u || '');
@@ -81,8 +81,8 @@ export async function sync(db, cfg, log = console.log) {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const cfg = parseCloudinaryUrl(process.env.CLOUDINARY_URL);
-  if (!cfg) { console.log('No CLOUDINARY_URL: images stay where they are.'); process.exit(0); }
+  const cfg = cloudinaryFromEnv();
+  if (!cfg) { console.log('No Cloudinary settings: images stay where they are.'); process.exit(0); }
   if (process.env.VERCEL_ENV && process.env.VERCEL_ENV !== 'production') { console.log(`Skipping the Cloudinary sync on a ${process.env.VERCEL_ENV} build.`); process.exit(0); }
   const db = makePool();
   // never stops a deploy: whatever could not be moved simply keeps its old link until the next build
