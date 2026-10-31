@@ -29,6 +29,16 @@ export function commonsThumb(url) {
   return `https://upload.wikimedia.org/wikipedia/commons/thumb/${a}/${ab}/${name}/1920px-${name}${ext}`;
 }
 
+const MAX_BYTES = 9.5 * 1024 * 1024;
+export async function download(src) {
+  const res = await fetch(src, { headers: { 'user-agent': 'VirasatBot/1.0 (https://virasat-psi.vercel.app; heritage education site)' } });
+  if (!res.ok) throw new Error(`${new URL(src).hostname} answered ${res.status}`);
+  const buf = Buffer.from(await res.arrayBuffer());
+  if (buf.length > MAX_BYTES) throw new Error(`file is ${(buf.length / 1048576).toFixed(1)} MB, too big`);
+  const type = (res.headers.get('content-type') || 'image/jpeg').split(';')[0];
+  return `data:${type};base64,${buf.toString('base64')}`;
+}
+
 export async function sync(db, cfg, log = console.log) {
   const cache = new Map();
   let copied = 0, failed = 0;
@@ -36,13 +46,17 @@ export async function sync(db, cfg, log = console.log) {
   const copy = async (url) => {
     if (!/^https:\/\//.test(url || '') || onCloudinary(url)) return null;
     if (!cache.has(url)) cache.set(url, (async () => {
-      try { const u = await upload(cfg, url, idFor(url)); copied++; return u; } catch (e) {
-        const thumb = commonsThumb(url);
-        if (thumb) {
-          try { const u = await upload(cfg, thumb, idFor(url)); copied++; return u; } catch (e2) { e = e2; }
-        }
-        failed++; log(`  could not copy ${url}: ${e.message}`); return null;
+      // Cloudinary fetches the link itself first; if that fails (Wikimedia turns away busy fetchers, or the
+      // file is too big) we download it here, politely identified, and hand Cloudinary the bytes.
+      const thumb = commonsThumb(url);
+      const tries = [() => upload(cfg, url, idFor(url))];
+      if (thumb) tries.push(() => upload(cfg, thumb, idFor(url)));
+      for (const src of thumb ? [thumb, url] : [url]) tries.push(async () => upload(cfg, await download(src), idFor(url)));
+      let last;
+      for (const attempt of tries) {
+        try { const u = await attempt(); copied++; return u; } catch (e) { last = e; }
       }
+      failed++; log(`  could not copy ${url}: ${last.message}`); return null;
     })());
     return cache.get(url);
   };

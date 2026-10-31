@@ -104,3 +104,30 @@ test('a photo too big for Cloudinary is copied from the 1920px Commons version i
     globalThis.fetch = realFetch;
   }
 });
+
+test('when Cloudinary cannot fetch a photo, the sync downloads it itself and uploads the bytes', async () => {
+  const { sync } = await import('../scripts/cloudinary-sync.js');
+  const blocked = 'https://upload.wikimedia.org/wikipedia/commons/0/03/Kolkata_Map_1690.jpg';
+  const id = (await t.db.query("SELECT id FROM facts ORDER BY id OFFSET 1 LIMIT 1")).rows[0].id;
+  await t.db.query("UPDATE facts SET image = jsonb_build_object('src', $2::text, 'credit', 'Commons') WHERE id = $1", [id, blocked]);
+  const realFetch = globalThis.fetch;
+  let agent = null;
+  globalThis.fetch = async (url, opts = {}) => {
+    const u = String(url);
+    if (u.startsWith('https://upload.wikimedia.org/')) { agent = opts.headers?.['user-agent']; return new Response(new Uint8Array([1, 2, 3]), { status: 200, headers: { 'content-type': 'image/jpeg' } }); }
+    if (!u.startsWith('https://api.cloudinary.com/')) return realFetch(url, opts);
+    const file = opts.body.get('file');
+    if (!String(file).startsWith('data:')) return new Response(JSON.stringify({ error: { message: 'Error in loading remote resource' } }), { status: 400 });
+    return new Response(JSON.stringify({ secure_url: `https://res.cloudinary.com/virasat-demo/image/upload/v1/${opts.body.get('public_id')}` }), { status: 200 });
+  };
+  try {
+    const r = await sync(t.db, parseCloudinaryUrl('cloudinary://123456:s3cr3t@virasat-demo'), () => {});
+    assert.equal(r.failed, 0);
+    assert.match(agent, /VirasatBot/);
+    const f = (await t.db.query('SELECT image FROM facts WHERE id = $1', [id])).rows[0].image;
+    assert.match(f.src, /^https:\/\/res\.cloudinary\.com\//);
+    assert.equal(f.original, blocked);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
