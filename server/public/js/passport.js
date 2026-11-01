@@ -55,9 +55,17 @@ export async function openJourney() {
       ${Object.values(CITIES).map((c) => `<button class="btn primary" data-go="${c.id}">Visit ${esc(c.name)}</button>`).join('')}
       ${['editor', 'admin'].includes(u.role) ? '<a class="btn" href="/admin">Editor page</a>' : ''}
       <button class="btn" id="logoutBtn">Log out</button>
-    </div>`;
+    </div>
+    <p class="pp-privacy"><a href="/privacy" target="_blank" rel="noopener">Privacy</a> · <button type="button" class="link-btn" id="deleteAccount">Delete my account</button></p>`;
   $$('[data-go]', body).forEach((b) => b.addEventListener('click', () => closeModal($('#journeyModal')), { capture: true }));
   $('#logoutBtn').onclick = logout;
+  $('#deleteAccount').onclick = async () => {
+    const typed = prompt('This deletes your account, stamps, scores, points and class places for good.\n\nType DELETE to confirm.');
+    if (typed === null) return;
+    const res = await api('/api/auth/delete-account', { confirm: typed.trim().toUpperCase() });
+    if (!res.ok) { alert(res.data.error || 'Your account could not be deleted. Please try again.'); return; }
+    location.href = '/';
+  };
   $$('[data-reink]', body).forEach((b) => b.addEventListener('click', () => openRecall(b.dataset.reink)));
   classesSection($('#ppClasses'));
 }

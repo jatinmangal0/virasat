@@ -134,6 +134,19 @@ export default function auth(r, { db, sms, verifyGoogle, googleClientId, secureC
   // ---- session ----
   r.get('/api/me', async ({ user }) => json(200, { user: user ? publicUser(user) : null }));
 
+  // Delete my account: the person, their sessions, progress, stamps, scores and class places all go
+  // (the tables cascade). Content an editor wrote stays on the site without their name.
+  r.post('/api/auth/delete-account', { limit: true }, async ({ user, body }) => {
+    if (!user) return err(401, 'Please log in first.');
+    if (body.confirm !== 'DELETE') return err(400, 'Type DELETE to confirm.');
+    if (user.role === 'admin') {
+      const admins = (await one("SELECT COUNT(*)::int AS n FROM users WHERE role = 'admin'", [])).n;
+      if (admins <= 1) return err(400, 'You are the only admin. Make someone else admin first.');
+    }
+    await db.query('DELETE FROM users WHERE id = $1', [user.id]);
+    return json(200, { ok: true }, clearSessionCookie);
+  });
+
   r.post('/api/auth/logout', async ({ token }) => {
     if (token) await db.query('DELETE FROM sessions WHERE token_hash = $1', [sha256(token)]);
     return json(200, { ok: true }, clearSessionCookie);

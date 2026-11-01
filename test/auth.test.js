@@ -87,3 +87,13 @@ test('the browser learns the role of whoever is logged in', async () => {
   await c('/api/auth/login', { email: 'ravi@example.com', password: 'longenough' });
   assert.equal((await c('/api/me')).body.user.role, 'learner');
 });
+
+test('delete my account removes the person and logs them out', async () => {
+  const c = client();
+  const r = await c('/api/auth/signup', { name: 'Gone', email: 'gone@example.com', password: 'longenough' });
+  assert.equal((await c('/api/auth/delete-account', {})).status, 400);
+  assert.equal((await c('/api/auth/delete-account', { confirm: 'DELETE' })).status, 200);
+  assert.equal((await c('/api/me')).body.user, null);
+  assert.equal((await t.db.query('SELECT 1 FROM users WHERE id = $1', [r.body.user.id])).rowCount, 0);
+  assert.equal((await client()('/api/auth/delete-account', { confirm: 'DELETE' })).status, 401);
+});
