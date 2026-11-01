@@ -1045,3 +1045,10 @@ body.is-night .mini-card { background: #2a2320; color: #f6ead2; box-shadow: 0 10
   .explore .place-list { left: 10px; right: 10px; width: auto; bottom: 10px; top: auto; transform: none; max-height: 70%; }
 }
 @media (prefers-reduced-motion: reduce) { .explore, .ex-svg.inking .ex-edge, .ex-svg.inking .ex-land, .ex-svg.inking .lake, .ex-svg.inking .river { animation: none; stroke-dashoffset: 0; opacity: 1; } }
+
+/* privacy links: under the sign-in box and in the passport */
+.foot a { color: inherit; }
+.auth-privacy, .pp-privacy { text-align: center; font-size: 13px; color: var(--ink-soft); margin: 10px 0 0; }
+.auth-privacy a, .pp-privacy a { color: inherit; }
+.pp-privacy { color: #e9dcc3; }
+.pp-privacy .link-btn { font-size: 13px; color: inherit; }
