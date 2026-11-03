@@ -15,6 +15,7 @@ import { stampHTML } from './stamps.js';
 import { fit } from './lib.js';
 import { heroSVG, archPath } from './hero.js';
 import { initQuiz } from './quiz.js';
+import { startFilm, stopFilm, loadFilmApi } from './film.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -112,6 +113,7 @@ const warmed = new Set();
 export function warmCity(id) {
   const c = ctx?.CITIES[id];
   if (!c) return;
+  loadFilmApi(); // YouTube's player script, so the city's film can start as the arch opens
   const dove = $('#pigeon img');
   if (dove && !warmed.has('dove')) { warmed.add('dove'); dove.decode?.().catch(() => {}); }
   for (const src of [c.poster && fit(c.poster, 1600), c.stamp && fit(c.stamp, 480)]) {
@@ -141,7 +143,9 @@ export async function openCity(id, my, from = null) {
   view.className = 'city delivering arriving';
   view.style.setProperty('--accent', c.accent);
   renderLetter(c);
-  $('#citySky').innerHTML = heroSVG(id);
+  // the drawn scene, with the city's film over it once the video is playing (film.js)
+  $('#citySky').innerHTML = heroSVG(id) + '<div class="city-film" id="cityFilm"></div>';
+  startFilm(id);
   // the picture above the letter: the team's poster for the city where there is one, else the drawn scene
   $('#cityHero').innerHTML = c.poster
     ? `<img class="hero-photo" src="${fit(c.poster, 1600)}" alt="${esc(c.name)}: scenes from the city" width="1600" height="900" decoding="async">`
@@ -307,6 +311,8 @@ async function breakSeal(my) {
     // unroll: the bottom roller travels down, the city's picture fills the top half
     const target = $('#letter').offsetHeight;
     view.classList.add('opened');
+    // the arrival scene fades out now; stop its film once it has
+    setTimeout(() => { if (my === state.seq) stopFilm(); }, 1600);
     sound.paper();
     const roll = speedUp(sheet.animate([{ height: '0px' }, { height: target + 'px' }], { duration: reduced() ? 1 : 3400, easing: 'cubic-bezier(.45,.05,.3,1)', fill: 'forwards' }));
     await settle(roll);
@@ -687,6 +693,7 @@ export async function closeCity() {
   $('#scroll').getAnimations().forEach((a) => a.cancel());
   pg.hidden = true;
   $('#checkpoint').hidden = true;
+  stopFilm();
   ctx.sequenceDone();
   ctx.resetStreet();
   // step back out through the arch while the street pulls back
