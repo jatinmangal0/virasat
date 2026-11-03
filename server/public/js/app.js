@@ -1,5 +1,5 @@
 import { buildScene, grain, VB, GATES } from './scene.js';
-import { initCity, openCity } from './city.js';
+import { initCity, openCity, warmCity } from './city.js';
 import { initExplore, openExplore, closeExplore, exploreIsOpen } from './explore.js';
 import { stampHTML } from './stamps.js';
 import { initClasses, openJoin } from './classes.js';
@@ -350,6 +350,7 @@ async function goToCity(city, { quick = false } = {}) {
   state.busy = true;
   const my = ++state.seq;
   const c = CITIES[city];
+  warmCity(city); // load the city's pictures and the dove while Gaju walks to the gate
   setAddress(city);
   // every visit plays at full, unhurried speed; only the Skip button hurries it
   state.fast = false;
