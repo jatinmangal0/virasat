@@ -65,8 +65,42 @@ async function setupTicker() {
     document.head.insertAdjacentHTML('beforeend', '<link id="scriptFonts" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anek+Tamil:wght@600&family=Anek+Kannada:wght@600&family=Anek+Telugu:wght@600&family=Anek+Malayalam:wght@600&family=Anek+Gujarati:wght@600&family=Anek+Gurmukhi:wght@600&family=Anek+Odia:wght@600&display=swap">');
   }
   track.innerHTML = run + run;
+  alignGreetings(track);
   // keep the speed the same however many greetings there are
   track.style.animationDuration = `${Math.max(30, track.scrollWidth / 2 / 70)}s`;
+}
+
+// Each script draws its letters at a different height above the baseline (Devanagari hangs from a top line,
+// Latin sits on the bottom), so a shared baseline still looks crooked. Measure the actual ink of every word
+// once its font has loaded and shift the regional word so both words' ink is centred on the same line.
+async function alignGreetings(track) {
+  const ctx = document.createElement('canvas').getContext('2d');
+  const inkMid = (el) => {
+    ctx.font = getComputedStyle(el).font;
+    const m = ctx.measureText(el.textContent);
+    return (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2; // px above the baseline
+  };
+  const words = [...track.querySelectorAll('b.native')];
+  // the other scripts' @font-face rules exist only once their stylesheet has arrived
+  const sheet = $('#scriptFonts');
+  if (sheet && !sheet.sheet) await new Promise((ok) => { sheet.addEventListener('load', ok, { once: true }); sheet.addEventListener('error', ok, { once: true }); setTimeout(ok, 4000); });
+  try { await Promise.all(words.map((el) => document.fonts.load(getComputedStyle(el).font, el.textContent))); } catch {}
+  await document.fonts.ready;
+  // also centre the pair in the bar: find where the shared baseline sits with an empty probe
+  const latin0 = track.querySelector('b.latin'), row = latin0?.parentElement;
+  if (row) {
+    const probe = document.createElement('i');
+    probe.style.cssText = 'display:inline-block;width:0;height:0';
+    row.insertBefore(probe, latin0);
+    const baseY = probe.getBoundingClientRect().top, box = row.getBoundingClientRect();
+    probe.remove();
+    track.style.setProperty('--word-drop', `${(box.top + box.height / 2 - (baseY - inkMid(latin0))).toFixed(1)}px`);
+  }
+  for (const el of words) {
+    const latin = el.nextElementSibling;
+    if (!latin) continue;
+    el.style.setProperty('--native-shift', `${(inkMid(el) - inkMid(latin)).toFixed(1)}px`);
+  }
 }
 
 function setupChrome() {
