@@ -75,10 +75,19 @@ async function setupTicker() {
 // once its font has loaded and shift the regional word so both words' ink is centred on the same line.
 async function alignGreetings(track) {
   const ctx = document.createElement('canvas').getContext('2d');
-  const inkMid = (el) => {
-    ctx.font = getComputedStyle(el).font;
-    const m = ctx.measureText(el.textContent);
+  const mid = (font, text) => {
+    ctx.font = font;
+    const m = ctx.measureText(text);
     return (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2; // px above the baseline
+  };
+  // The eye reads a word's middle from the body of its letters, not from vowel marks above or below
+  // (the dots and curls of કે, ம், ि pull a whole-word box off centre). So measure the body:
+  // Indic scripts by their letter "ka" (each block keeps it at offset 0x15), English by x and H.
+  const inkMid = (el) => {
+    const font = getComputedStyle(el).font, c = el.textContent.trim().codePointAt(0) || 0;
+    if (el.classList.contains('latin')) return (mid(font, 'x') + mid(font, 'H')) / 2;
+    if (c >= 0x0900 && c < 0x0d80) return mid(font, String.fromCodePoint((c & ~0x7f) + 0x15));
+    return mid(font, el.textContent);
   };
   const words = [...track.querySelectorAll('b.native')];
   // the other scripts' @font-face rules exist only once their stylesheet has arrived
