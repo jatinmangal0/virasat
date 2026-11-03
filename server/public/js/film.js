@@ -7,9 +7,10 @@
 // The drawn city scene (hero.js) is the fallback: it shows if the video isn't playing yet when the city opens,
 // and stays if YouTube is blocked, slow, or the video can't be embedded. Visitors who ask for less motion or
 // less data get the drawing.
+// `from`: where each visit starts, in seconds (chosen by Jatin, 3 Nov 2026): Udaipur 0:28, Kolkata 2:25.
 const FILMS = {
-  kolkata: { id: 'tYY4WnfEEkY' },
-  udaipur: { id: '-w5oRlHVZTE' },
+  kolkata: { id: 'tYY4WnfEEkY', from: 145 },
+  udaipur: { id: '-w5oRlHVZTE', from: 28 },
 };
 
 const $ = (s) => document.querySelector(s);
@@ -65,7 +66,7 @@ export function warmFilm(cityId) {
   const f = FILMS[cityId];
   if (!f || !wantsFilm()) return;
   const my = ++mine;
-  film = { city: cityId, id: f.id, ready: false, shown: false };
+  film = { city: cityId, id: f.id, from: f.from || 0, ready: false, shown: false };
   layer().classList.add('warming');
   const box = layer().querySelector('#filmBox');
   box.innerHTML = '<div id="filmPlayer"></div>';
@@ -73,17 +74,17 @@ export function warmFilm(cityId) {
   idleStop = setTimeout(() => { if (my === mine && !film?.shown) stopFilm(); }, 45000);
   loadApi().then((YT) => {
     if (!YT || my !== mine) return;
+    // It starts, hidden, 4 s before the city's start point: YouTube shows a play/pause button and a spinner
+    // for the first seconds of playback, and those come and go unseen, so the film is ready right at its start
+    // point. Near the end it goes back to the start point (hidden meanwhile) instead of letting the video end
+    // and show YouTube's end screen.
     let target = 0;
-    const jump = (p) => {
-      const d = p.getDuration() || 0;
-      // somewhere between 5% and 85% of the way in, so it never lands on the intro or the end card
-      target = d > 60 ? Math.floor(d * (0.05 + Math.random() * 0.8)) : 0;
+    const jump = (p, lead = 4) => {
+      target = Math.max(0, film.from - lead);
       p.seekTo(target, true);
       p.playVideo();
     };
-    // Ready = playing at the chosen point for 3.5 s, so YouTube's play/pause button and spinner, which it shows
-    // for the first seconds of playback, have already come and gone while the video was hidden. Near the end it jumps to a new random point (hidden meanwhile)
-    // instead of letting the video end and show YouTube's end screen.
+    film.restart = () => player?.seekTo(film.from, true); // back to the start point, already buffered
     const tick = () => {
       if (my !== mine || !player?.getCurrentTime) return;
       const t = player.getCurrentTime(), d = player.getDuration() || 0;
@@ -92,7 +93,7 @@ export function warmFilm(cityId) {
         film.ready = false;
         layer().classList.remove('playing');
         jump(player);
-      } else if (!film.ready && playing && t > target + 3.5) {
+      } else if (!film.ready && playing && t > target + 3.5 && t > film.from - 1) {
         film.ready = true;
         layer().classList.add('playing');
         if (film.shown) reveal();
@@ -134,7 +135,11 @@ export function showFilm(cityId) {
   if (!film) return;
   film.shown = true;
   layer().classList.add('shown');
-  if (film.ready) reveal();
+  if (film.ready) {
+    // Gaju's walk took longer than the warm-up: go back to the start point (a few seconds back, already loaded)
+    if ((player?.getCurrentTime?.() || 0) > film.from + 1.5) film.restart?.();
+    reveal();
+  }
 }
 
 // Put the film on screen: the city view turns see-through and the drawn scene fades out over it.

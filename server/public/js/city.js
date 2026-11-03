@@ -156,6 +156,7 @@ export async function openCity(id, my, from = null) {
   $('#postTitle').innerHTML = `<small>Virasat Dak</small>A scroll from ${esc(c.name)}`;
   $('#checkpoint').hidden = true;
   $('#openHint').hidden = true;
+  $('#scroll').getAnimations({ subtree: true }).forEach((a) => a.cancel()); // nothing left over from a last visit
   $('#sheet').style.height = '0px';
   $('#scroll').className = 'scroll';
   $('#tie').style.opacity = '';
@@ -692,7 +693,9 @@ export async function closeCity() {
   cur = null;
   const pg = $('#pigeon');
   pg.getAnimations().forEach((a) => a.cancel());
-  $('#scroll').getAnimations().forEach((a) => a.cancel());
+  // the whole scroll, sheet included: a half-finished unroll (fill: forwards) would otherwise hold the next
+  // city's scroll open while the dove brings it
+  $('#scroll').getAnimations({ subtree: true }).forEach((a) => a.cancel());
   pg.hidden = true;
   $('#checkpoint').hidden = true;
   stopFilm();
