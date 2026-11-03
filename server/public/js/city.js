@@ -105,6 +105,32 @@ function archTo(id, from, to, ms) {
 const PIGEON = `<img class="pg" src="assets/dove.webp" width="595" height="609" alt="" decoding="async">`;
 const FOOT = { x: 0.492, y: 0.776 };
 
+// ---------------------------------------------------------------- get ready while Gaju walks
+// Called the moment a gate is picked: fetch and decode the city's pictures (poster, stamp) and the dove, so
+// nothing is still loading or decoding when the arch opens. Never waits; a slow network just loads later.
+const warmed = new Set();
+export function warmCity(id) {
+  const c = ctx?.CITIES[id];
+  if (!c) return;
+  const dove = $('#pigeon img');
+  if (dove && !warmed.has('dove')) { warmed.add('dove'); dove.decode?.().catch(() => {}); }
+  for (const src of [c.poster && fit(c.poster, 1600), c.stamp && fit(c.stamp, 480)]) {
+    if (!src || warmed.has(src)) continue;
+    warmed.add(src);
+    const im = new Image();
+    im.decoding = 'async';
+    im.src = src;
+    im.decode?.().catch(() => {});
+  }
+}
+
+// Wait (a little) for the dove's picture, so it never flies in as an empty box or pops in half way.
+async function doveReady() {
+  const im = $('#pigeon img');
+  if (!im || (im.complete && im.naturalWidth)) return;
+  await Promise.race([im.decode().catch(() => {}), sleep(2500)]);
+}
+
 // ---------------------------------------------------------------- open a city
 export async function openCity(id, my, from = null) {
   const { state, CITIES, esc } = ctx;
@@ -135,7 +161,9 @@ export async function openCity(id, my, from = null) {
   view.scrollTop = 0;
   document.body.classList.add('locked');
   document.querySelector('main').inert = true;
-  if (!reduced()) await archTo(id, from, 'open', 2000);
+  // The arch covers the whole screen well before its 2 s are up (the rest of its growth is off-screen), so the
+  // dove sets off at 0.5 s instead of after a blank pause; the arch finishes growing under it.
+  if (!reduced()) { archTo(id, from, 'open', 2000); await wait(500); }
   if (my !== state.seq) return;
   view.focus({ preventScroll: true });
   drawTie();
@@ -202,24 +230,28 @@ async function deliver(my) {
   const px = knot.x - pw * FOOT.x, py = knot.y - R * small * 0.55 - pw * FOOT.y;
   // The path: in from the top right, a dip, and a hover above the spot where the scroll will land.
   const path = [
-    [innerWidth - r.left + 60, -innerHeight * 0.45, -8],
+    // start just past the top-right corner, so the dove is on screen almost from the first frame
+    [innerWidth + 4 - px, -pw * 1.03 - py, -8],
     [innerWidth * 0.45, -innerHeight * 0.3, -4],
     [innerWidth * 0.12, -hover - innerHeight * 0.06, 3],
     [0, -hover - 14, -2],
     [0, -hover, 0],
   ];
-  const offs = [0, 0.35, 0.7, 0.88, 1];
+  const offs = [0, 0.4, 0.8, 0.94, 1];
+  await doveReady();
+  check();
   pg.hidden = false;
   pg.classList.add('flying');
   sound.whoosh();
-  const timing = { duration: 4600, easing: 'cubic-bezier(.45,.05,.35,1)', fill: 'both' };
+  // it comes in already flying (no slow start off-screen) and eases into the hover
+  const timing = { duration: 3400, easing: 'cubic-bezier(.2,.2,.35,1)', fill: 'both' };
   const flyPg = speedUp(pg.animate(path.map(([x, y, rot], i) => ({ transform: `translate(${x + px}px, ${y + py}px) rotate(${rot}deg)`, offset: offs[i] })), timing));
   const flySc = speedUp(sc.animate(path.map(([x, y, rot], i) => ({ transform: `translate(${x}px, ${y}px) rotate(${rot * 0.6}deg) scale(${small})`, offset: offs[i] })), timing));
   cur.flying = [flyPg, flySc];
   view.classList.remove('arriving'); // the scroll is off-screen with the pigeon now, so it can be shown
   await Promise.all([settle(flyPg), settle(flySc)]);
   check();
-  await wait(700); // a moment's hover before it lets go
+  await wait(200); // a moment's hover before it lets go
   check();
   // let go: the feet open, the scroll drops and grows, lands with a bump, and the pigeon leaves
   pg.classList.add('released');

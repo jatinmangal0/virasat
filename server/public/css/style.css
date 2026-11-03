@@ -412,6 +412,7 @@ a { color: inherit; }
 .city.delivering .runway, .city.delivering .story { visibility: hidden; }
 
 /* ----- the pigeon ----- */
+.pigeon[hidden] { display: none; }
 .pigeon { position: fixed; left: 0; top: 0; z-index: 8; pointer-events: none; will-change: transform; }
 .pigeon .pg { display: block; width: 100%; height: auto; filter: drop-shadow(0 12px 12px #0003); transform-origin: 50% 40%; }
 /* a photo-like dove can't flap, so it glides: a slow rise and fall with a little tilt */
