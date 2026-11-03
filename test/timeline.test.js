@@ -111,3 +111,15 @@ test('only major events are shown: minor ones stay in the editor, hidden, and an
   assert.ok(!r.body.backToCheck, 'showing an event again is not a rewording');
   assert.ok((await kolkata()).includes('The first trams'));
 });
+
+test('the Explore history lists every checked event, also the ones kept off the letter', async () => {
+  const empty = (await t.client()('/api/cities/kolkata/history')).body.events;
+  assert.ok(empty.every((e) => e.title !== 'The great famine'), 'unchecked events are never sent');
+  await t.db.query("UPDATE timeline_events SET status = 'verified' WHERE city_id = 'kolkata'");
+  const events = (await t.client()('/api/cities/kolkata/history')).body.events;
+  const hidden = (await t.db.query("SELECT count(*)::int AS n FROM timeline_events WHERE city_id = 'kolkata' AND hidden")).rows[0].n;
+  assert.ok(hidden > 0 && events.length > hidden, 'hidden events are included');
+  assert.ok(events.some((e) => !e.major) && events.some((e) => e.major));
+  assert.deepEqual(Object.keys(events[0]).sort(), ['id', 'images', 'major', 'motif', 'src', 'text', 'title', 'year']);
+  assert.deepEqual((await t.client()('/api/cities/nowhere/history')).body.events, []);
+});

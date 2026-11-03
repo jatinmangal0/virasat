@@ -33,6 +33,16 @@ export async function loadPublicCities(db) {
 export default function content(r, { db }) {
   r.get('/api/cities', { cache: 60 }, async () => json(200, { cities: await loadPublicCities(db) }));
 
+  // The Explore page's flashcards and games: every checked event in the city's history, including the ones
+  // kept off the letter's timeline (hidden only shortens the timeline; the events themselves are checked).
+  r.get('/api/cities/:id/history', { cache: 60 }, async ({ params }) => {
+    const rows = (await db.query(`SELECT e.id, e.year_label, e.title, e.body, e.images, e.motif, e.source_url, e.hidden
+      FROM timeline_events e JOIN cities c ON c.id = e.city_id
+      WHERE e.city_id = $1 AND c.published AND e.status = 'verified' ORDER BY e.sort_order, e.id`, [params.id])).rows;
+    return json(200, { events: rows.map((e) => ({ id: e.id, year: e.year_label, title: e.title, text: e.body,
+      images: e.images, motif: e.motif, src: e.source_url, major: !e.hidden })) });
+  });
+
   // For uptime checks: answers without touching the database, so it can stay asleep.
   r.get('/api/health', async () => json(200, { ok: true }));
 
