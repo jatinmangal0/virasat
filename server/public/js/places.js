@@ -14,11 +14,11 @@ const PLACE_KINDS = [
   ['nature', 'Lakes and nature', /hydro|ecolog|natural|landscape/i],
   ['civic', 'Institutions', /institution|civic|sport|archive|literary/i],
 ];
-const kindOf = (p) => (PLACE_KINDS.find((k) => k[2].test(p.category || '')) || PLACE_KINDS[0])[0];
+export const kindOf = (p) => (PLACE_KINDS.find((k) => k[2].test(p.category || '')) || PLACE_KINDS[0])[0];
 
 // Commons "Special:FilePath" links become a sized https image, plus the file's page for the credit.
 // original: where a photo copied into Cloudinary came from, so the credit can still link to its page
-function photoOf(url, original) {
+export function photoOf(url, original) {
   const commons = (u) => /^https?:\/\/commons\.wikimedia\.org\/wiki\/Special:FilePath\/(.+)$/i.exec(u || '');
   if (/^https:\/\/res\.cloudinary\.com\//.test(url || '')) {
     const m = commons(original);
@@ -41,7 +41,7 @@ export async function loadPlaces(run) {
 
 // A place the team has not written about yet (no description, no photo) is "bare": kept off the map
 // unless the visitor asks for every researched place, so the map shows what it can explain.
-const isBare = (p) => !p.description && !p.image_url;
+export const isBare = (p) => !p.description && !p.image_url;
 
 export function renderPlaces() {
   const { esc } = ctx, list = cur().places;
@@ -94,6 +94,7 @@ export function placePins() {
     if (!xy) continue;
     b.style.left = xy[0] + 'px'; b.style.top = xy[1] + 'px';
     if (kindHidden(p)) continue;
+    if (Number(b.dataset.i) === s.place) continue;   // the open place always shows its own pin
     const g = groups.find((q) => Math.hypot(q.x - xy[0], q.y - xy[1]) < R);
     if (g) g.items.push(b); else groups.push({ x: xy[0], y: xy[1], items: [b] });
   }
@@ -140,12 +141,13 @@ function showList(ids) {
   $('li button', panel)?.focus({ preventScroll: true });
 }
 
-function showPlace(i) {
+export function showPlace(i) {
   const { esc } = ctx, p = cur().places[i], card = $('#placeCard');
   if (!p) return;
   cur().story.place = i;
   $('#placeList').hidden = true;
   $$('#places .pp').forEach((b) => b.classList.toggle('sel', Number(b.dataset.i) === i));
+  placePins();
   const photo = photoOf(p.image_url, p.image_original);
   card.innerHTML = `
     <button class="pc-close" aria-label="Close">×</button>
