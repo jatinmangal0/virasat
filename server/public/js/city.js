@@ -15,7 +15,7 @@ import { stampHTML } from './stamps.js';
 import { fit } from './lib.js';
 import { heroSVG, archPath } from './hero.js';
 import { initQuiz } from './quiz.js';
-import { startFilm, stopFilm, loadFilmApi } from './film.js';
+import { warmFilm, showFilm, clipFilm, fadeFilm, stopFilm } from './film.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -89,14 +89,15 @@ function archTo(id, from, to, ms) {
       const r = { x: lerp(a.x, b.x, e), y: lerp(a.y, b.y, e), w: lerp(a.w, b.w, e), h: lerp(a.h, b.h, e) };
       const d = archPath(id, r.x, r.y, r.w, r.h);
       view.style.clipPath = `path('${d}')`;
+      clipFilm(view.style.clipPath);
       const sw = Math.max(4, r.w * 0.06);
       frame.innerHTML = `<path d="${d}" stroke="${ring}" stroke-width="${sw}"/><path d="${archPath(id, r.x - sw * 0.9, r.y - sw * 0.9, r.w + sw * 1.8, r.h + sw * 0.9)}" stroke="#3a2420" stroke-width="${Math.max(1.5, sw * 0.25)}"/>`;
       if (k < 1) requestAnimationFrame(step);
-      else { if (to === 'open') { view.style.clipPath = ''; frame.innerHTML = ''; } done(); }
+      else { if (to === 'open') { view.style.clipPath = ''; clipFilm(''); frame.innerHTML = ''; } done(); }
     };
     requestAnimationFrame(step);
     // frames stop in background tabs; never leave the city half-clipped
-    setTimeout(() => { if (my === archAnim && to === 'open') { view.style.clipPath = ''; frame.innerHTML = ''; } done(); }, ms * pace() + 400);
+    setTimeout(() => { if (my === archAnim && to === 'open') { view.style.clipPath = ''; clipFilm(''); frame.innerHTML = ''; } done(); }, ms * pace() + 400);
   });
 }
 
@@ -113,7 +114,7 @@ const warmed = new Set();
 export function warmCity(id) {
   const c = ctx?.CITIES[id];
   if (!c) return;
-  loadFilmApi(); // YouTube's player script, so the city's film can start as the arch opens
+  warmFilm(id); // the city's film starts playing, hidden, so the city opens straight onto it
   const dove = $('#pigeon img');
   if (dove && !warmed.has('dove')) { warmed.add('dove'); dove.decode?.().catch(() => {}); }
   for (const src of [c.poster && fit(c.poster, 1600), c.stamp && fit(c.stamp, 480)]) {
@@ -143,9 +144,8 @@ export async function openCity(id, my, from = null) {
   view.className = 'city delivering arriving';
   view.style.setProperty('--accent', c.accent);
   renderLetter(c);
-  // the drawn scene, with the city's film over it once the video is playing (film.js)
-  $('#citySky').innerHTML = heroSVG(id) + '<div class="city-film" id="cityFilm"></div>';
-  startFilm(id);
+  // the drawn scene: shown only until the city's film is playing (film.js), or if it can't play
+  $('#citySky').innerHTML = heroSVG(id);
   // the picture above the letter: the team's poster for the city where there is one, else the drawn scene
   $('#cityHero').innerHTML = c.poster
     ? `<img class="hero-photo" src="${fit(c.poster, 1600)}" alt="${esc(c.name)}: scenes from the city" width="1600" height="900" decoding="async">`
@@ -161,6 +161,7 @@ export async function openCity(id, my, from = null) {
   $('#ropeLayer').style.display = 'none';
   $('#storyStage').innerHTML = '';
   $('#story').style.height = '0px';
+  showFilm(id);
   view.hidden = false;
   view.scrollTop = 0;
   document.body.classList.add('locked');
@@ -311,8 +312,8 @@ async function breakSeal(my) {
     // unroll: the bottom roller travels down, the city's picture fills the top half
     const target = $('#letter').offsetHeight;
     view.classList.add('opened');
-    // the arrival scene fades out now; stop its film once it has
-    setTimeout(() => { if (my === state.seq) stopFilm(); }, 1600);
+    // the arrival scene fades out now, film and all
+    fadeFilm();
     sound.paper();
     const roll = speedUp(sheet.animate([{ height: '0px' }, { height: target + 'px' }], { duration: reduced() ? 1 : 3400, easing: 'cubic-bezier(.45,.05,.3,1)', fill: 'forwards' }));
     await settle(roll);

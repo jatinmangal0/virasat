@@ -88,7 +88,7 @@ body.is-night .city {
   radial-gradient(circle at 82% 16%, #fffdf2 0 2.6%, #fff1c4 3.3%, #ffe7a355 3.6%, #ffe7a31a 7%, #0000 12%),
   radial-gradient(circle at 50% 120%, #ff9a5a55 0%, #0000 45%), linear-gradient(#070b22, #1a2052 60%, #33305e); }
 body.is-night .city-sky { background: none; }
-body.is-night .city-film { filter: brightness(.55) saturate(.8) hue-rotate(-10deg); }
+body.is-night .film-box { filter: brightness(.55) saturate(.8) hue-rotate(-10deg); }
 body.is-night .city-sky::before, body.is-night .city-sky::after { opacity: 1; }
 @keyframes nt-twinkle { to { filter: brightness(.65); } }
 body.is-night .post-title { color: #f6ead2; text-shadow: 0 2px 12px #000a; }
