@@ -21,6 +21,8 @@
        Tiro is for reading the letter; Kalam is Gaju's handwriting (it has Devanagari too). Bowlby One is the logo. -->
   <link href="https://fonts.googleapis.com/css2?family=Anek+Latin:wdth,wght@100..125,400..800&family=Anek+Devanagari:wdth,wght@100..125,500..800&family=Anek+Bangla:wdth,wght@100..125,500..800&family=Tiro+Devanagari+Hindi:ital@0;1&family=Tiro+Bangla:ital@0;1&family=Kalam:wght@400;700&family=Bowlby+One&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
+  <!-- the dove that brings every city's scroll: fetch it early so it is ready the moment a city opens -->
+  <link rel="preload" as="image" href="assets/dove.webp" type="image/webp">
 </head>
 <body>
   <!-- ticker -->
@@ -142,7 +144,7 @@
     </section>
 
     <svg class="rope-layer" id="ropeLayer" aria-hidden="true"></svg>
-    <div class="pigeon" id="pigeon" aria-hidden="true"></div>
+    <div class="pigeon" id="pigeon" aria-hidden="true" hidden></div>
 
     <div class="checkpoint" id="checkpoint" role="status" hidden>
       <button class="cp-x" id="cpClose" aria-label="Not now">×</button>

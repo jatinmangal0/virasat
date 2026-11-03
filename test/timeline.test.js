@@ -18,7 +18,7 @@ test('imported timeline events and greetings are hidden until verified', async (
   assert.deepEqual(c.timeline, []);
   assert.ok(c.outline.length > 20, 'the city outline is sent');
   assert.ok(c.outline.every(([lng, lat]) => lng > 73 && lng < 74 && lat > 24 && lat < 25), 'outline is [lng, lat] around Udaipur');
-  assert.match(c.outlineSource, /DataMeet/);
+  assert.match(c.outlineSource, /Udaipur Municipal Corporation/);
   assert.deepEqual((await t.client()('/api/greetings')).body.greetings, []);
 
   const { rows } = await t.db.query("SELECT id FROM timeline_events WHERE city_id = 'udaipur' AND year_label = '1553'");
