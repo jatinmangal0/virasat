@@ -162,8 +162,8 @@ export async function openCity(id, my, from = null) {
   document.body.classList.add('locked');
   document.querySelector('main').inert = true;
   // The arch covers the whole screen well before its 2 s are up (the rest of its growth is off-screen), so the
-  // dove sets off at 1.1 s instead of after a blank pause; the arch finishes growing under it.
-  if (!reduced()) { archTo(id, from, 'open', 2000); await wait(1100); }
+  // dove sets off at 0.5 s instead of after a blank pause; the arch finishes growing under it.
+  if (!reduced()) { archTo(id, from, 'open', 2000); await wait(500); }
   if (my !== state.seq) return;
   view.focus({ preventScroll: true });
   drawTie();
@@ -237,21 +237,21 @@ async function deliver(my) {
     [0, -hover - 14, -2],
     [0, -hover, 0],
   ];
-  const offs = [0, 0.35, 0.7, 0.88, 1];
+  const offs = [0, 0.4, 0.8, 0.94, 1];
   await doveReady();
   check();
   pg.hidden = false;
   pg.classList.add('flying');
   sound.whoosh();
   // it comes in already flying (no slow start off-screen) and eases into the hover
-  const timing = { duration: 4600, easing: 'cubic-bezier(.2,.2,.35,1)', fill: 'both' };
+  const timing = { duration: 3400, easing: 'cubic-bezier(.2,.2,.35,1)', fill: 'both' };
   const flyPg = speedUp(pg.animate(path.map(([x, y, rot], i) => ({ transform: `translate(${x + px}px, ${y + py}px) rotate(${rot}deg)`, offset: offs[i] })), timing));
   const flySc = speedUp(sc.animate(path.map(([x, y, rot], i) => ({ transform: `translate(${x}px, ${y}px) rotate(${rot * 0.6}deg) scale(${small})`, offset: offs[i] })), timing));
   cur.flying = [flyPg, flySc];
   view.classList.remove('arriving'); // the scroll is off-screen with the pigeon now, so it can be shown
   await Promise.all([settle(flyPg), settle(flySc)]);
   check();
-  await wait(700); // a moment's hover before it lets go
+  await wait(200); // a moment's hover before it lets go
   check();
   // let go: the feet open, the scroll drops and grows, lands with a bump, and the pigeon leaves
   pg.classList.add('released');
