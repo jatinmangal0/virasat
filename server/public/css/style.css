@@ -43,9 +43,11 @@ a { color: inherit; }
 .ticker-track { display: flex; gap: 48px; white-space: nowrap; animation: tick 40s linear infinite; padding-left: 24px; }
 .ticker-track span { font-weight: 700; font-size: 14px; letter-spacing: .06em; text-transform: uppercase; display: inline-flex; align-items: center; gap: 48px; }
 .ticker-track svg { width: 26px; height: 26px; flex: none; }
-.ticker-track.greetings span { text-transform: none; letter-spacing: .02em; font-size: 15px; gap: 0; align-items: center; }
-/* the two words sit on one centre line: a line drawn through the middle of one crosses the middle of the other */
-.ticker-track.greetings b { font-weight: 800; display: inline-flex; align-items: center; height: 24px; line-height: 1; }
+.ticker-track.greetings span { text-transform: none; letter-spacing: .02em; font-size: 15px; gap: 0; align-items: baseline; }
+.ticker-track.greetings span svg { align-self: center; }
+/* both words share one baseline, then app.js (alignGreetings) nudges the regional script by --native-shift so the
+   middle of its letters lines up with the middle of the English letters, whatever the script */
+.ticker-track.greetings b { font-weight: 800; display: inline-block; line-height: 1; transform: translateY(var(--word-drop, 0)); }
 .ticker-track.greetings .latin { margin-right: 26px; }
 .ticker-track.greetings .native {
   font-family: 'Anek Devanagari', 'Anek Bangla', 'Anek Tamil', 'Anek Kannada', 'Anek Telugu', 'Anek Malayalam', 'Anek Gujarati', 'Anek Gurmukhi', 'Anek Odia', system-ui, sans-serif;
