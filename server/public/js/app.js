@@ -645,7 +645,7 @@ async function boot() {
   setupChrome();
   setupAuth();
   initCity({ state, CITIES, api, sound, esc, firstName, openAuth, showEarned, goToCity, goExplore, resetStreet, markSeen, sequenceDone });
-  initExplore({ state, CITIES, api, esc, onClose: leaveExplore });
+  initExplore({ state, CITIES, api, esc, sound, onClose: leaveExplore });
   $('#skipBtn').onclick = speedUp;
   initPassport({ state, CITIES, openModal, closeModal, openAuth, logout, sound, showEarned, say });
   initClasses({ state, CITIES, api, esc, toast, openModal, closeModal, openJourney,
