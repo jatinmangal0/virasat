@@ -50,6 +50,14 @@ function layer() {
   return el;
 }
 
+// Load YouTube's player script early (when the browser is idle after the page loads), so a city's film can
+// start the moment its gate is picked.
+export function preloadFilm() {
+  if (!wantsFilm()) return;
+  const go = () => loadApi();
+  if ('requestIdleCallback' in window) requestIdleCallback(go, { timeout: 4000 }); else setTimeout(go, 2000);
+}
+
 // Start the city's film, hidden, as soon as its gate is picked. Never waits.
 export function warmFilm(cityId) {
   if (film?.city === cityId) return;
@@ -58,6 +66,7 @@ export function warmFilm(cityId) {
   if (!f || !wantsFilm()) return;
   const my = ++mine;
   film = { city: cityId, id: f.id, ready: false, shown: false };
+  layer().classList.add('warming');
   const box = layer().querySelector('#filmBox');
   box.innerHTML = '<div id="filmPlayer"></div>';
   // if the visitor never reaches the city (they turned back), don't keep streaming a hidden video
@@ -72,8 +81,8 @@ export function warmFilm(cityId) {
       p.seekTo(target, true);
       p.playVideo();
     };
-    // Ready = playing at the chosen point for a moment, so YouTube's play button and spinner have already
-    // come and gone while the video was hidden. Near the end it jumps to a new random point (hidden meanwhile)
+    // Ready = playing at the chosen point for 3.5 s, so YouTube's play/pause button and spinner, which it shows
+    // for the first seconds of playback, have already come and gone while the video was hidden. Near the end it jumps to a new random point (hidden meanwhile)
     // instead of letting the video end and show YouTube's end screen.
     const tick = () => {
       if (my !== mine || !player?.getCurrentTime) return;
@@ -83,7 +92,7 @@ export function warmFilm(cityId) {
         film.ready = false;
         layer().classList.remove('playing');
         jump(player);
-      } else if (!film.ready && playing && t > target + 1.2) {
+      } else if (!film.ready && playing && t > target + 3.5) {
         film.ready = true;
         layer().classList.add('playing');
         if (film.shown) reveal();

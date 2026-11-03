@@ -15,7 +15,7 @@ import { stampHTML } from './stamps.js';
 import { fit } from './lib.js';
 import { heroSVG, archPath } from './hero.js';
 import { initQuiz } from './quiz.js';
-import { warmFilm, showFilm, clipFilm, fadeFilm, stopFilm } from './film.js';
+import { warmFilm, showFilm, clipFilm, fadeFilm, stopFilm, preloadFilm } from './film.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -42,6 +42,7 @@ export function initCity(shared) {
   ctx = shared;
   initQuiz({ ctx, cur: () => cur, relayout: () => layoutAfterOpen(), marks: SEAL_MARK });
   $('#pigeon').innerHTML = PIGEON;
+  preloadFilm();
   document.body.insertAdjacentHTML('beforeend', `<svg width="0" height="0" style="position:absolute" aria-hidden="true">${GARLAND_DEFS}</svg>`);
   $('#cityBack').onclick = closeCity;
   // the same switch as the moon in the top bar (night.js), which the city page covers
