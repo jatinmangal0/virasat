@@ -136,6 +136,7 @@ async function playPin({ area, alive, score, finish }) {
     m = fitCity(c, box.clientWidth, box.clientHeight);
     if (!m) return;
     $('#pinSvg').setAttribute('viewBox', `0 0 ${m.W} ${m.H}`);
+    // the drawn map, not the street map: the street map's place names would give the answer away
     $('#pinSvg').innerHTML = cityMapSVG(m, esc, { id: 'pin' });
   };
   draw();

@@ -7,7 +7,7 @@
 // pinch, the + and − buttons) and pans (drag), and a search box finds any place by name.
 import { $, $$, clamp, reduced } from './lib.js';
 import { initPlaces, loadPlaces, placePins, showPlace, isBare } from './places.js';
-import { fitCity, cityMapSVG } from './citymap.js';
+import { fitCity, cityMapSVG, cityTilesHTML, mountTiles, streetMapOn, MAP_CREDIT } from './citymap.js';
 import { renderCards } from './explore-cards.js';
 import { renderGames } from './explore-games.js';
 
@@ -52,6 +52,7 @@ export function openExplore(id, { fromCity = false } = {}) {
       <div class="ex-grid">
         <div class="ex-map" id="exMap">
           <div class="ex-stage" id="exStage">
+            <div class="ex-tiles" id="exTiles" aria-hidden="true"></div>
             <svg class="ex-svg" id="exSvg" aria-hidden="true"></svg>
             <div class="places" id="places"></div>
           </div>
@@ -60,6 +61,7 @@ export function openExplore(id, { fromCity = false } = {}) {
             <button type="button" data-zoom="out" aria-label="Zoom out">−</button>
             <button type="button" data-zoom="reset" aria-label="Show the whole city" title="Whole city">⤢</button>
           </div>
+          <p class="map-credit" id="exCredit">${MAP_CREDIT}</p>
           <p class="ex-hint" id="exHint">Drag to move · pinch or scroll to zoom</p>
           <aside class="place-list" id="placeList" hidden></aside>
         </div>
@@ -142,7 +144,12 @@ function layout(first = false) {
   run.story.outline = { project: m.project, toXY: m.toXY };
   const svg = $('#exSvg');
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-  svg.innerHTML = cityMapSVG(m, ctx.esc, { id: 'ex' });
+  // the street map underneath (when it loads), with the city outline and pins on top
+  const street = streetMapOn();
+  $('#exMap').classList.toggle('street', street);
+  if (street) mountTiles($('#exTiles'), cityTilesHTML(m), () => layout());
+  else $('#exTiles').innerHTML = '';
+  svg.innerHTML = cityMapSVG(m, ctx.esc, { id: 'ex', street });
   svg.classList.toggle('inking', first);
   $('#exMap').classList.toggle('zoomed', run.view.z > 1.01);
   $('#exMap').style.touchAction = run.view.z > 1.01 ? 'none' : 'pan-y';
