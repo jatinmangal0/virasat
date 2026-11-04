@@ -1284,3 +1284,26 @@ body.is-night .mini-card { background: #2a2320; color: #f6ead2; box-shadow: 0 10
   .fc-inner, .mem-in { transition: none; }
   .gm-flowers i.on, .mem-card.done, .sort-basket.wrong, .pin-mark { animation: none; }
 }
+
+/* ---------- the street map under the Explore map and the map game ---------- */
+.ex-tiles { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.tile-layer { position: absolute; inset: 0; }
+.tile-layer img { position: absolute; max-width: none; user-select: none; -webkit-user-drag: none; }
+.ex-tiles:not(.loaded) { opacity: 0; }
+.ex-tiles.loaded { opacity: 1; transition: opacity .6s; }
+.ex-map.street, .gm-map.street { background: #f2efe9; }
+.ex-svg .ex-outside { fill: #1a130f; fill-opacity: .42; }
+.ex-svg .ex-land.street { fill: color-mix(in srgb, var(--accent) 30%, #f2b33d); fill-opacity: .07; }
+.ex-svg .ex-edge.street { stroke: #e0901c; stroke-width: 3.6; filter: drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 5px #f2b33dcc); }
+.street .ex-svg.inking .ex-outside { opacity: 0; animation: exFade 1.2s ease 1s forwards; }
+.street .pp-cluster { box-shadow: 0 0 0 4px #ffffffaa, 0 6px 14px #0006; }
+.map-credit { position: absolute; right: 8px; bottom: 6px; margin: 0; z-index: 3; font-size: 10.5px; line-height: 1.3; padding: 2px 6px; border-radius: 6px;
+  background: #ffffffd9; color: #3a2b22; }
+.map-credit a { color: inherit; }
+.ex-map.street .ex-hint { color: #2a1d12; background: #ffffffd9; padding: 3px 8px; border-radius: 6px; bottom: 6px; }
+.gm-map.street.aim { box-shadow: inset 0 0 0 2px #e0901c, 0 24px 60px -30px #000; }
+.street .pin-line line { stroke: #2a1d12; }
+@media (max-width: 720px) { .ex-map.street .ex-hint { display: none; } }
+@media (prefers-reduced-motion: reduce) { .street .ex-svg.inking .ex-outside { animation: none; opacity: 1; } }
+.street .pp::before { box-shadow: 0 0 0 1.5px #fff, 0 0 0 3px var(--r), 0 2px 6px #0006; }
+.street .pp.big::before { box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px #2a1d12, 0 2px 8px #0008; }
