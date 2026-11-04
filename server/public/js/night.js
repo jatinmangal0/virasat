@@ -6,8 +6,11 @@
 // - every daytime layer is dimmed with a CSS filter (.nt-dim)
 // - the buildings get a second, undimmed copy that only shows through a soft mask around each
 //   light, so shop goods and walls near a lamp come back in their real colours (.nt-lit)
-// - warm glows, beams and the night sky are drawn in extra SVGs inside each layer (.nt)
+// - warm glows and beams are drawn in extra SVGs inside each layer (.nt)
+// - the sky itself, with the real stars and Moon for the place and time, is sky.js
 // The extra layers are built the first time night is switched on, so the daytime page costs nothing.
+import { nightSky } from './sky.js';
+
 const NS = 'http://www.w3.org/2000/svg';
 const KEY = 'virasat-night';
 const WARM = '#ffd58a';
@@ -42,30 +45,6 @@ function syncAnimations(from, to) {
     const src = a[i];
     if (src && src.animationName === anim.animationName && src.startTime != null) anim.startTime = src.startTime;
   });
-}
-
-function skyNight(sky) {
-  let stars = '';
-  // most stars sit low, near the rooftops; the rest fill the tall sky that phones show above the street
-  for (let i = 0; i < 180; i++) {
-    const x = rand() * 1700 - 50, y = i < 110 ? rand() * rand() * 470 - 40 : -40 - rand() * 900, r = 0.5 + rand() * rand() * 1.8;
-    stars += `<circle class="${i % 3 ? '' : 'nt-twinkle'}" style="--d:${(rand() * 4).toFixed(2)}s" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(2)}" fill="#fffaf0" opacity="${(0.45 + rand() * 0.55).toFixed(2)}"/>`;
-  }
-  const wisps = [[260, 170, 1.3], [980, 110, 1], [1500, 230, 0.9]].map(([x, y, s]) =>
-    `<ellipse cx="${x}" cy="${y}" rx="${130 * s}" ry="${9 * s}" fill="#8f94c4" opacity=".18"/>
-     <ellipse cx="${x + 40 * s}" cy="${y - 8 * s}" rx="${70 * s}" ry="${7 * s}" fill="#b4b6dc" opacity=".14"/>`).join('');
-  overlay(sky, 'nt-sky', `<defs>
-      <linearGradient id="nt-skyg" gradientUnits="userSpaceOnUse" x1="0" y1="-200" x2="0" y2="660">
-        <stop offset="0" stop-color="#070b22"/><stop offset=".42" stop-color="#0e1640"/><stop offset=".78" stop-color="#27306a"/>
-        <stop offset=".93" stop-color="#5a4472"/><stop offset="1" stop-color="#8a5a6e"/></linearGradient>
-      ${glow('nt-moonhalo', '#dfe6ff', [[0, 0.55], [0.2, 0.22], [0.55, 0.06], [1, 0]])}
-      <radialGradient id="nt-moong" cx=".42" cy=".4"><stop offset="0" stop-color="#fffdf2"/><stop offset=".8" stop-color="#ece6cf"/><stop offset="1" stop-color="#d9d1b6"/></radialGradient>
-    </defs>
-    <rect x="-200" y="-1400" width="2000" height="2500" fill="url(#nt-skyg)"/>
-    ${stars}${wisps}
-    <circle cx="1300" cy="150" r="230" fill="url(#nt-moonhalo)"/>
-    <circle cx="1300" cy="150" r="38" fill="url(#nt-moong)"/>
-    <circle cx="1288" cy="140" r="7" fill="#d8cfb0" opacity=".55"/><circle cx="1312" cy="162" r="5" fill="#d8cfb0" opacity=".5"/><circle cx="1306" cy="134" r="3.5" fill="#d8cfb0" opacity=".45"/>`);
 }
 
 function skylineNight(skyline) {
@@ -227,7 +206,6 @@ function build() {
   // the lamp bulbs are the r=10 circles on the posts; read them from the scene so this follows any change there
   const lamps = [...fg.querySelectorAll('circle[r="10"]')].map((c) => ({ x: +c.getAttribute('cx'), y: +c.getAttribute('cy'), post: 712 }));
   for (const n of ['sky', 'skyline', 'buildings', 'wires', 'road', 'fg']) layer(n)?.classList.add('nt-dim', `nt-dim-${n}`);
-  skyNight(layer('sky'));
   skylineNight(layer('skyline'));
   const shops = buildingsNight(world.querySelector('.layer-buildings'), layer('buildings'), lamps);
   wiresNight(layer('wires'));
@@ -243,6 +221,7 @@ function setNight(on, save = true) {
   btn.setAttribute('aria-pressed', on);
   btn.setAttribute('aria-label', on ? 'Turn off night mode' : 'Turn on night mode');
   btn.title = on ? 'Day' : 'Night';
+  nightSky(on);
   if (save) try { localStorage.setItem(KEY, on ? '1' : '0'); } catch {}
 }
 

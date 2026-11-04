@@ -66,8 +66,8 @@ function udaipur(id) {
     <linearGradient id="${id}-lake" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3f63b8"/><stop offset="1" stop-color="#1b2d68"/></linearGradient>
     <radialGradient id="${id}-sun"><stop offset="0" stop-color="#fff3c4"/><stop offset=".4" stop-color="#ffe2a8" stop-opacity=".9"/><stop offset="1" stop-color="#ffe2a8" stop-opacity="0"/></radialGradient>
   </defs>
-  ${layer(0.05, `${rect(-200, -200, 2000, 1300, `url(#${id}-sky)`)}
-    <circle cx="700" cy="330" r="220" fill="url(#${id}-sun)"/><circle cx="700" cy="330" r="62" fill="#ffe8b4"/>
+  ${layer(0.05, `${rect(-200, -200, 2000, 1300, `url(#${id}-sky)`, 'class="hero-skyfill"')}
+    <g class="hero-sun"><circle cx="700" cy="330" r="220" fill="url(#${id}-sun)"/><circle cx="700" cy="330" r="62" fill="#ffe8b4"/></g>
     ${birds([[420, 210], [460, 196], [500, 218], [1180, 160], [1220, 176]])}`)}
   ${layer(0.12, `<path d="M-200,${water} V400 Q20,300 260,370 T700,350 T1150,380 T1800,330 V${water} Z" fill="#c98a8a" opacity=".6"/>
     <path d="M-200,${water} V460 Q200,380 420,440 T900,430 T1800,420 V${water} Z" fill="#b5727c" opacity=".55"/>`)}
@@ -129,8 +129,8 @@ function kolkata(id) {
     <linearGradient id="${id}-river" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a6a7e"/><stop offset="1" stop-color="#3a3150"/></linearGradient>
     <radialGradient id="${id}-sun"><stop offset="0" stop-color="#fff3c4"/><stop offset=".4" stop-color="#ffe2a8" stop-opacity=".9"/><stop offset="1" stop-color="#ffe2a8" stop-opacity="0"/></radialGradient>
   </defs>
-  ${layer(0.05, `${rect(-200, -200, 2000, 1300, `url(#${id}-sky)`)}
-    <circle cx="560" cy="410" r="230" fill="url(#${id}-sun)"/><circle cx="560" cy="410" r="66" fill="#ffe2a8"/>
+  ${layer(0.05, `${rect(-200, -200, 2000, 1300, `url(#${id}-sky)`, 'class="hero-skyfill"')}
+    <g class="hero-sun"><circle cx="560" cy="410" r="230" fill="url(#${id}-sun)"/><circle cx="560" cy="410" r="66" fill="#ffe2a8"/></g>
     ${birds([[300, 230], [340, 214], [380, 236], [1020, 190], [1060, 206], [1100, 186]])}`)}
   ${layer(0.12, skyline)}
   ${layer(0.22, `${truss}${traffic}`, 'hero-bridge')}
