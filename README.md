@@ -2,7 +2,7 @@
 
 A playful heritage site for learning about Indian cities, starting with **Udaipur** and **Kolkata**. Visitors pick a city, and Gaju the elephant walks them there. A pigeon flies in with a sealed scroll; they log in to break the seal, read the city's letter, then follow the scroll's twine down through a timeline of the city's history until it draws the outline of the city. Points are collected in their Virasat passport.
 
-**Live site:** https://virasat-psi.vercel.app · **Editor page:** https://virasat-psi.vercel.app/admin
+**Live site:** https://www.virasatinfo.in (the old address https://virasat-psi.vercel.app still works) · **Editor page:** https://www.virasatinfo.in/admin
 
 ## How it is built
 

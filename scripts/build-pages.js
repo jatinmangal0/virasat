@@ -1,4 +1,4 @@
-// Gives each city its own address, like virasat-psi.vercel.app/udaipur, before anyone opens it.
+// Gives each city its own address, like www.virasatinfo.in/udaipur, before anyone opens it.
 //
 //   node scripts/build-pages.js           (Vercel runs this after the migrations, on every build)
 //
@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { loadPublicCities } from '../server/api/content.js';
 
 const publicDir = fileURLToPath(new URL('../server/public/', import.meta.url));
-export const SITE = (process.env.SITE_URL || 'https://virasat-psi.vercel.app').replace(/\/$/, '');
+export const SITE = (process.env.SITE_URL || 'https://www.virasatinfo.in').replace(/\/$/, '');
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const firstSentence = (s) => (String(s).match(/^[^.!?]+[.!?]/) || [s])[0].trim();
