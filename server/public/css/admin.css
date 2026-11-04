@@ -90,7 +90,7 @@ th { color: var(--ink-soft); font-weight: 600; }
 .help li { margin: 2px 0; }
 .item .year { display: inline-block; background: var(--ink); color: #fff; border-radius: 6px; padding: 0 7px; margin-right: 4px; font-size: 14px; }
 .thumbs { display: flex; gap: 8px; margin: 4px 0 8px; flex-wrap: wrap; }
-.thumbs img { width: 84px; height: 64px; object-fit: cover; border-radius: 6px; border: 1px solid var(--line); }
+.thumbs img { width: 84px; height: 64px; object-fit: contain; background: #2a1d1214; border-radius: 6px; border: 1px solid var(--line); }
 .item .motif { float: right; width: 64px; height: 64px; margin: 0 0 6px 10px; }
 .item .memory { border-left: 3px solid #e9a825; padding-left: 10px; }
 .draft-box { border: 2px dashed #e9a825; border-radius: 10px; padding: 10px 14px; margin: 0 0 14px; display: grid; gap: 8px; justify-items: start; }

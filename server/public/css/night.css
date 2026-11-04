@@ -75,7 +75,6 @@ body.is-night .city-sky { background: none; }
 body.is-night .city-sky .hero-skyfill, body.is-night .city-sky .hero-sun { opacity: 0; }
 /* and the city itself in moonlight */
 body.is-night .city-sky .hero-svg { filter: brightness(.5) saturate(.7) hue-rotate(-12deg) contrast(1.05); }
-body.is-night .film-box { filter: brightness(.55) saturate(.8) hue-rotate(-10deg); }
 body.is-night .post-title { color: #f6ead2; text-shadow: 0 2px 12px #000a; }
 body.is-night .post-title small { color: #c9c6e8; }
 body.is-night .pg { filter: brightness(.82) saturate(.8) drop-shadow(0 0 10px #c9d6ff55); }
@@ -93,8 +92,6 @@ body.is-night .scroll::before {
 body.is-night .sheet { filter: sepia(.12) brightness(.94); box-shadow: 0 0 80px #ffb45a33; }
 body.is-night .knob { box-shadow: 0 4px 8px #0006, 0 0 14px #ffd56a99; }
 
-/* the thread, the medallions and the marigolds catch the light */
-body.is-night .story-svg .garland, body.is-night .rope-layer .garland { filter: drop-shadow(0 0 4px #ffb347aa); }
 body.is-night .medal { box-shadow: 0 0 0 3px #d8a93b, 0 0 0 5px #7a5310, 0 0 0 7px #e8730c55, 0 0 24px #ffcf6a77; }
 body.is-night .element-disc { box-shadow: 0 0 0 6px #d8a93b, 0 0 0 9px #6b4a12, 0 0 60px #ffb34766, 0 30px 60px -20px #000c; }
 body.is-night .story-head small, body.is-night .ev-year { text-shadow: 0 0 18px #ffcf6a66; }
