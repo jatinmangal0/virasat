@@ -52,6 +52,8 @@ export function initCity(shared) {
   $('#city').addEventListener('scroll', () => cur?.story && requestStoryFrame());
   addEventListener('resize', () => { if (cur?.opened) layoutAfterOpen(); });
   $('#cpClose').onclick = () => { $('#checkpoint').hidden = true; };
+  $('#stepNext').onclick = () => step(1);
+  $('#stepPrev').onclick = () => step(-1);
   // the arrival scene leans a little with the pointer, each layer by its depth
   $('#city').addEventListener('pointermove', (e) => {
     if (reduced() || !cur) return;
@@ -304,7 +306,9 @@ async function breakSeal(my) {
     await wait(reduced() ? 0 : 1500);
     check();
 
-    // unroll: the bottom roller travels down, the city's picture fills the top half
+    // unroll: the bottom roller travels down under the city's picture, to a letter sized to fit the screen
+    await document.fonts?.ready;
+    fitLetter();
     const target = $('#letter').offsetHeight;
     view.classList.add('opened');
     sound.paper();
@@ -395,7 +399,9 @@ function restRope() {
 
 function layoutAfterOpen() {
   if (!cur?.story) return;
+  fitLetter();
   measureStory();
+  if (cur.story.active >= 0) fitEvent();
   if (!cur.rope) restRope();
   else $('#ropeLayer').style.height = storyEnd() + 'px';
   requestStoryFrame();
@@ -420,6 +426,21 @@ function renderLetter(c) {
         <strong class="fact-v">${esc(v)}</strong>
       </div>`).join('')}</div>`;
   $$('#letter img').forEach((im) => im.addEventListener('load', () => { if (cur?.opened) layoutAfterOpen(); }, { once: true }));
+}
+
+// The open letter fits on one screen with the city's picture above it and the Next button below it: its type and
+// spacing shrink together (--fit, from 1 down to 0.6) until the bottom roller is on screen. Only a very small
+// screen still needs a little scrolling. The top roller overlaps the picture, so the scroll ends at
+// picture + letter + one roller.
+const STEP_ROOM = 64; // the Next button under the scroll
+function fitLetter() {
+  const L = $('#letter'), R = $('.roll-top').offsetHeight;
+  const room = innerHeight - $('#cityHero').offsetHeight - R - STEP_ROOM;
+  const fits = (k) => { L.style.setProperty('--fit', k); return L.offsetHeight <= room; };
+  if (fits(1)) return;
+  let lo = 0.6, hi = 1;
+  for (let n = 0; n < 7; n++) { const m = (lo + hi) / 2; if (fits(m)) lo = m; else hi = m; }
+  fits(lo);
 }
 
 // A small drawn mark for each quick fact, inside a postmark ring: an hourglass for when, a crown for who,
@@ -608,6 +629,7 @@ function drawStory() {
   endEl.style.opacity = endOp;
   endEl.style.transform = `translateY(${(1 - endOp) * 24}px)`;
   endEl.style.visibility = endOp > 0 ? 'visible' : 'hidden';
+  updateSteps();
 }
 
 // ---------------------------------------------------------------- Gaju rides down the thread
@@ -705,8 +727,59 @@ function showEvent(i) {
     : `<div class="ev-ghost" aria-hidden="true">${esc(e.year)}</div>
       ${motifSVG(e.motif) ? `<figure class="element"><div class="element-disc">${motifSVG(e.motif)}</div></figure>` : ''}
       <figure class="snap ${motifSVG(e.motif) ? 'm1' : 'm0'} stamp">${stampHTML(c)}</figure>`;
-  for (const el of [info, media]) el.animate([{ opacity: 0, transform: 'translateY(14px)' }, { opacity: 1, transform: 'none' }], { duration: 420, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  fitEvent();
+  for (const el of [info, media]) el.animate([{ opacity: 0, translate: '0 14px' }, { opacity: 1, translate: '0 0' }], { duration: 420, easing: 'cubic-bezier(.2,.8,.2,1)' });
   rollYear($('.ev-year', info), from, e.year);
+}
+
+// Each event fits the screen too: its words and pictures shrink together (--evfit) until the words fit their
+// column between the top bar and the Next button (wide screens), or sit below the pictures (phones).
+function fitEvent() {
+  const ev = $('#ev'), info = $('#evInfo'), mob = innerWidth <= 720;
+  if (!ev || !info) return;
+  const fits = (k) => {
+    ev.style.setProperty('--evfit', k);
+    if (!mob) return info.scrollHeight <= info.clientHeight + 1;
+    const below = Math.max(0, ...$$('#evMedia > *').map((m) => m.offsetTop + m.offsetHeight));
+    return info.offsetTop >= below + 14 && info.offsetTop >= 64;
+  };
+  if (fits(1)) return;
+  let lo = 0.55, hi = 1;
+  for (let n = 0; n < 7; n++) { const m = (lo + hi) / 2; if (fits(m)) lo = m; else hi = m; }
+  fits(lo);
+}
+
+// ---------------------------------------------------------------- Next and Back
+// The letter, the start of the thread, each event and the way on are each one screen. The Next and Back buttons
+// glide between them, so nothing needs a swipe (swiping and the wheel still work as before).
+function stops() {
+  const s = cur?.story;
+  if (!s?.seg) return [];
+  const top = $('#story').offsetTop, N = s.ev.length, max = $('#city').scrollHeight - innerHeight;
+  const ev = Array.from({ length: N }, (_, i) => top + s.seg.wave + s.seg.left + (N > 1 ? s.seg.events * Math.min(1, (i + 0.2) / (N - 0.4)) : 1));
+  return [0, top + s.seg.wave, ...ev, top + s.seg.wave + s.seg.left + s.seg.events + s.seg.end].map((y) => Math.min(Math.round(y), max));
+}
+
+function step(d) {
+  const y = $('#city').scrollTop, all = stops();
+  const to = d > 0 ? all.find((p) => p > y + 8) : all.filter((p) => p < y - 8).pop();
+  if (to == null) return;
+  ctx.sound?.tap?.();
+  $('#city').scrollTo({ top: to, behavior: reduced() ? 'auto' : 'smooth' });
+}
+
+function updateSteps() {
+  const nav = $('#storySteps');
+  if (!nav || !cur?.opened) return;
+  const y = $('#city').scrollTop, all = stops();
+  const next = all.findIndex((p) => p > y + 8);
+  nav.hidden = false;
+  $('#stepPrev').hidden = y < 8;
+  $('#stepNext').hidden = next < 0;
+  const N = cur.story.ev.length;
+  $('#stepNext').textContent = next === 1 ? 'Follow the thread ↓'
+    : next >= 2 && next < 2 + N ? `Next: ${cur.story.ev[next - 2].year} ↓`
+    : 'The way on ↓';
 }
 
 // The year counts from the last event's year to this one, so moving along the thread feels like moving
@@ -750,6 +823,7 @@ export async function closeCity() {
   $('#scroll').getAnimations({ subtree: true }).forEach((a) => a.cancel());
   pg.hidden = true;
   $('#checkpoint').hidden = true;
+  $('#storySteps').hidden = true;
   ctx.sequenceDone();
   ctx.resetStreet();
   // step back out through the arch while the street pulls back
