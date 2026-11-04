@@ -1,4 +1,4 @@
 User-agent: *
 Disallow: /admin
 Disallow: /api/
-Sitemap: https://virasat-psi.vercel.app/sitemap.xml
+Sitemap: https://www.virasatinfo.in/sitemap.xml

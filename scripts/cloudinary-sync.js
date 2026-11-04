@@ -31,7 +31,7 @@ export function commonsThumb(url) {
 
 const MAX_BYTES = 9.5 * 1024 * 1024;
 export async function download(src) {
-  const res = await fetch(src, { headers: { 'user-agent': 'VirasatBot/1.0 (https://virasat-psi.vercel.app; heritage education site)' } });
+  const res = await fetch(src, { headers: { 'user-agent': 'VirasatBot/1.0 (https://www.virasatinfo.in; heritage education site)' } });
   if (!res.ok) throw new Error(`${new URL(src).hostname} answered ${res.status}`);
   const buf = Buffer.from(await res.arrayBuffer());
   if (buf.length > MAX_BYTES) throw new Error(`file is ${(buf.length / 1048576).toFixed(1)} MB, too big`);

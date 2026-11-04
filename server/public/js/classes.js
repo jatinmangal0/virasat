@@ -16,7 +16,7 @@ export function initClasses(shared) {
     ctx.closeModal($('#classModal'));
     ctx.onJoined(r.data);
   });
-  // a link like virasat-psi.vercel.app/?class=K7Q2MX opens the join form with the code filled in
+  // a link like www.virasatinfo.in/?class=K7Q2MX opens the join form with the code filled in
   const code = new URLSearchParams(location.search).get('class');
   if (code) openJoin(code);
 }
