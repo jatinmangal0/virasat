@@ -9,13 +9,12 @@
 //      as a timeline while each event is shown in the middle.
 //   5. after the last event, the event card turns into the way on: the city's Explore page (its own address,
 //      /<city>/explore: the map now, flashcards and games later), the other city, or the street.
-import { twineSVG, setTwine, Rope, GARLAND_DEFS, placeGarland } from './twine.js';
+import { twineSVG, setTwine, Rope } from './twine.js';
 import { motifSVG } from './motifs.js';
 import { stampHTML } from './stamps.js';
 import { fit, smart } from './lib.js';
 import { heroSVG, archPath } from './hero.js';
 import { initQuiz } from './quiz.js';
-import { warmFilm, showFilm, clipFilm, fadeFilm, stopFilm, preloadFilm } from './film.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -42,8 +41,6 @@ export function initCity(shared) {
   ctx = shared;
   initQuiz({ ctx, cur: () => cur, relayout: () => layoutAfterOpen(), marks: SEAL_MARK });
   $('#pigeon').innerHTML = PIGEON;
-  preloadFilm();
-  document.body.insertAdjacentHTML('beforeend', `<svg width="0" height="0" style="position:absolute" aria-hidden="true">${GARLAND_DEFS}</svg>`);
   $('#cityBack').onclick = closeCity;
   // the same switch as the moon in the top bar (night.js), which the city page covers
   $('#cityNight').onclick = () => document.getElementById('nightBtn')?.click();
@@ -90,15 +87,14 @@ function archTo(id, from, to, ms) {
       const r = { x: lerp(a.x, b.x, e), y: lerp(a.y, b.y, e), w: lerp(a.w, b.w, e), h: lerp(a.h, b.h, e) };
       const d = archPath(id, r.x, r.y, r.w, r.h);
       view.style.clipPath = `path('${d}')`;
-      clipFilm(view.style.clipPath);
       const sw = Math.max(4, r.w * 0.06);
       frame.innerHTML = `<path d="${d}" stroke="${ring}" stroke-width="${sw}"/><path d="${archPath(id, r.x - sw * 0.9, r.y - sw * 0.9, r.w + sw * 1.8, r.h + sw * 0.9)}" stroke="#3a2420" stroke-width="${Math.max(1.5, sw * 0.25)}"/>`;
       if (k < 1) requestAnimationFrame(step);
-      else { if (to === 'open') { view.style.clipPath = ''; clipFilm(''); frame.innerHTML = ''; } done(); }
+      else { if (to === 'open') { view.style.clipPath = ''; frame.innerHTML = ''; } done(); }
     };
     requestAnimationFrame(step);
     // frames stop in background tabs; never leave the city half-clipped
-    setTimeout(() => { if (my === archAnim && to === 'open') { view.style.clipPath = ''; clipFilm(''); frame.innerHTML = ''; } done(); }, ms * pace() + 400);
+    setTimeout(() => { if (my === archAnim && to === 'open') { view.style.clipPath = ''; frame.innerHTML = ''; } done(); }, ms * pace() + 400);
   });
 }
 
@@ -115,7 +111,6 @@ const warmed = new Set();
 export function warmCity(id) {
   const c = ctx?.CITIES[id];
   if (!c) return;
-  warmFilm(id); // the city's film starts playing, hidden, so the city opens straight onto it
   const dove = $('#pigeon img');
   if (dove && !warmed.has('dove')) { warmed.add('dove'); dove.decode?.().catch(() => {}); }
   for (const src of [c.poster && fit(c.poster, 1600), c.stamp && fit(c.stamp, 480)]) {
@@ -145,7 +140,7 @@ export async function openCity(id, my, from = null) {
   view.className = 'city delivering arriving';
   view.style.setProperty('--accent', c.accent);
   renderLetter(c);
-  // the drawn scene: shown only until the city's film is playing (film.js), or if it can't play
+  // the drawn scene behind the dove
   $('#citySky').innerHTML = heroSVG(id);
   // the picture above the letter: the team's poster for the city where there is one, else the drawn scene
   $('#cityHero').innerHTML = c.poster
@@ -161,9 +156,9 @@ export async function openCity(id, my, from = null) {
   $('#scroll').className = 'scroll';
   $('#tie').style.opacity = '';
   $('#ropeLayer').style.display = 'none';
+  placeRider(null);
   $('#storyStage').innerHTML = '';
   $('#story').style.height = '0px';
-  showFilm(id);
   view.hidden = false;
   view.scrollTop = 0;
   document.body.classList.add('locked');
@@ -196,22 +191,20 @@ function askToOpen() {
   ctx.openAuth(undefined, `Gaju has a scroll for you from ${cur.c.name}. Sign in to break the seal.`);
 }
 
-// The twine wrapped round the closed scroll: crossing strands, a knot, two loose ends.
+// The cord round the closed scroll: wound twice round both rollers, knotted under the seal, two short ends.
 function drawTie() {
   const sc = $('#scroll'), w = sc.clientWidth, R = $('.roll-top').offsetHeight, cx = w / 2;
   const tie = $('#tie');
   tie.setAttribute('viewBox', `0 0 ${w} ${2 * R}`);
-  const strands = [[-22, 8], [-9, 21], [17, -13], [28, -1]].map(([a, b]) =>
-    [[cx + a, -3], [cx + (a + b) / 2 + 2, R], [cx + b, 2 * R + 3]]);
+  const strands = [-6, 6].map((a) => [[cx + a, -2], [cx + a * 0.7, R], [cx + a, 2 * R + 2]]);
   const ends = [
-    [[cx, R], [cx - 24, R + 32], [cx - 60, R + 66], [cx - 56, R + 104], [cx - 78, R + 134]],
-    [[cx, R], [cx + 16, R + 38], [cx + 8, R + 88], [cx + 28, R + 122]],
+    [[cx, R], [cx - 10, R + 30], [cx - 16, R + 58]],
+    [[cx, R], [cx + 8, R + 34], [cx + 12, R + 52]],
   ];
-  const knot = [[cx - 10, R - 6], [cx + 8, R - 10], [cx + 12, R + 6], [cx - 6, R + 11], [cx - 12, R - 2], [cx + 4, R - 4]];
-  tie.innerHTML = [...strands, ...ends, knot].map(() => twineSVG(4)).join('') +
-    ends.map((e) => { const [x, y] = e[e.length - 1]; return `<path d="M${x},${y} l-5,9 M${x},${y} l2,10 M${x},${y} l6,7" stroke="#c9a675" stroke-width="1.3" stroke-linecap="round"/>`; }).join('');
+  const all = [...strands, ...ends];
+  tie.innerHTML = all.map(() => twineSVG(4)).join('');
   const gs = $$('g.twine', tie);
-  [...strands, ...ends, knot].forEach((pts, i) => setTwine(gs[i], pts, true));
+  all.forEach((pts, i) => setTwine(gs[i], pts, true));
 }
 
 async function deliver(my) {
@@ -314,8 +307,6 @@ async function breakSeal(my) {
     // unroll: the bottom roller travels down, the city's picture fills the top half
     const target = $('#letter').offsetHeight;
     view.classList.add('opened');
-    // the arrival scene fades out now, film and all
-    fadeFilm();
     sound.paper();
     const roll = speedUp(sheet.animate([{ height: '0px' }, { height: target + 'px' }], { duration: reduced() ? 1 : 3400, easing: 'cubic-bezier(.45,.05,.3,1)', fill: 'forwards' }));
     await settle(roll);
@@ -342,14 +333,14 @@ function startRope(L) {
   const layer = $('#ropeLayer'), view = $('#city');
   layer.style.display = '';
   layer.style.height = view.scrollHeight + 'px'; // the story is not laid out yet; restRope() sizes it properly
-  layer.innerHTML = twineSVG(threadWidth(), 'rope') + '<g class="garland"></g>';
+  layer.innerHTML = twineSVG(threadWidth(), 'rope');
   const g = $('g.rope', layer);
   const A = anchor();
   if (reduced()) { setTwine(g, [A, [A[0], A[1] + L]]); return; }
   // lay the rope along the bottom roller to the knot, then down the loose end, so the hand-over is not seen
   const r = $('#scroll').getBoundingClientRect(), R = $('.roll-top').offsetHeight;
   const cx = r.left + r.width / 2, top = r.top + view.scrollTop;
-  const guide = [A, [cx - 20, A[1]], [cx, top + R], [cx - 24, top + R + 32], [cx - 60, top + R + 66], [cx - 56, top + R + 104], [cx - 60, top + R + 104 + L]];
+  const guide = [A, [cx - 20, A[1]], [cx, top + R], [cx - 10, top + R + 30], [cx - 16, top + R + 58], [cx - 16, top + R + 58 + L]];
   const n = 44, seg = L / (n - 1), pts = [];
   let gi = 0, pos = [...guide[0]];
   for (let i = 0; i < n; i++) {
@@ -376,11 +367,9 @@ function startRope(L) {
       const rest = restPoints(n);
       const pts = rope.points().map((q, i) => mixP(q, rest[i], smooth(k)));
       setTwine(g, pts, true);
-      placeGarland($('g.garland', layer), pts, gardenGap(), gardenScale());
-      if (k >= 1) { cur.rope = null; restRope(); return; }
+      if (k >= 1) { cur.rope = null; restRope(); requestStoryFrame(); return; }
     } else {
       setTwine(g, rope.points(), true);
-      placeGarland($('g.garland', layer), rope.points(), gardenGap(), gardenScale());
     }
     requestAnimationFrame(tick);
   };
@@ -389,8 +378,6 @@ function startRope(L) {
 
 // At rest, the twine hangs from the roller to the top of the timeline, with a slight belly.
 const threadWidth = () => (innerWidth < 720 ? 5 : 7);
-const gardenGap = () => (innerWidth < 720 ? 40 : 54);
-const gardenScale = () => (innerWidth < 720 ? 0.85 : 1.1);
 
 function restPoints(n) {
   const A = anchor(), end = $('#story').offsetTop + 2, sway = Math.min(14, (end - A[1]) * 0.03);
@@ -404,7 +391,6 @@ function restRope() {
   layer.style.height = storyEnd() + 'px';
   const pts = restPoints(24);
   setTwine($('g.rope', layer), pts, true);
-  placeGarland($('g.garland', layer), pts, gardenGap(), gardenScale());
 }
 
 function layoutAfterOpen() {
@@ -530,7 +516,7 @@ function measureStory() {
   s.seg = { wave: H * 1.1, left: N ? H * 0.7 : H * 0.2, events: N ? H * 0.75 * N : 0, end: H * 0.9 };
   const total = Object.values(s.seg).reduce((a, b) => a + b, 0) + H * 0.5;
   $('#story').style.height = total + H + 'px';
-  $('#storySvg').innerHTML = twineSVG(s.g.w, 'main') + '<g class="garland" id="storyGarland"></g>';
+  $('#storySvg').innerHTML = twineSVG(s.g.w, 'main');
 }
 
 // ----- the shapes the thread takes; each maps u (0 at the scroll end, 1 at the far end) to a point
@@ -573,6 +559,7 @@ function drawStory() {
   const s = cur.story, g = s.g, seg = s.seg, N = g.N;
   const view = $('#city'), stage = $('#storyStage');
   const y = view.scrollTop - $('#story').offsetTop;
+  const stTop = stage.getBoundingClientRect().top, knot = anchor(), rest = restPoints(24); // read before any writes
   let t = y;
   const part = (len) => { const p = len ? clamp(t / len) : 1; t -= len; return p; };
   const a = part(seg.wave), b = part(seg.left), e = part(seg.events), d = part(seg.end);
@@ -596,7 +583,7 @@ function drawStory() {
   const last = Math.max(1, Math.floor(visible * (M - 1)));
   for (let i = 0; i <= last; i++) pts.push(shape(i / (M - 1), i));
   setTwine($('#storySvg g.twine'), pts);
-  placeGarland($('#storyGarland'), pts, gardenGap(), gardenScale());
+  rideThread({ shape, pts, a, b, d, visible, uAct, uLast, stTop, knot, rest, scroll: view.scrollTop });
 
   // event medallions ride on the thread
   const nodeOpacity = 1;
@@ -621,6 +608,70 @@ function drawStory() {
   endEl.style.opacity = endOp;
   endEl.style.transform = `translateY(${(1 - endOp) * 24}px)`;
   endEl.style.visibility = endOp > 0 ? 'visible' : 'hidden';
+}
+
+// ---------------------------------------------------------------- Gaju rides down the thread
+// After the letter, Gaju holds the thread with his trunk and slides down it as the visitor scrolls, turning round
+// it as he goes. He sits on a line across the screen: first on the cord hanging from the roller, then on the
+// thread as it drops into the timeline, then at the thread's growing end across the wave, and in the event column
+// half way between the last event and the one in focus.
+function rideThread({ shape, pts, a, b, d, visible, uAct, uLast, stTop, knot, rest, scroll }) {
+  if (!cur?.opened || cur.rope) return placeRider(null);
+  const g = cur.story.g, N = Math.max(g.N, 1);
+  const line = g.H * (g.mob ? 0.4 : 0.365);
+  const knotY = knot[1] - scroll;
+  let p;
+  if (line <= knotY) p = [knot[0], knotY];                   // the roller has not come up to him yet: he waits on it
+  else if (line < stTop) {                                    // on the cord between the roller and the timeline
+    const t = (line - knotY) / Math.max(1, stTop - knotY), r0 = rest[0], r1 = rest[rest.length - 1];
+    const sway = (rest[Math.floor(rest.length / 2)][0] - lerp(r0[0], r1[0], 0.5));
+    p = [lerp(r0[0], r1[0], t) + sway * Math.sin(t * Math.PI), line];
+  } else {
+    let u;
+    if (b === 0) {
+      // where the thread crosses his line as it drops in from the cord (that part only goes down, so halve it)
+      const yl = line - stTop;
+      let lo = 0, hi = U0;
+      for (let k = 0; k < 18; k++) { const mid = (lo + hi) / 2; if (shape(mid)[1] < yl) lo = mid; else hi = mid; }
+      u = lerp(lo, visible, smooth(clamp(a / 0.15)));        // then he runs ahead to the thread's growing end
+    } else {
+      const col = (d === 0 ? uAct : uLast) - 0.5 * (1 - U0) / N;
+      u = lerp(1, Math.max(0, col), ease(b));
+    }
+    const q = shape(clamp(u));
+    p = [q[0], q[1] + stTop];
+  }
+  // the bits of thread round him, in screen terms, drawn over him while he is round the back of it
+  const box = riderSize() * 1.25, near = [];
+  const pick = (list, dy) => {
+    const ix = list.map((q, i) => (Math.abs(q[0] - p[0]) < box && Math.abs(q[1] + dy - p[1] - box * 0.4) < box ? i : -1)).filter((i) => i >= 0);
+    if (ix.length) near.push(list.slice(Math.max(0, ix[0] - 1), ix[ix.length - 1] + 2).map((q) => [q[0], q[1] + dy]));
+  };
+  pick(rest, -scroll);
+  pick(pts, stTop);
+  placeRider(p, near, scroll);
+}
+
+const riderSize = () => (innerWidth < 720 ? 54 : 104);
+function placeRider(p, near = [], scroll = 0) {
+  const r = $('#rider'), cord = $('#riderCord');
+  if (!r) return;
+  if (!p) { r.hidden = true; cord.style.display = 'none'; return; }
+  r.hidden = false;
+  r.style.setProperty('--gw', riderSize() + 'px');
+  // one full turn round the thread for about every 650 px scrolled
+  // it lingers side on, where he reads best, and turns quickly through edge on, where he would be a sliver
+  const t0 = ((scroll * 0.55) % 360) * Math.PI / 180;
+  const turn = reduced() ? 24 : ((t0 - 0.4 * Math.sin(2 * t0)) * 180) / Math.PI;
+  r.style.transform = `translate(${p[0].toFixed(1)}px, ${p[1].toFixed(1)}px)`;
+  r.firstElementChild.style.transform = `rotateY(${turn.toFixed(1)}deg) rotate(-24deg)`;
+  // rotateY swings his body (right of his trunk) away from the viewer while the sine is positive
+  const behind = Math.sin((turn * Math.PI) / 180) > 0.08 && near.length;
+  cord.style.display = behind ? '' : 'none';
+  if (!behind) return;
+  const w = cur?.story?.g?.w || threadWidth();
+  if (cord.childElementCount !== near.length || cord.dataset.w !== String(w)) { cord.innerHTML = near.map(() => twineSVG(w)).join(''); cord.dataset.w = w; }
+  near.forEach((list, i) => setTwine(cord.children[i], list));
 }
 
 function showEvent(i) {
@@ -684,6 +735,7 @@ function jumpTo(i) {
 
 // ---------------------------------------------------------------- leave
 export async function closeCity() {
+  placeRider(null);
   const { state } = ctx;
   state.seq++;
   state.afterAuth = null;
@@ -698,7 +750,6 @@ export async function closeCity() {
   $('#scroll').getAnimations({ subtree: true }).forEach((a) => a.cancel());
   pg.hidden = true;
   $('#checkpoint').hidden = true;
-  stopFilm();
   ctx.sequenceDone();
   ctx.resetStreet();
   // step back out through the arch while the street pulls back
