@@ -2,7 +2,7 @@
 // what its photos show, and which of its things are food, festivals or landmarks. A game only shows when the
 // city has enough checked content for it. Best scores are kept on this device.
 import { $, $$, clamp, reduced, sleep } from './lib.js';
-import { fitCity, cityMapSVG, cityTilesHTML, mountTiles, streetMapOn, kmBetween, MAP_CREDIT } from './citymap.js';
+import { fitCity, cityMapSVG, kmBetween } from './citymap.js';
 import { cardsOf, toldPlaces, shuffle, pick, yearNum, store } from './explore-data.js';
 
 let S;   // { ctx, run, panel, showTab } from explore.js
@@ -128,8 +128,7 @@ async function playPin({ area, alive, score, finish }) {
   let total = 0;
   area.innerHTML = `
     <div class="pin-ask" id="pinAsk"></div>
-    <div class="gm-map" id="pinMap"><div class="ex-tiles" id="pinTiles" aria-hidden="true"></div><svg class="ex-svg" id="pinSvg" aria-hidden="true"></svg><div class="pin-marks" id="pinMarks"></div>
-      <p class="map-credit">${MAP_CREDIT}</p></div>
+    <div class="gm-map" id="pinMap"><svg class="ex-svg" id="pinSvg" aria-hidden="true"></svg><div class="pin-marks" id="pinMarks"></div></div>
     <p class="gm-help" id="pinHelp">Tap the map where you think it is.</p>`;
   const box = $('#pinMap');
   let m;
@@ -137,11 +136,8 @@ async function playPin({ area, alive, score, finish }) {
     m = fitCity(c, box.clientWidth, box.clientHeight);
     if (!m) return;
     $('#pinSvg').setAttribute('viewBox', `0 0 ${m.W} ${m.H}`);
-    // the street map without its labels, so it does not give the answer away
-    const street = streetMapOn();
-    box.classList.toggle('street', street);
-    if (street) mountTiles($('#pinTiles'), cityTilesHTML(m, { labels: false }), () => { if (alive()) { draw(); placeMarks(); } });
-    $('#pinSvg').innerHTML = cityMapSVG(m, esc, { id: 'pin', street });
+    // the drawn map, not the street map: the street map's place names would give the answer away
+    $('#pinSvg').innerHTML = cityMapSVG(m, esc, { id: 'pin' });
   };
   draw();
   S.run.onResize = () => { if (alive()) { draw(); placeMarks(); } };

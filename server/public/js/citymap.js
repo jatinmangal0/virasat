@@ -66,36 +66,32 @@ export function cityMapSVG(m, esc, { id = 'g', street = false } = {}) {
 }
 
 // ---------- the street map under the outline ----------
-// Raster tiles from CARTO's free basemaps (OpenStreetMap data), laid out in the same projection as the
+// Raster tiles from OpenStreetMap's own tile server (free, no key, credit required), laid out in the same projection as the
 // outline and the pins: each tile's corners go through toXY, so the map, the outline and the pins line up.
 // Over one city, Web Mercator and this projection differ by far less than a pixel inside a tile.
-// labels: false for the map game, so the street map does not give the answer away.
 const TILE = 256;
 const tileX = (lng, z) => ((lng + 180) / 360) * 2 ** z;
 const tileY = (lat, z) => { const r = (lat * Math.PI) / 180; return ((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * 2 ** z; };
 const tileLng = (x, z) => (x / 2 ** z) * 360 - 180;
 const tileLat = (y, z) => (Math.atan(Math.sinh(Math.PI * (1 - (2 * y) / 2 ** z))) * 180) / Math.PI;
 
-export const MAP_CREDIT = '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>';
+export const MAP_CREDIT = '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors';
 
-export function cityTilesHTML(m, { labels = true } = {}) {
+export function cityTilesHTML(m) {
   const { W, H, fromXY, toXY } = m;
   const [lng0, lat0] = fromXY(0, 0), [lng1, lat1] = fromXY(W, H);
   // the zoom level whose tiles show closest to their own size (map text stays readable)
   const degPerPx = (lng1 - lng0) / W;
-  const z = clamp(Math.round(Math.log2(360 / (TILE * degPerPx))), 3, 18);
+  const z = clamp(Math.round(Math.log2(360 / (TILE * degPerPx))), 3, 19);
   const x0 = Math.floor(tileX(lng0, z)), x1 = Math.floor(tileX(lng1, z));
   const y0 = Math.floor(tileY(lat0, z)), y1 = Math.floor(tileY(lat1, z));
   if ((x1 - x0 + 1) * (y1 - y0 + 1) > 120) return '';   // never more than a screenful of tiles
-  const style = labels ? 'voyager' : 'voyager_nolabels';
-  const r = (globalThis.devicePixelRatio || 1) > 1.4 ? '@2x' : '';
   const out = [];
   for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) {
     const [l, t] = toXY(tileLng(x, z), tileLat(y, z));
     const [rr, b] = toXY(tileLng(x + 1, z), tileLat(y + 1, z));
-    const sub = 'abcd'[(x + y) % 4];
     // a hair of overlap hides the seams between tiles
-    out.push(`<img src="https://${sub}.basemaps.cartocdn.com/rastertiles/${style}/${z}/${x}/${y}${r}.png" alt="" draggable="false" decoding="async"
+    out.push(`<img src="https://tile.openstreetmap.org/${z}/${x}/${y}.png" alt="" draggable="false" decoding="async"
       style="left:${l.toFixed(1)}px;top:${t.toFixed(1)}px;width:${(rr - l + 0.6).toFixed(1)}px;height:${(b - t + 0.6).toFixed(1)}px">`);
   }
   return out.join('');
