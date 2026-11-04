@@ -12,7 +12,7 @@
 import { twineSVG, setTwine, Rope, GARLAND_DEFS, placeGarland } from './twine.js';
 import { motifSVG } from './motifs.js';
 import { stampHTML } from './stamps.js';
-import { fit } from './lib.js';
+import { fit, smart } from './lib.js';
 import { heroSVG, archPath } from './hero.js';
 import { initQuiz } from './quiz.js';
 import { warmFilm, showFilm, clipFilm, fadeFilm, stopFilm, preloadFilm } from './film.js';
@@ -149,7 +149,7 @@ export async function openCity(id, my, from = null) {
   $('#citySky').innerHTML = heroSVG(id);
   // the picture above the letter: the team's poster for the city where there is one, else the drawn scene
   $('#cityHero').innerHTML = c.poster
-    ? `<img class="hero-photo" src="${fit(c.poster, 1600)}" alt="${esc(c.name)}: scenes from the city" width="1600" height="900" decoding="async">`
+    ? `<img class="hero-soft" src="${fit(c.poster, 400)}" alt="" aria-hidden="true" decoding="async"><img class="hero-photo" src="${fit(c.poster, 1600)}" alt="${esc(c.name)}: scenes from the city" width="1600" height="900" decoding="async">`
     : heroSVG(id);
   $('#cityHero').classList.toggle('photo', !!c.poster);
   $('#sealMark').textContent = SEAL_MARK[id] || 'V';
@@ -497,7 +497,7 @@ function buildStory() {
       <p>${ev.length ? 'Keep scrolling to follow the thread' : 'Our team is still checking the events for this timeline. Come back soon!'}</p></div>
     <div class="nodes">${ev.map((e, i) => `
       <button class="node" data-i="${i}" aria-label="${esc(e.year)}: ${esc(e.title)}">
-        <span class="medal">${e.images?.[0] ? `<img src="${esc(fit(e.images[0].src, 160))}" alt="" loading="lazy">` : motifSVG(e.motif) || `<b>${esc(e.year)}</b>`}</span>
+        <span class="medal">${e.images?.[0] ? `<img src="${esc(smart(e.images[0].src, 160))}" alt="" loading="lazy">` : motifSVG(e.motif) || `<b>${esc(e.year)}</b>`}</span>
         ${e.images?.[0] || motifSVG(e.motif) ? `<span class="node-year">${esc(e.year)}</span>` : ''}
       </button>`).join('')}</div>
     <div class="ev" id="ev" aria-live="polite"><div class="ev-media" id="evMedia"></div><div class="ev-info" id="evInfo"></div></div>
