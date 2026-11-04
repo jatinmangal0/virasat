@@ -1283,3 +1283,25 @@ body.is-night .mini-card { background: #2a2320; color: #f6ead2; box-shadow: 0 10
 @media (prefers-reduced-motion: reduce) { .street .ex-svg.inking .ex-outside { animation: none; opacity: 1; } }
 .street .pp::before { box-shadow: 0 0 0 1.5px #fff, 0 0 0 3px var(--r), 0 2px 6px #0006; }
 .street .pp.big::before { box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px #2a1d12, 0 2px 8px #0008; }
+
+/* ---------- photos are never cut to fit their frame ----------
+   A frame with a fixed shape used to crop its photo from the middle (object-fit: cover), which could
+   cut off heads and faces. Now the whole photo is shown, and the empty edges are filled with a soft,
+   blurred copy of it (set from lib.js), or with the frame's own paper colour for photos that are not
+   on Cloudinary. Small thumbnails keep a crop, but Cloudinary picks it around faces and people. */
+.snap:not(.stamp) img, .pc-photo img, .postcard img, .card-photo img, .kit-photos img,
+.fc-art img, .pic-frame img, .mem-face img, .city-hero .hero-photo {
+  object-fit: contain; object-position: 50% 50%;
+  background-color: #d9cdb4; background-size: cover; background-position: center; background-repeat: no-repeat;
+}
+.kit-photos img { background-color: #eee7dc; }
+.fc-art img { background-color: #e8dcc2; }
+.pic-frame img { background-color: #2e231c; }
+/* the city poster is shown whole too; a blurred, darker copy of it fills the sides on wide screens */
+.city-hero .hero-photo { background: none; }
+.city-hero .hero-soft { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block;
+  filter: blur(26px) brightness(.72) saturate(1.1); transform: scale(1.15); }
+/* the memory card's photo sits inside its gold rim, not under it */
+.mem-face img { inset: 3px; width: calc(100% - 6px); height: calc(100% - 6px); border-radius: 11px; }
+/* small crops: Cloudinary chooses the subject; anything else is shown from just above the middle */
+.medal img, .pin-ask img, .ord-card img, .sort-item img { object-position: 50% 35%; }
