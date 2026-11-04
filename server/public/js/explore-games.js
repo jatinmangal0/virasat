@@ -1,7 +1,7 @@
 // Games about one city, made from its own checked content: where its places are, when its history happened,
 // what its photos show, and which of its things are food, festivals or landmarks. A game only shows when the
 // city has enough checked content for it. Best scores are kept on this device.
-import { $, $$, clamp, reduced, sleep } from './lib.js';
+import { $, $$, clamp, reduced, sleep, smart } from './lib.js';
 import { fitCity, cityMapSVG, kmBetween } from './citymap.js';
 import { cardsOf, toldPlaces, shuffle, pick, yearNum, store } from './explore-data.js';
 
@@ -155,7 +155,7 @@ async function playPin({ area, alive, score, finish }) {
     const p = rounds[i];
     marks = []; placeMarks();
     score(`Place ${i + 1} of ${rounds.length} · ${total} points`);
-    $('#pinAsk').innerHTML = `${p.photo ? `<img src="${esc(p.photo.src)}" alt="">` : ''}
+    $('#pinAsk').innerHTML = `${p.photo ? `<img src="${esc(smart(p.photo.src, 168))}" alt="">` : ''}
       <div><small>Where is…</small><h3>${esc(p.name)}</h3><p>${esc(p.subcategory || 'Heritage place')}${p.year ? ` · ${esc(p.year)}` : ''}</p></div>`;
     $('#pinAsk img')?.addEventListener('error', (e) => e.target.remove());
     $('#pinHelp').textContent = 'Tap the map where you think it is.';
@@ -212,7 +212,7 @@ async function playOrder({ area, alive, score, finish }) {
       <ol class="ord-list" id="ordList">${set.map((e, k) => `
         <li><button class="ord-card" data-k="${k}">
           <span class="ord-n" aria-hidden="true"></span>
-          ${e.images?.[0]?.src ? `<img src="${esc(e.images[0].src.replace(/(\/image\/upload\/)/, '$1f_auto,q_auto,c_fill,w_160,h_160/'))}" alt="">` : '<span class="ord-dot" aria-hidden="true">⏳</span>'}
+          ${e.images?.[0]?.src ? `<img src="${esc(smart(e.images[0].src, 160))}" alt="">` : '<span class="ord-dot" aria-hidden="true">⏳</span>'}
           <span class="ord-t"><b>${esc(e.title)}</b><small class="ord-year">${esc(e.year)}</small></span></button></li>`).join('')}</ol>
       <div class="gm-row"><button class="btn primary" id="ordCheck" disabled>Check the order</button></div>`;
     $$('#ordList img').forEach((img) => img.addEventListener('error', () => img.remove()));
@@ -368,7 +368,7 @@ async function playSort({ area, alive, score, finish }) {
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
     score(`${i + 1} of ${items.length} · ${right} right`);
-    $('#sortItem').innerHTML = `${it.image?.src ? `<img src="${esc(it.image.src.replace(/(\/image\/upload\/)/, '$1f_auto,q_auto,c_fill,w_240,h_240/'))}" alt="">` : ''}<div><h3>${esc(it.title)}</h3></div>`;
+    $('#sortItem').innerHTML = `${it.image?.src ? `<img src="${esc(smart(it.image.src, 240))}" alt="">` : ''}<div><h3>${esc(it.title)}</h3></div>`;
     $('#sortItem img')?.addEventListener('error', (e) => e.target.remove());
     $('#sortItem').animate?.([{ opacity: 0, transform: 'translateY(-14px)' }, { opacity: 1, transform: 'none' }], { duration: reduced() ? 0 : 260 });
     const bs = $$('.sort-basket', area);
