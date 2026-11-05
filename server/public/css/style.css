@@ -301,40 +301,44 @@ a { color: inherit; }
 @keyframes kenburns { to { transform: scale(1.06); } }
 .city-hero::after { content: ''; position: absolute; inset: auto 0 0; height: 40%; background: linear-gradient(#0000, #221a16cc); pointer-events: none; }
 
-/* ----- the scroll: two rollers with gold knobs, a parchment sheet between them ----- */
+/* ----- the scroll: the paper rolled round two rods with brass end-caps, the open sheet between them ----- */
 .scroll { position: relative; z-index: 3; width: min(780px, calc(100% - 96px)); margin: calc(-1 * var(--roll)) auto 0; }
 .roll {
-  position: relative; height: var(--roll); border-radius: 5px; z-index: 2;
+  position: relative; height: var(--roll); z-index: 2;
   /* the paper rolled up: the same aged paper as the sheet, shaded like a cylinder */
   background:
-    linear-gradient(#2a180a73, #fff3d81f 24%, #fff3d80a 44%, #2a180a26 70%, #2a180a8c),
+    linear-gradient(#2a180a80, #fff3d81a 22%, #fff3d808 42%, #2a180a2e 68%, #2a180a99),
     url("../assets/paper-roll.webp") center / cover, #d8bd8f;
-  box-shadow: 0 8px 14px -6px #0009, inset 0 0 0 1px #5b3d1a33;
+  box-shadow: 0 8px 14px -6px #0009;
 }
-.roll::before, .roll::after { /* the rolled end of the paper */
-  content: ''; position: absolute; top: 0; bottom: 0; width: 9px; border-radius: 50%;
-  background: radial-gradient(ellipse at 50% 50%, #6d4f2b 0 18%, #c9ab7b 22% 40%, #8f7047 44% 52%, #d6bb8c 56% 78%, #a4835a 82%);
+/* the ends of the roll: the layers of paper wound round each other (assets/paper-roll-end.svg) */
+.roll::before, .roll::after {
+  content: ''; position: absolute; top: -1px; bottom: -1px; width: calc(var(--roll) * .42); z-index: 1;
+  background: url("../assets/paper-roll-end.svg") center / 100% 100% no-repeat;
+  filter: drop-shadow(0 2px 2px #0005);
 }
-.roll::before { left: -3px; } .roll::after { right: -3px; }
-/* turned wooden handles */
+.roll::before { left: calc(var(--roll) * -.21); } .roll::after { right: calc(var(--roll) * -.21); }
+/* the brass end-caps on the rod, coming out of the middle of each roll end (assets/finial.svg) */
 .knob {
-  position: absolute; top: 50%; width: calc(var(--roll) * .72); aspect-ratio: 1; border-radius: 50%;
-  background: radial-gradient(circle at 36% 30%, #a0724a 0, #6e4526 30%, #4a2b14 62%, #26150a);
-  box-shadow: 0 3px 6px #0007, inset 0 -2px 3px #0005; transform: translateY(-50%);
+  position: absolute; top: 50%; width: calc(var(--roll) * 1.25); height: calc(var(--roll) * .94); z-index: 0;
+  background: url("../assets/finial.svg") center / contain no-repeat; filter: drop-shadow(0 3px 3px #0007);
 }
-.knob::before { /* the handle's neck, going into the roll */
-  content: ''; position: absolute; top: 24%; bottom: 24%; width: calc(var(--roll) * .46); border-radius: 3px;
-  background: linear-gradient(#2e1a0b, #7a5030 40%, #5a3519 65%, #24140a);
-}
-.knob.l { right: calc(100% + var(--roll) * .36); } .knob.l::before { left: 80%; }
-.knob.r { left: calc(100% + var(--roll) * .36); } .knob.r::before { right: 80%; }
+.knob.r { left: calc(100% + var(--roll) * .02); transform: translateY(-50%); }
+.knob.l { right: calc(100% + var(--roll) * .02); transform: translateY(-50%) scaleX(-1); }
 
 .sheet {
   position: relative; height: 0; overflow: hidden; margin: 0 6px; z-index: 1;
   /* a photo of real aged paper (assets/paper.webp: the picture and its mirror image stacked, so it repeats
      down a long letter without a seam), with the shadow the rollers cast on it */
-  background: url("../assets/paper.webp") center top / 100% auto repeat-y, #e3c99c;
+  background:
+    linear-gradient(90deg, #5a36144d, #5a361400 2.5%, #5a361400 97.5%, #5a36144d),
+    url("../assets/paper.webp") center top / 100% auto repeat-y, #e3c99c;
   box-shadow: inset 0 14px 14px -12px #3b240f99, inset 0 -14px 14px -12px #3b240f99, inset 0 0 30px #6b46201f;
+  /* hand-made paper: the side edges are not cut straight (assets/paper-edge-l/-r.svg, which repeat down the sheet) */
+  --edge: url("../assets/paper-edge-l.svg") left top / 16px 520px repeat-y,
+    url("../assets/paper-edge-r.svg") right 0 top 130px / 16px 520px repeat-y,
+    linear-gradient(#000, #000) center / calc(100% - 30px) 100% no-repeat;
+  -webkit-mask: var(--edge); mask: var(--edge);
 }
 
 /* the cord round the closed scroll, and the wax seal over its knot */
@@ -989,8 +993,7 @@ body.is-night .mini-card { background: #2a2320; color: #f6ead2; box-shadow: 0 10
 @media (max-width: 720px) {
   /* on a phone the letter takes nearly the whole width; the rollers' knobs get smaller to make room */
   .scroll { width: calc(100% - 60px); }
-  .knob { width: calc(var(--roll) * .62); }
-  .knob.l { right: calc(100% + var(--roll) * .18); } .knob.r { left: calc(100% + var(--roll) * .18); }
+  .knob { width: calc(var(--roll) * 1.05); height: calc(var(--roll) * .8); }
   .letter { padding-left: 16px; padding-right: 16px; }
   .ev-year.long { font-size: 40px; }
   .snap figcaption { font-size: 15px; }

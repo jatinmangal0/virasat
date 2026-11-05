@@ -105,7 +105,7 @@ body.is-night .scroll::before {
   background: radial-gradient(ellipse 50% 60% at 50% 30%, #ffb45a3a, #0000 70%);
 }
 body.is-night .sheet { filter: sepia(.12) brightness(.94); box-shadow: 0 0 80px #ffb45a33; }
-body.is-night .knob { box-shadow: 0 4px 8px #0006, 0 0 14px #ffd56a99; }
+body.is-night .knob { filter: drop-shadow(0 3px 3px #0007) drop-shadow(0 0 6px #ffd56a88); }
 
 body.is-night .medal { box-shadow: 0 0 0 3px #d8a93b, 0 0 0 5px #7a5310, 0 0 0 7px #e8730c55, 0 0 24px #ffcf6a77; }
 body.is-night .element-disc { box-shadow: 0 0 0 6px #d8a93b, 0 0 0 9px #6b4a12, 0 0 60px #ffb34766, 0 30px 60px -20px #000c; }
