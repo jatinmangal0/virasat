@@ -3,7 +3,7 @@
 import { json, err } from './router.js';
 
 const publicEvent = (e) => ({ id: e.id, year: e.year_label, title: e.title, text: e.body, images: e.images, motif: e.motif, src: e.source_url,
-  memory: e.memory, memorySrc: e.memory_source_url, argued: e.argued });
+  src2: e.memory_source_url });
 
 // The shape the website code expects for one city (the same shape the old content.js had).
 export async function loadPublicCities(db) {
@@ -14,7 +14,7 @@ export async function loadPublicCities(db) {
   const quiz = (await db.query(
     "SELECT id, city_id, question, options FROM quiz_questions WHERE status = 'verified' ORDER BY sort_order, id")).rows;
   const events = (await db.query(
-    "SELECT id, city_id, year_label, title, body, images, motif, source_url, memory, memory_source_url, argued FROM timeline_events WHERE status = 'verified' AND NOT hidden ORDER BY sort_order, id")).rows;
+    "SELECT id, city_id, year_label, title, body, images, motif, source_url, memory_source_url FROM timeline_events WHERE status = 'verified' AND NOT hidden ORDER BY sort_order, id")).rows;
 
   return cities.map((c) => ({
     id: c.id, name: c.name, native: c.native_name, state: c.state, nickname: c.nickname, accent: c.accent,
@@ -59,7 +59,7 @@ export default function content(r, { db }) {
   // reach the public, and draft quiz answers are included so the team can play the quiz.
   r.get('/api/demo', { role: 'editor' }, async () => {
     const events = (await db.query(
-      "SELECT id, city_id, year_label, title, body, images, motif, source_url, memory, memory_source_url, argued FROM timeline_events WHERE status = 'needs_check' AND NOT hidden ORDER BY sort_order, id")).rows;
+      "SELECT id, city_id, year_label, title, body, images, motif, source_url, memory_source_url FROM timeline_events WHERE status = 'needs_check' AND NOT hidden ORDER BY sort_order, id")).rows;
     const greetings = (await db.query("SELECT word, native, language FROM greetings WHERE status = 'needs_check' ORDER BY sort_order, id")).rows;
     const factRows = (await db.query(`SELECT f.id, f.title, f.body, f.source_url, f.image, s.city_id, s.slug FROM facts f
       JOIN sections s ON s.id = f.section_id WHERE f.status = 'needs_check' ORDER BY f.sort_order, f.id`)).rows;
