@@ -8,6 +8,9 @@
 /* the daytime drawing dims, a little cooler, as if under moonlight */
 .street { transition: background-color var(--nt-fade); }
 .street.night { background-color: #070b22; }
+/* the drawn daytime sky (clouds, kites, birds) gives way to the real night sky of sky.js */
+.layer-sky { transition: opacity var(--nt-fade) ease; }
+.street.night .layer-sky { opacity: 0; }
 .nt-dim { transition: filter var(--nt-fade) ease; filter: brightness(1) saturate(1) contrast(1); }
 .street.night .nt-dim-skyline { filter: brightness(.3) saturate(.55) contrast(1.05); }
 .street.night .nt-dim-buildings { filter: brightness(.34) saturate(.6) contrast(1.08); }
@@ -66,30 +69,12 @@ body.is-night .post-night .nt-sun { display: inline; }
 body.is-night .post-night { background: #1b2148; color: #ffe7a3; border-color: #0a0d24; box-shadow: 0 3px 0 #0a0d24, 0 0 18px #ffd56a55; }
 
 .city { transition: background-color var(--nt-fade); }
-body.is-night .city {
-  --night: #0b0e24;
-  background:
-    radial-gradient(ellipse at 50% 0%, #2a2f5c 0%, #0000 60%),
-    radial-gradient(#ffffff22 1px, #0000 1.5px) 0 0 / 34px 34px,
-    radial-gradient(#ffffff14 1px, #0000 1.4px) 11px 17px / 23px 23px,
-    var(--night);
-}
-.city-sky::before, .city-sky::after { content: ''; position: absolute; inset: 0; opacity: 0; transition: opacity var(--nt-fade); }
-/* the stars twinkle */
-.city-sky::before {
-  background:
-    radial-gradient(#fff 1px, #0000 1.6px) 0 0 / 61px 47px,
-    radial-gradient(#ffffffb0 1px, #0000 1.4px) 23px 31px / 37px 53px,
-    radial-gradient(#ffe9b0 1.2px, #0000 1.8px) 40px 9px / 97px 83px;
-  animation: nt-twinkle 4s ease-in-out infinite alternate;
-}
-/* the night sky itself and the moon, with a warm haze over the city at the bottom */
-.city-sky::after { z-index: -1; background:
-  radial-gradient(circle at 82% 16%, #fffdf2 0 2.6%, #fff1c4 3.3%, #ffe7a355 3.6%, #ffe7a31a 7%, #0000 12%),
-  radial-gradient(circle at 50% 120%, #ff9a5a55 0%, #0000 45%), linear-gradient(#070b22, #1a2052 60%, #33305e); }
+body.is-night .city { --night: #050817; background: #050817; }
+/* the drawn arrival scene keeps its city but loses its daytime sky: the night sky (sky.js) shows through */
 body.is-night .city-sky { background: none; }
-body.is-night .city-sky::before, body.is-night .city-sky::after { opacity: 1; }
-@keyframes nt-twinkle { to { filter: brightness(.65); } }
+body.is-night .city-sky .hero-skyfill, body.is-night .city-sky .hero-sun { opacity: 0; }
+/* and the city itself in moonlight */
+body.is-night .city-sky .hero-svg { filter: brightness(.5) saturate(.7) hue-rotate(-12deg) contrast(1.05); }
 body.is-night .post-title { color: #f6ead2; text-shadow: 0 2px 12px #000a; }
 body.is-night .post-title small { color: #c9c6e8; }
 body.is-night .pg { filter: brightness(.82) saturate(.8) drop-shadow(0 0 10px #c9d6ff55); }
@@ -112,3 +97,20 @@ body.is-night .element-disc { box-shadow: 0 0 0 6px #d8a93b, 0 0 0 9px #6b4a12, 
 body.is-night .story-head small, body.is-night .ev-year { text-shadow: 0 0 18px #ffcf6a66; }
 body.is-night .ev-ghost { color: #c9d6ff0a; -webkit-text-stroke-color: #c9d6ff22; }
 body.is-night .place-card { box-shadow: 0 0 0 4px #d8a93b, 0 0 0 6px #6b4a12, 0 0 50px #ffb34744, 0 30px 60px -20px #000; }
+
+/* ---------- the real night sky (js/sky.js): stars, the Milky Way and tonight's Moon ---------- */
+.night-sky { pointer-events: none; overflow: hidden; opacity: 0; transition: opacity var(--nt-fade) ease; contain: strict; }
+.night-sky canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; }
+.ns-moon { position: absolute; }
+.ns-moon[hidden] { display: none; }
+.ns-moon canvas { position: relative; width: 100%; height: 100%; display: block; }
+.ns-street { position: absolute; inset: 0; }
+.street.night .ns-street { opacity: 1; }
+/* inside the city view, under everything in it (the letter, the timeline, the drawn arrival scene) */
+.ns-city { position: fixed; inset: 0; z-index: -1; }
+body.is-night .ns-city { opacity: 1; }
+.city.film-on .ns-city { opacity: 0; }
+/* Explore rebuilds its page each time, so its sky sits just under it */
+.ns-explore { position: fixed; inset: 0; z-index: 69; display: none; }
+body.is-night #explore:not([hidden]) + .ns-explore { display: block; opacity: 1; }
+body.is-night .explore { background: transparent; }
