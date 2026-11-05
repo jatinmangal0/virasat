@@ -353,7 +353,7 @@ async function playMemory({ area, score, finish }) {
 }
 
 // ---------- 5. Sort the city ----------
-// One thing at a time: tap its basket (Landmarks, Festivals & Arts, Food). Nine things.
+// One thing at a time, by name only (no photo): tap its basket (Landmarks, Festivals & Arts, Food). Nine things.
 async function playSort({ area, alive, score, finish }) {
   const { esc, sound } = S.ctx, baskets = S.run.gameData.baskets;
   const per = Math.ceil(9 / baskets.length);
@@ -368,8 +368,8 @@ async function playSort({ area, alive, score, finish }) {
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
     score(`${i + 1} of ${items.length} · ${right} right`);
-    $('#sortItem').innerHTML = `${it.image?.src ? `<img src="${esc(smart(it.image.src, 240))}" alt="">` : ''}<div><h3>${esc(it.title)}</h3></div>`;
-    $('#sortItem img')?.addEventListener('error', (e) => e.target.remove());
+    // name only: a photo of the dish or the building would give the basket away (Jatin, 5 Nov)
+    $('#sortItem').innerHTML = `<div><h3>${esc(it.title)}</h3></div>`;
     $('#sortItem').animate?.([{ opacity: 0, transform: 'translateY(-14px)' }, { opacity: 1, transform: 'none' }], { duration: reduced() ? 0 : 260 });
     const bs = $$('.sort-basket', area);
     bs.forEach((b) => { b.disabled = false; b.classList.remove('right', 'wrong'); });
