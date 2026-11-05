@@ -1,8 +1,9 @@
 // The night sky for night mode (night.js turns it on). It is the real sky over the place being viewed,
 // right now: the bright stars where they actually are (Orion, the Plough, Cassiopeia...), thousands of faint
-// ones, the Milky Way along its true path, and the Moon in its real phase, place and tilt (sky-astro.js).
+// ones and the Milky Way along its true path. On the city and Explore pages the Moon is there too, when it
+// is up, in its real phase, place and tilt (sky-astro.js), drawn from NASA's map of its surface.
 // Udaipur and Kolkata pages use that city; the street uses India, or roughly where the visitor is if their
-// clock is set to another country. Nothing is fetched and no location is asked for.
+// clock is set to another country. No location is asked for; only the Moon's map is fetched.
 //
 // The view looks towards the Moon when it is up (otherwise towards the south), with the horizon just behind
 // the rooftops. Stars twinkle more near the horizon, as they do through thicker air, and a bright Moon
@@ -11,7 +12,7 @@
 // Cost: a still layer (sky, Milky Way, faint stars) drawn once a minute, and a light layer of bright
 // twinkling stars, redrawn at 20-30 frames a second only while night mode is on and that sky is on screen.
 // With "reduce motion" set, nothing moves: the sky is drawn once.
-import { moon as moonAt, starProjector, nextMoonCrossing, galacticToEquatorial, deg } from './sky-astro.js';
+import { moon as moonAt, starProjector, galacticToEquatorial, deg } from './sky-astro.js';
 
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 const small = () => matchMedia('(max-width: 820px)').matches || (navigator.hardwareConcurrency || 8) <= 4;
@@ -121,51 +122,38 @@ function makeSprites() {
 }
 
 // ---------- the Moon's face ----------
-// value noise, for the speckle of craters and highlands
-const h2 = (x, y) => { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s); };
-function noise(x, y) {
-  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
-  const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
-  const a = h2(xi, yi), b = h2(xi + 1, yi), c = h2(xi, yi + 1), d = h2(xi + 1, yi + 1);
-  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+// The real surface: NASA's Lunar Reconnaissance Orbiter map of the Moon (public domain, NASA Scientific
+// Visualization Studio, "CGI Moon Kit"), turned grey and made small (assets/moon-map.webp, 60 KB). It is
+// only fetched the first time a Moon is drawn.
+let MAP = null, mapLoading = null;
+function loadMap() {
+  mapLoading ||= new Promise((resolve) => {
+    const im = new Image();
+    im.onload = () => {
+      const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
+      const g = c.getContext('2d'); g.drawImage(im, 0, 0);
+      const d = g.getImageData(0, 0, c.width, c.height).data, a = new Float32Array(c.width * c.height);
+      for (let i = 0; i < a.length; i++) a[i] = d[i * 4] / 255;
+      MAP = { w: c.width, h: c.height, a };
+      resolve();
+    };
+    im.onerror = () => resolve();
+    im.src = 'assets/moon-map.webp';
+  });
+  return mapLoading;
 }
-// the dark seas as they look from India with the Moon's north up: x to the right, y down, radius 1
-// [centre x, centre y, radius x, radius y, darkness]
-const MARIA = [
-  [-0.56, -0.04, 0.3, 0.55, 0.26], // Ocean of Storms
-  [-0.3, -0.42, 0.3, 0.25, 0.32], // Sea of Rains
-  [0.2, -0.4, 0.17, 0.16, 0.33], // Sea of Serenity
-  [0.38, -0.1, 0.22, 0.2, 0.33], // Sea of Tranquillity
-  [0.72, -0.28, 0.12, 0.1, 0.34], // Sea of Crises
-  [0.6, 0.12, 0.13, 0.22, 0.28], // Sea of Fertility
-  [0.36, 0.3, 0.1, 0.1, 0.26], // Sea of Nectar
-  [-0.2, 0.35, 0.2, 0.15, 0.26], // Sea of Clouds
-  [-0.5, 0.42, 0.1, 0.1, 0.28], // Sea of Moisture
-  [0, -0.72, 0.42, 0.08, 0.16], // Sea of Cold
-  [-0.02, -0.15, 0.13, 0.09, 0.26], // Sea of Vapours
-  [-0.3, 0, 0.17, 0.12, 0.2], // Sea of Islands
-  [-0.3, 0.2, 0.12, 0.1, 0.18], // Known Sea
-];
-// bright young craters: Tycho, Copernicus, Kepler, Aristarchus
-const CRATERS = [[-0.12, 0.72, 0.04, 0.16], [-0.38, -0.1, 0.035, 0.1], [-0.57, -0.07, 0.03, 0.08], [-0.66, -0.33, 0.03, 0.16]];
-const fbm = (x, y) => 0.55 * noise(x, y) + 0.3 * noise(x * 2.1 + 5, y * 2.1) + 0.15 * noise(x * 4.3, y * 4.3 + 9);
-function albedo(u, v) {
-  let a = 0.8 + 0.07 * (fbm(u * 4 + 3, v * 4) - 0.5) + 0.03 * (noise(u * 22, v * 22 + 7) - 0.5);
-  // the seas run into each other, so where two overlap the darker one wins
-  let sea = 0;
-  for (const [cx, cy, rx, ry, depth] of MARIA) {
-    const d = Math.hypot((u - cx) / (rx * 1.3), (v - cy) / (ry * 1.3)) + 0.5 * (fbm(u * 4 + cx * 9, v * 4 + cy * 5) - 0.5);
-    sea = Math.max(sea, depth * smooth(1.25, 0.4, d));
-  }
-  a -= sea * (0.9 + 0.25 * (noise(u * 11, v * 11) - 0.5));
-  for (const [cx, cy, r, b] of CRATERS) a += b * Math.exp(-(((u - cx) ** 2 + (v - cy) ** 2) / (r * r)));
-  // Tycho's rays, faint
-  const tx = u + 0.12, ty = v - 0.72, td = Math.hypot(tx, ty);
-  a += 0.03 * Math.exp(-td / 0.2) * (0.5 + 0.5 * Math.cos(Math.atan2(ty, tx) * 9)) ** 2;
-  return clamp(a, 0.3, 1);
+// brightness of the surface at selenographic latitude/longitude (radians), smoothly between map pixels
+function albedo(lat, lon) {
+  const { w, h, a } = MAP;
+  const fx = ((lon / TAU + 0.5) * w - 0.5 + w) % w, fy = clamp((0.5 - lat / Math.PI) * h - 0.5, 0, h - 1);
+  const x0 = Math.floor(fx), y0 = Math.floor(fy), x1 = (x0 + 1) % w, y1 = Math.min(y0 + 1, h - 1), tx = fx - x0, ty = fy - y0;
+  const top = a[y0 * w + x0] * (1 - tx) + a[y0 * w + x1] * tx, bot = a[y1 * w + x0] * (1 - tx) + a[y1 * w + x1] * tx;
+  return top * (1 - ty) + bot * ty;
 }
 
-// Paint the Moon into `cv`, D CSS pixels across: lit where the Sun lights it, the rest faintly in earthshine.
+// Paint the Moon into `cv`, D CSS pixels across, as it really looks: its true face turned the way it sits in
+// the sky, lit from the Sun's side with a soft terminator; the unlit part is left see-through (the sky shows),
+// with only a trace of earthshine on a thin crescent.
 function paintMoon(cv, D, dpr, m, alt) {
   const N = Math.max(8, Math.round(D * dpr)), R = N / 2;
   cv.width = cv.height = N; cv.style.width = cv.style.height = D + 'px';
@@ -173,24 +161,29 @@ function paintMoon(cv, D, dpr, m, alt) {
   const i = m.phaseAngle, ux = -Math.sin(m.limb), uy = -Math.cos(m.limb);
   const sx = Math.sin(i) * ux, sy = Math.sin(i) * uy, sz = Math.cos(i);
   const cn = Math.cos(m.north), sn = Math.sin(m.north);
-  // low in the sky the Moon turns golden, as the light comes through more air
-  const warm = smooth(18, 2, alt / deg);
-  const lr = 246, lg = 242 - 20 * warm, lb = 228 - 70 * warm;
-  const shine = 0.03 + 0.06 * (1 - m.fraction); // earthshine is strongest on a thin crescent
+  // low in the sky the Moon turns golden, as its light comes through more air
+  const warm = smooth(20, 2, alt / deg);
+  const lr = 255, lg = 250 - 28 * warm, lb = 238 - 85 * warm;
+  const shine = 0.07 * smooth(0.35, 0.05, m.fraction); // earthshine, only on a thin crescent
   for (let py = 0; py < N; py++) {
     for (let qx = 0; qx < N; qx++) {
       const x = (qx + 0.5 - R) / (R - 0.5), y = (py + 0.5 - R) / (R - 0.5), r2 = x * x + y * y;
       const k = (py * N + qx) * 4;
-      if (r2 > 1.06) { px[k + 3] = 0; continue; }
+      if (r2 >= 1.04) { px[k + 3] = 0; continue; }
       const z = Math.sqrt(Math.max(0, 1 - r2));
-      const mu0 = x * sx + y * sy + z * sz;
-      const lit = smooth(-0.02, 0.06, mu0) * (0.35 + 0.65 * Math.min(1, (2 * Math.max(mu0, 0)) / (Math.max(mu0, 0) + z + 1e-4)));
-      const a = albedo(x * cn - y * sn, x * sn + y * cn) * (0.9 + 0.1 * z);
-      const dark = 1 - lit;
-      px[k] = lr * a * lit * 1.06 + dark * (12 + shine * a * 150);
-      px[k + 1] = lg * a * lit * 1.06 + dark * (16 + shine * a * 165);
-      px[k + 2] = lb * a * lit * 1.06 + dark * (36 + shine * a * 200);
-      px[k + 3] = 255 * clamp((1 - Math.sqrt(r2)) * R + 0.5, 0, 1);
+      // the point on the Moon's own globe: turn the screen point back to the Moon's north-up frame
+      const u = x * cn - y * sn, v = x * sn + y * cn;
+      const a = albedo(Math.asin(clamp(-v, -1, 1)), Math.atan2(u, z));
+      const mu0 = x * sx + y * sy + z * sz, mu = Math.max(z, 0.02);
+      // Lommel-Seeliger: the Moon looks flat-lit (not like a shaded ball), darkening only near the terminator
+      const ls = mu0 > 0 ? (2 * mu0) / (mu0 + mu) : 0;
+      const lit = smooth(-0.015, 0.045, mu0) * Math.min(1, 0.15 + 0.85 * ls);
+      // to the eye the dark seas are mid-grey, not black: soften the map's contrast
+      const tone = Math.min(1, (0.42 + 0.66 * a) * lit);
+      const alpha = clamp(lit * 1.4 + shine * a, 0, 1) * clamp((1 - Math.sqrt(r2)) * R + 0.5, 0, 1);
+      const bright = alpha > 0 ? (tone + shine * a * 0.6) / alpha : 0;
+      px[k] = lr * bright; px[k + 1] = lg * bright; px[k + 2] = lb * bright;
+      px[k + 3] = 255 * alpha;
     }
   }
   g.putImageData(img, 0, 0);
@@ -204,15 +197,13 @@ class NightSky {
   // host: the element the sky fills; opts.horizon(H) and opts.top(H): the horizon line and the
   // highest the Moon may sit, in CSS pixels from the sky's top; opts.when(): whether it should show at all
   constructor(el, opts) {
-    this.el = el; this.opts = opts; this.front = opts.front; this.layoutAt = 0; this.live = []; this.meteor = null; this.meteorAt = performance.now() + 6000 + Math.random() * 12000;
+    this.el = el; this.opts = opts; this.layoutAt = 0; this.live = []; this.meteor = null; this.meteorAt = performance.now() + 6000 + Math.random() * 12000;
     el.classList.add('night-sky');
     el.setAttribute('aria-hidden', 'true');
     el.innerHTML = '<canvas class="ns-still"></canvas><canvas class="ns-live"></canvas>';
-    // the Moon and its line of text can sit in a layer of their own (on the street: in front of the houses)
-    const front = opts.front || el;
-    front.insertAdjacentHTML('beforeend', '<div class="ns-moon" aria-hidden="true"><canvas></canvas></div><p class="ns-caption"></p>');
+    if (opts.moon !== false) el.insertAdjacentHTML('beforeend', '<div class="ns-moon" hidden><canvas></canvas></div>');
     this.still = el.querySelector('.ns-still'); this.liveCv = el.querySelector('.ns-live');
-    this.moonEl = front.querySelector('.ns-moon'); this.moonCv = this.moonEl.querySelector('canvas'); this.caption = front.querySelector('.ns-caption');
+    this.moonEl = el.querySelector('.ns-moon'); this.moonCv = this.moonEl?.querySelector('canvas');
     new ResizeObserver(() => { this.layoutAt = 0; kick(); }).observe(el);
     skies.add(this);
   }
@@ -241,30 +232,29 @@ class NightSky {
       return [W / 2 + dx * k, yh - (alt / deg) * k];
     };
 
-    // where the Moon is, how bright it makes the sky, and the stars it hides
-    // the Moon always shows, as on a phone's lock screen: where it really is when it is up, and in a quiet
-    // corner of the sky (with the time it rises) when it is below the horizon
-    const narrow = W < 600;
-    const md = Math.round(clamp(Math.min(W * 0.042, floor - top - 6), 30, 62));
-    let mx, my;
-    if (up && !this.opts.corner) [mx, my] = toXY(m.alt, m.az);
-    else if (this.opts.corner) [mx, my] = [W - md / 2 - (narrow ? 22 : 56), top + md / 2 + 8];
-    else [mx, my] = [narrow ? W * 0.5 : W - md / 2 - 48, top + md / 2 + (narrow ? 4 : 30)];
-    mx = clamp(mx, md / 2 + 8, W - md / 2 - 8);
-    my = clamp(my, top + md / 2 + 4, floor - md / 2);
-    // things on the page the Moon and its caption must not sit under (the city pins on the street)
-    const base = this.el.getBoundingClientRect();
-    const avoid = (this.opts.avoid?.() || []).map((r) => ({ l: r.left - base.left, t: r.top - base.top, r: r.right - base.left, b: r.bottom - base.top }));
-    const hits = (l, t, w, h, pad = 8) => avoid.some((a) => l < a.r + pad && l + w > a.l - pad && t < a.b + pad && t + h > a.t - pad);
-    if (hits(mx - md / 2, my - md / 2, md, md)) {
-      for (let d = 20; d < W; d += 20) {
-        const c = [mx - d, mx + d].find((x) => x > md / 2 + 8 && x < W - md / 2 - 8 && !hits(x - md / 2, my - md / 2, md, md));
-        if (c != null) { mx = c; break; }
+    // The Moon, only where it really is: when it is below the horizon there is none, as in the real sky.
+    // (The street shows no Moon at all; Explore keeps it in the top corner, clear of its title.)
+    const showMoon = !!this.moonEl && up;
+    const md = Math.round(clamp(W * 0.034, 34, 50));
+    let mx = -999, my = -999;
+    if (showMoon) {
+      [mx, my] = this.opts.corner ? [W - md / 2 - (W < 600 ? 22 : 56), top + md / 2 + 8] : toXY(m.alt, m.az);
+      mx = clamp(mx, md / 2 + 8, W - md / 2 - 8);
+      my = clamp(my, top + md / 2 + 4, floor - md / 2);
+      // keep it out from under the page's buttons and title
+      const base = this.el.getBoundingClientRect();
+      const avoid = (this.opts.avoid?.() || []).map((r) => ({ l: r.left - base.left, t: r.top - base.top, r: r.right - base.left, b: r.bottom - base.top }));
+      const hits = (x) => avoid.some((q) => x - md / 2 < q.r + 8 && x + md / 2 > q.l - 8 && my - md / 2 < q.b + 8 && my + md / 2 > q.t - 8);
+      if (hits(mx)) {
+        for (let d = 20; d < W; d += 20) {
+          const c = [mx - d, mx + d].find((x) => x > md / 2 + 8 && x < W - md / 2 - 8 && !hits(x));
+          if (c != null) { mx = c; break; }
+        }
       }
     }
-    const moonLight = up ? m.fraction * (0.4 + 0.6 * Math.min(1, Math.sin(m.alt) * 2)) : 0;
+    const moonLight = showMoon || up ? m.fraction * (0.4 + 0.6 * Math.min(1, Math.sin(m.alt) * 2)) : 0;
     const limit = 6.5 - 1.6 * moonLight - (small() ? 0.3 : 0);
-    const dim = (x, y) => (up ? 1 - 0.85 * m.fraction * Math.exp(-((x - mx) ** 2 + (y - my) ** 2) / (2 * (16 * k) ** 2)) : 1);
+    const dim = (x, y) => (showMoon ? 1 - 0.85 * m.fraction * Math.exp(-((x - mx) ** 2 + (y - my) ** 2) / (2 * (16 * k) ** 2)) : 1);
 
     // the still layer: the sky's colour, the Milky Way, the faint stars
     const g = this.still.getContext('2d');
@@ -317,40 +307,18 @@ class NightSky {
     }
     g.globalAlpha = 1;
 
-    // moonlight scattered in the air around the Moon: wider and stronger the fuller it is
-    const glow = (up ? 1 : 0.55) * (0.2 + 0.8 * m.fraction), hr = md * (2.2 + 3.2 * m.fraction);
-    const halo = g.createRadialGradient(mx, my, md * 0.4, mx, my, hr);
-    halo.addColorStop(0, `rgba(226,232,255,${0.42 * glow})`); halo.addColorStop(0.25, `rgba(190,202,255,${0.14 * glow})`);
-    halo.addColorStop(0.6, `rgba(160,175,235,${0.04 * glow})`); halo.addColorStop(1, 'rgba(160,175,235,0)');
-    g.fillStyle = halo; g.fillRect(mx - hr, my - hr, hr * 2, hr * 2);
-
-    // the Moon itself
-    this.moonEl.hidden = false;
-    this.moonEl.classList.toggle('down', !up);
-    const cross = nextMoonCrossing(now, place.lat, place.lng);
-    // a Moon that has set is shown small in the corner, tilted the way it will be when it rises
-    const look = !up && cross?.rising ? moonAt(cross.at, place.lat, place.lng) : m;
-    paintMoon(this.moonCv, md, dpr, { ...m, limb: look.limb, north: look.north }, up ? m.alt : 10 * deg);
-    this.moonEl.style.cssText = `left:${mx - md / 2}px;top:${my - md / 2}px;width:${md}px;height:${md}px`;
-    const time = (d) => d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', timeZone: place.tz }).replace(/\s?([ap])\.?m\.?/i, ' $1m');
-    const where = place.name ? ` over ${place.name}` : '';
-    const lit = `${Math.round(m.fraction * 100)}% lit`;
-    // two short lines: the phase, then when it sets or rises
-    const parts = up
-      ? [!narrow && place.name && `over ${place.name}`, cross && !cross.rising && `sets ${time(cross.at)}`]
-      : [cross?.rising ? `rises${narrow ? '' : where} at ${time(cross.at)}` : 'below the horizon'];
-    const line2 = parts.filter(Boolean).join(' · ');
-    this.caption.innerHTML = `${m.name} · ${lit}${line2 ? `<br>${line2}` : ''}`;
-    // under the Moon, or beside it, or above it: wherever it is clear of the pins
-    const cw = this.caption.offsetWidth, ch = this.caption.offsetHeight || 14;
-    const oy = this.front ? base.top - this.front.getBoundingClientRect().top : 0;
-    const spots = [
-      [mx - cw / 2, my + md / 2 + 6], [mx - md / 2 - 10 - cw, my - ch / 2], [mx + md / 2 + 10, my - ch / 2], [mx - cw / 2, my - md / 2 - 6 - ch],
-    ].map(([x, y]) => [clamp(x, 10, W - cw - 10), y]);
-    const [cx, cy] = spots.find(([x, y]) => y > 2 && !hits(x, y, cw, ch, 4)) || spots[0];
-    this.caption.style.top = `${oy + cy}px`;
-    this.caption.style.left = `${cx}px`;
-    this.moonEl.style.top = `${oy + my - md / 2}px`;
+    if (this.moonEl) this.moonEl.hidden = !showMoon;
+    if (showMoon) {
+      // moonlight scattered in the air close around it: a soft glow, stronger the fuller it is
+      const glow = 0.15 + 0.85 * m.fraction, hr = md * (1.6 + 2.4 * m.fraction);
+      const halo = g.createRadialGradient(mx, my, md * 0.45, mx, my, hr);
+      halo.addColorStop(0, `rgba(222,228,250,${0.3 * glow})`); halo.addColorStop(0.3, `rgba(190,200,240,${0.08 * glow})`);
+      halo.addColorStop(1, 'rgba(170,182,230,0)');
+      g.fillStyle = halo; g.fillRect(mx - hr, my - hr, hr * 2, hr * 2);
+      this.moonEl.style.cssText = `left:${mx - md / 2}px;top:${my - md / 2}px;width:${md}px;height:${md}px`;
+      if (MAP) paintMoon(this.moonCv, md, dpr, m, m.alt);
+      else loadMap().then(() => { if (MAP) { this.layoutAt = 0; kick(); } });
+    }
 
     this.W = W; this.H = H; this.dpr = dpr; this.yh = yh; this.k = k;
     this.layoutAt = performance.now();
@@ -403,8 +371,8 @@ function tick(t) {
   if (any && !reduced()) raf = requestAnimationFrame(tick);
 }
 function kick() { if (!raf) raf = requestAnimationFrame(tick); }
-// a page just opened: lay the skies out again once its title and buttons have settled, so the Moon's
-// caption keeps clear of them
+// a page just opened: lay the skies out again once its title and buttons have settled, so the Moon
+// keeps clear of them
 let soon = 0;
 function relayoutSoon() {
   kick();
@@ -422,21 +390,10 @@ function makeSkies() {
     const el = document.createElement('div');
     el.className = 'ns-street';
     street.prepend(el);
-    const callout = document.getElementById('callout');
-    const front = document.createElement('div');
-    front.className = 'ns-front';
-    street.querySelector('.stage').after(front);
     let seen = true;
     new IntersectionObserver(([e]) => { seen = e.isIntersecting; kick(); }).observe(street);
-    new NightSky(el, {
-      front,
-      // the true horizon is hidden behind the houses
-      horizon: (H) => H * 0.92,
-      floor: (H) => Math.max(H * 0.36, (callout && innerWidth <= 820 ? callout.offsetTop + callout.offsetHeight + 56 : 0)),
-      avoid: () => [...street.querySelectorAll('.pin'), ...(callout && !callout.classList.contains('away') ? [callout] : [])].map((e) => e.getBoundingClientRect()),
-      top: () => (callout && innerWidth <= 820 && !callout.classList.contains('away') ? callout.offsetTop + callout.offsetHeight + 4 : 12),
-      when: () => seen && !coverOpen(),
-    });
+    // the street has the stars but no Moon
+    new NightSky(el, { moon: false, horizon: (H) => H * 0.92, top: () => 12, floor: (H) => H * 0.36, when: () => seen && !coverOpen() });
   }
   if (city) {
     const el = document.createElement('div');

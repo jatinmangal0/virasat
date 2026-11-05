@@ -102,17 +102,10 @@ body.is-night .place-card { box-shadow: 0 0 0 4px #d8a93b, 0 0 0 6px #6b4a12, 0 
 .night-sky { pointer-events: none; overflow: hidden; opacity: 0; transition: opacity var(--nt-fade) ease; contain: strict; }
 .night-sky canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; }
 .ns-moon { position: absolute; }
+.ns-moon[hidden] { display: none; }
 .ns-moon canvas { position: relative; width: 100%; height: 100%; display: block; }
-.ns-caption {
-  position: absolute; margin: 0; white-space: nowrap; font: 600 11.5px/1.2 var(--font, sans-serif); letter-spacing: .04em;
-  color: #dbe1ffb3; text-shadow: 0 1px 6px #000c; text-align: center; line-height: 1.35;
-}
 .ns-street { position: absolute; inset: 0; }
 .street.night .ns-street { opacity: 1; }
-/* the street's Moon and its caption sit in front of the houses, under the city card */
-.ns-front { position: absolute; inset: 0; z-index: 5; pointer-events: none; opacity: 0; transition: opacity var(--nt-fade) ease; }
-.ns-front[hidden] { display: none; }
-.street.night .ns-front { opacity: 1; }
 /* inside the city view, under everything in it (the letter, the timeline, the drawn arrival scene) */
 .ns-city { position: fixed; inset: 0; z-index: -1; }
 body.is-night .ns-city { opacity: 1; }
@@ -121,4 +114,3 @@ body.is-night .ns-city { opacity: 1; }
 .ns-explore { position: fixed; inset: 0; z-index: 69; display: none; }
 body.is-night #explore:not([hidden]) + .ns-explore { display: block; opacity: 1; }
 body.is-night .explore { background: transparent; }
-@media (max-width: 820px) { .ns-caption { font-size: 10.5px; } }
