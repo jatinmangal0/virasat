@@ -12,7 +12,7 @@
 // Cost: a still layer (sky, Milky Way, faint stars) drawn once a minute, and a light layer of bright
 // twinkling stars, redrawn at 20-30 frames a second only while night mode is on and that sky is on screen.
 // With "reduce motion" set, nothing moves: the sky is drawn once.
-import { moon as moonAt, starProjector, galacticToEquatorial, deg } from './sky-astro.js';
+import { moon as moonAt, starProjector, nextMoonCrossing, galacticToEquatorial, deg } from './sky-astro.js';
 
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 const small = () => matchMedia('(max-width: 820px)').matches || (navigator.hardwareConcurrency || 8) <= 4;
@@ -232,13 +232,15 @@ class NightSky {
       return [W / 2 + dx * k, yh - (alt / deg) * k];
     };
 
-    // The Moon, only where it really is: when it is below the horizon there is none, as in the real sky.
+    // The Moon is always shown, like on a phone's lock screen, in tonight's real phase: where it really is
+    // when it is up, and in a quiet spot high on the right when it is below the horizon.
     // (The street shows no Moon at all; Explore keeps it in the top corner, clear of its title.)
-    const showMoon = !!this.moonEl && up;
+    const showMoon = !!this.moonEl;
     const md = Math.round(clamp(W * 0.034, 34, 50));
     let mx = -999, my = -999;
     if (showMoon) {
-      [mx, my] = this.opts.corner ? [W - md / 2 - (W < 600 ? 22 : 56), top + md / 2 + 8] : toXY(m.alt, m.az);
+      [mx, my] = this.opts.corner ? [W - md / 2 - (W < 600 ? 22 : 56), top + md / 2 + 8]
+        : up ? toXY(m.alt, m.az) : [W * (W < 600 ? 0.74 : 0.8), top + md / 2 + (floor - top) * 0.18];
       mx = clamp(mx, md / 2 + 8, W - md / 2 - 8);
       my = clamp(my, top + md / 2 + 4, floor - md / 2);
       // keep it out from under the page's buttons and title
@@ -252,9 +254,9 @@ class NightSky {
         }
       }
     }
-    const moonLight = showMoon || up ? m.fraction * (0.4 + 0.6 * Math.min(1, Math.sin(m.alt) * 2)) : 0;
+    const moonLight = up ? m.fraction * (0.4 + 0.6 * Math.min(1, Math.sin(m.alt) * 2)) : 0;
     const limit = 6.5 - 1.6 * moonLight - (small() ? 0.3 : 0);
-    const dim = (x, y) => (showMoon ? 1 - 0.85 * m.fraction * Math.exp(-((x - mx) ** 2 + (y - my) ** 2) / (2 * (16 * k) ** 2)) : 1);
+    const dim = (x, y) => (showMoon ? 1 - (up ? 0.85 : 0.5) * m.fraction * Math.exp(-((x - mx) ** 2 + (y - my) ** 2) / (2 * (16 * k) ** 2)) : 1);
 
     // the still layer: the sky's colour, the Milky Way, the faint stars
     const g = this.still.getContext('2d');
@@ -310,13 +312,16 @@ class NightSky {
     if (this.moonEl) this.moonEl.hidden = !showMoon;
     if (showMoon) {
       // moonlight scattered in the air close around it: a soft glow, stronger the fuller it is
-      const glow = 0.15 + 0.85 * m.fraction, hr = md * (1.6 + 2.4 * m.fraction);
+      const glow = (up ? 1 : 0.7) * (0.15 + 0.85 * m.fraction), hr = md * (1.6 + 2.4 * m.fraction);
       const halo = g.createRadialGradient(mx, my, md * 0.45, mx, my, hr);
       halo.addColorStop(0, `rgba(222,228,250,${0.3 * glow})`); halo.addColorStop(0.3, `rgba(190,200,240,${0.08 * glow})`);
       halo.addColorStop(1, 'rgba(170,182,230,0)');
       g.fillStyle = halo; g.fillRect(mx - hr, my - hr, hr * 2, hr * 2);
       this.moonEl.style.cssText = `left:${mx - md / 2}px;top:${my - md / 2}px;width:${md}px;height:${md}px`;
-      if (MAP) paintMoon(this.moonCv, md, dpr, m, m.alt);
+      // a Moon below the horizon is drawn tilted the way it will sit when it rises
+      let look = m;
+      if (!up) { const c = nextMoonCrossing(now, place.lat, place.lng); if (c?.rising) look = moonAt(c.at, place.lat, place.lng); }
+      if (MAP) paintMoon(this.moonCv, md, dpr, { ...m, limb: look.limb, north: look.north }, up ? m.alt : 30 * deg);
       else loadMap().then(() => { if (MAP) { this.layoutAt = 0; kick(); } });
     }
 
