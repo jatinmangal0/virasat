@@ -32,12 +32,14 @@ function toast(msg, bad = false) {
 }
 
 // ---------------------------------------------------------------- form dialog
-// fields: [{ name, label, type: 'text'|'textarea'|'select'|'url', value, options, hint }]
+// fields: [{ name, label, type: 'text'|'textarea'|'select'|'url'|'html', value, options, hint }]
+// An 'html' field is shown as it is (e.g. the photo being replaced) and sends nothing.
 function openForm(title, fields, onSave) {
   const dlg = $('#dlg');
   $('#dlgTitle').textContent = title;
   $('#dlgError').textContent = '';
   $('#dlgBody').innerHTML = fields.map((f) => {
+    if (f.type === 'html') return f.value;
     const id = 'f_' + f.name;
     const hint = f.hint ? ` <small>${esc(f.hint)}</small>` : '';
     let input;
@@ -52,7 +54,7 @@ function openForm(title, fields, onSave) {
   $('#dlgCancel').onclick = () => dlg.close();
   $('#dlgForm').onsubmit = async (e) => {
     e.preventDefault();
-    const values = Object.fromEntries(fields.map((f) => [f.name, $(`#f_${f.name}`).value]));
+    const values = Object.fromEntries(fields.filter((f) => f.type !== 'html').map((f) => [f.name, $(`#f_${f.name}`).value]));
     $('#dlgSave').disabled = true;
     const error = await onSave(values);
     $('#dlgSave').disabled = false;
@@ -83,12 +85,88 @@ function wireUpload(name) {
       if (!res.ok || !d.secure_url) throw new Error(d.error?.message || 'upload failed');
       if (field.tagName === 'TEXTAREA') field.value = (field.value.trim() ? field.value.trim() + '\n' : '') + `${d.secure_url} | `;
       else field.value = d.secure_url;
+      field.dispatchEvent(new Event('input'));
       say.textContent = 'Uploaded. Add the credit and caption.';
     } catch (e) {
       say.textContent = `The upload did not work (${e.message}). Try again, or paste a link.`;
     }
     btn.disabled = false; file.value = '';
   };
+}
+
+// ---------------------------------------------------------------- replacing a photo
+// Every photo on the editor page has a "Replace photo" button. The new photo is uploaded (or its link pasted),
+// its credit is kept or updated, and only that photo changes: the words and the item's other photos stay.
+// The server puts a live item back to "Needs check", so a teammate checks the new photo and its credit.
+
+// a small copy for the editor's thumbnails (Cloudinary and Wikimedia Commons can both make one)
+const thumb = (src, w = 240) => {
+  const u = String(src || '');
+  if (/^https:\/\/res\.cloudinary\.com\/[\w-]+\/image\/upload\//.test(u)) return u.replace(/(\/image\/upload\/)(?!f_auto)/, `$1f_auto,q_auto,c_limit,w_${w}/`);
+  if (/^https?:\/\/commons\.wikimedia\.org\/wiki\/Special:FilePath\/[^?]+$/i.test(u)) return `${u}?width=${w}`;
+  return u;
+};
+
+// Timeline captions hold the credit at the end: "What it shows. Photo: author, licence, via ..."
+const splitCredit = (caption) => {
+  const m = /^(.*?)[.\s]*\bPhoto:\s*(.+)$/s.exec(caption || '');
+  return m ? { caption: m[1].trim(), credit: m[2].trim() } : { caption: caption || '', credit: '' };
+};
+
+// What each kind of item keeps for a photo, and which fields the form asks for.
+const PHOTO_KINDS = {
+  facts: { photos: (x) => (x.image?.src ? [x.image] : []), max: 1, fields: ['page', 'credit', 'caption'] },
+  timeline: { photos: (x) => (x.images || []).map((im) => ({ src: im.src, ...splitCredit(im.caption) })), max: 4, fields: ['credit', 'caption'] },
+  places: { photos: (x) => (x.image_url ? [{ src: x.image_url, credit: x.image_license, page: x.details?.image_original || '' }] : []), max: 1, fields: ['page', 'credit'] },
+};
+
+// The photos of one item, each with its Replace button (and Add, where an item has room for one more).
+function photoSlots(kind, x, { add = false } = {}) {
+  const k = PHOTO_KINDS[kind], list = k.photos(x);
+  const slots = list.map((im, i) => `
+    <span class="photo-slot">
+      <a href="${esc(im.page || im.src)}" target="_blank" rel="noopener"><img src="${esc(thumb(im.src))}" alt="${esc(im.caption || '')}" loading="lazy"></a>
+      <button type="button" class="btn small" data-photo="${x.id}" data-photo-index="${i}">Replace photo</button>
+    </span>`).join('');
+  const more = add && list.length < k.max
+    ? `<button type="button" class="btn small" data-photo="${x.id}" data-photo-index="${list.length}">+ Add a photo</button>` : '';
+  return slots || more ? `<div class="thumbs">${slots}${more}</div>` : '';
+}
+
+function replacePhoto(kind, x, index) {
+  const k = PHOTO_KINDS[kind], old = k.photos(x)[index];
+  const live = x.status === 'verified';
+  const now = old
+    ? `<figure class="photo-now"><img src="${esc(thumb(old.src, 480))}" alt=""><figcaption>Now</figcaption></figure>` : '';
+  const intro = `<div class="photo-swap">${now}
+      <figure class="photo-new" id="photoNew" hidden><img alt=""><figcaption>New</figcaption></figure></div>
+    ${old ? '<p class="muted photo-note">The credit below belongs to the photo there now. If the new photo is by someone else or has another licence, change it.</p>' : ''}
+    ${live ? '<p class="photo-note warn-note">This is live on the website. After you save, it goes back to <b>Needs check</b> and is hidden until a teammate checks the new photo and its credit.</p>' : ''}`;
+  const all = {
+    page: { name: 'page', label: "Photo's page (optional)", type: 'url', value: old?.page ?? '', hint: 'the page that shows its licence, e.g. on Wikimedia Commons' },
+    credit: { name: 'credit', label: 'Photo credit', type: 'text', value: old?.credit ?? '', hint: 'author and licence, e.g. "Henrik Bennetsen, CC BY-SA 2.0, via Wikimedia Commons", or "Photo by Asha for Virasat"' },
+    caption: { name: 'caption', label: 'Caption', type: 'text', value: old?.caption ?? '', hint: 'what the photo shows' },
+  };
+  openForm(old ? 'Replace photo' : 'Add a photo', [
+    { name: 'intro', type: 'html', value: intro },
+    { name: 'src', label: 'New photo', type: 'url', value: '', upload: true,
+      hint: 'upload one, or paste a link to a freely licensed photo (CC BY, CC BY-SA, CC0 or public domain). Photos of people must show them whole' },
+    ...k.fields.map((f) => all[f]),
+  ], async (v) => {
+    if (!v.src.trim()) return 'Upload the new photo, or paste its link.';
+    const r = await api(`/api/admin/${kind}/${x.id}/photo/${index}`, { ...v, updatedAt: x.updated_at }, 'PUT');
+    if (!r.ok) return r.data.error || 'That did not work.';
+    toast(r.data.backToCheck ? 'Photo replaced. It needs a teammate to check it before it is live again.' : 'Photo saved.');
+    refresh();
+  });
+  // show the new photo next to the old one as soon as it is uploaded or pasted
+  const src = $('#f_src'), box = $('#photoNew');
+  src.addEventListener('input', () => {
+    const u = src.value.trim();
+    box.hidden = !/^https:\/\/\S+$/i.test(u);
+    if (!box.hidden) box.querySelector('img').src = thumb(u, 480);
+  });
+  box.querySelector('img').onerror = () => { box.hidden = true; };
 }
 
 // ---------------------------------------------------------------- start
@@ -305,6 +383,7 @@ function itemButtons(kind, x) {
 function wireItems(kind, list, edit) {
   const find = (id) => list.find((x) => x.id === Number(id));
   $$('[data-edit]').forEach((b) => b.onclick = () => edit(find(b.dataset.edit)));
+  if (PHOTO_KINDS[kind]) $$('[data-photo]').forEach((b) => b.onclick = () => replacePhoto(kind, find(b.dataset.photo), Number(b.dataset.photoIndex)));
   // send the version on screen, so a change made meanwhile is never verified unseen
   $$('[data-verify]').forEach((b) => b.onclick = () => act(`/api/admin/${kind}/${b.dataset.verify}/verify`, { updatedAt: find(b.dataset.verify).updated_at }, 'POST', 'Verified. It is now on the website.'));
   $$('[data-unverify]').forEach((b) => b.onclick = () => act(`/api/admin/${kind}/${b.dataset.unverify}/unverify`, {}, 'POST', 'Taken off the website. It needs a check again.'));
@@ -335,7 +414,7 @@ function renderFacts() {
           <article class="item ${f.status === 'verified' ? 'verified' : ''}">
             <h4>${esc(f.title)} ${badge(f)}</h4>
             <p>${esc(f.body)}</p>
-          ${f.image ? `<span class="thumbs"><a href="${esc(f.image.page || f.image.src)}" target="_blank" rel="noopener"><img src="${esc(f.image.src)}" alt="${esc(f.image.caption)}" loading="lazy"></a></span><small class="muted">${esc(f.image.credit)}</small>` : ''}
+          ${f.image ? `${photoSlots('facts', f)}<small class="muted">${esc(f.image.credit)}</small>` : ''}
             ${f.source_url ? `<a class="src" href="${esc(f.source_url)}" target="_blank" rel="noopener">${esc(f.source_url)}</a>` : '<span class="badge">No source yet</span>'}
             <div class="meta">${people(f)}</div>
             ${itemButtons('facts', f)}
@@ -415,7 +494,7 @@ function renderTimeline() {
         <p>${esc(e.body)}</p>
         ${e.memory ? `<p class="memory"><b>Remembered as:</b> ${esc(e.memory)}${e.argued ? `<br><b>Why argued:</b> ${esc(e.argued)}` : ''}</p>` : ''}
         ${e.motif ? `<span class="motif">${motifSVG(e.motif)}</span>` : ''}
-        ${e.images.length ? `<div class="thumbs">${e.images.map((im) => `<a href="${esc(im.src)}" target="_blank" rel="noopener"><img src="${esc(im.src)}" alt="${esc(im.caption)}" loading="lazy"></a>`).join('')}</div>` : '<span class="badge">No photos yet</span> '}
+        ${e.images.length ? photoSlots('timeline', e) : '<span class="badge">No photos yet</span> '}
         ${e.source_url ? `<a class="src" href="${esc(e.source_url)}" target="_blank" rel="noopener">${esc(e.source_url)}</a>` : '<span class="badge">No source yet</span>'}
         <div class="meta">${people(e)}</div>
         ${itemButtons('timeline', e)}
@@ -628,6 +707,7 @@ async function renderPlaces() {
         <h4>${esc(p.name)}${p.native_name ? ` <span class="muted" style="font-weight:400">${esc(p.native_name)}</span>` : ''} ${badge(p)}</h4>
         <div class="meta">${esc([p.subcategory, p.year, p.code].filter(Boolean).join(' · '))}</div>
         ${p.description ? `<p>${esc(p.description)}</p>` : '<p class="muted">No description yet.</p>'}
+        ${photoSlots('places', p, { add: true })}${p.image_url && p.image_license ? `<div class="meta">Photo: ${esc(p.image_license)}</div>` : ''}
         ${p.source_url ? `<a class="src" href="${esc(p.source_url)}" target="_blank" rel="noopener">${esc(p.source_url)}</a>` : '<span class="badge">No source yet</span>'}
         ${map(p)}
         <div class="meta">Aksh's notes: ${esc([p.research_status, p.confidence && `${p.confidence} confidence`].filter(Boolean).join(', ') || 'none')}</div>
