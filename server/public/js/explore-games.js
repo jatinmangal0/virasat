@@ -1,17 +1,12 @@
-// Games about one city, made from its own checked content: where its places are, when its history happened,
-// what its photos show, and which of its things are food, festivals or landmarks. A game only shows when the
+// Games about one city, made from its own checked content: what its photos show, and which of its things are
+// food, festivals or landmarks. (Pin it on the map and Time travel were taken out on 5 Nov.) A game only shows when the
 // city has enough checked content for it. Best scores are kept on this device.
-import { $, $$, clamp, reduced, sleep, smart } from './lib.js';
-import { fitCity, cityMapSVG, kmBetween } from './citymap.js';
-import { cardsOf, toldPlaces, shuffle, pick, yearNum, store } from './explore-data.js';
+import { $, $$, clamp, reduced, sleep } from './lib.js';
+import { cardsOf, toldPlaces, shuffle, pick, store } from './explore-data.js';
 
 let S;   // { ctx, run, panel, showTab } from explore.js
 
 const GAMES = [
-  { id: 'pin', icon: '📍', title: 'Pin it on the map', blurb: 'We name a place. You tap where it is in the city.', rounds: 5, max: 500, unit: 'points',
-    ok: (d) => d.inFrame.length >= 5, play: playPin },
-  { id: 'order', icon: '⏳', title: 'Time travel', blurb: 'Put four moments of history in order, oldest first.', rounds: 3, max: 12, unit: 'in the right place',
-    ok: (d) => new Set(d.events.map((e) => yearNum(e.year))).size >= 8, play: playOrder },
   { id: 'picture', icon: '🖼️', title: 'Picture this', blurb: 'Look at the photo. Which of the four is it?', rounds: 8, max: 8, unit: 'right',
     ok: (d) => d.photos.length >= 8, play: playPicture },
   { id: 'memory', icon: '🃏', title: 'Memory pairs', blurb: 'Turn two cards at a time. Match each photo to its name.', rounds: 6, max: null, unit: 'moves',
@@ -35,8 +30,6 @@ export async function renderGames(shared) {
 function gameData(run) {
   const cards = cardsOf(run);
   const places = toldPlaces(run);
-  const frame = fitCity(run.c, 100, 100);
-  const inFrame = frame ? places.filter((p) => frame.project(p.longitude, p.latitude)) : [];
   // photos: facts with a photo (by their title) and written-up places with a photo (by their name)
   const seen = new Set();
   const photos = [
@@ -45,7 +38,7 @@ function gameData(run) {
   ].filter((x) => { const k = x.name.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
   const baskets = run.c.sections.filter((s) => s.id !== 'facts' && s.items.length >= 2)
     .map((s) => ({ id: s.id, label: s.label, icon: s.icon, items: s.items }));
-  return { cards, places, inFrame, photos, events: (run.history || []).filter((e) => yearNum(e.year)), baskets };
+  return { cards, places, photos, baskets };
 }
 
 const bestKey = (g) => `games.${S.run.id}.${g.id}`;
@@ -55,7 +48,7 @@ function drawHub() {
   S.run.game = null;
   const ready = GAMES.filter((g) => g.ok(d));
   S.panel.innerHTML = ready.length ? `
-    <p class="gm-intro">Five quick games about ${esc(S.run.c.name)}, made from the same checked facts as the letter.</p>
+    <p class="gm-intro">Three quick games about ${esc(S.run.c.name)}, made from the same checked facts as the letter.</p>
     <div class="gm-hub">${ready.map((g) => {
       const best = store(bestKey(g));
       return `<button class="gm-tile" data-game="${g.id}">
@@ -119,150 +112,7 @@ function finish(g, score, lowerIsBetter, line) {
 
 const praise = (share) => (share >= 0.9 ? 'Shabash! You know this city.' : share >= 0.6 ? 'Well played!' : share >= 0.3 ? 'A good start. Try again to beat it.' : 'Every explorer starts somewhere. Have a look at the flashcards, then try again.');
 
-// ---------- 1. Pin it on the map ----------
-// A place is named (with its photo); the player taps where they think it is. The real spot is then shown,
-// with the distance, and up to 100 points: full marks within a few hundred metres, none at a third of the city away.
-async function playPin({ area, alive, score, finish }) {
-  const { esc, sound } = S.ctx, c = S.run.c;
-  const rounds = pick(S.run.gameData.inFrame, 5);
-  let total = 0;
-  area.innerHTML = `
-    <div class="pin-ask" id="pinAsk"></div>
-    <div class="gm-map" id="pinMap"><svg class="ex-svg" id="pinSvg" aria-hidden="true"></svg><div class="pin-marks" id="pinMarks"></div></div>
-    <p class="gm-help" id="pinHelp">Tap the map where you think it is.</p>`;
-  const box = $('#pinMap');
-  let m;
-  const draw = () => {
-    m = fitCity(c, box.clientWidth, box.clientHeight);
-    if (!m) return;
-    $('#pinSvg').setAttribute('viewBox', `0 0 ${m.W} ${m.H}`);
-    // the drawn map, not the street map: the street map's place names would give the answer away
-    $('#pinSvg').innerHTML = cityMapSVG(m, esc, { id: 'pin' });
-  };
-  draw();
-  S.run.onResize = () => { if (alive()) { draw(); placeMarks(); } };
-  let marks = [];
-  const placeMarks = () => {
-    $('#pinMarks').innerHTML = marks.map((k) => {
-      const [x, y] = m.toXY(...k.at);
-      return `<span class="pin-mark ${k.cls}" style="left:${x}px;top:${y}px">${k.label ? `<b>${esc(k.label)}</b>` : ''}</span>`;
-    }).join('') + marks.filter((k) => k.line).map((k) => {
-      const [a, b] = [m.toXY(...k.at), m.toXY(...k.line)];
-      return `<svg class="pin-line" viewBox="0 0 ${m.W} ${m.H}"><line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}"/></svg>`;
-    }).join('');
-  };
-  for (let i = 0; i < rounds.length; i++) {
-    const p = rounds[i];
-    marks = []; placeMarks();
-    score(`Place ${i + 1} of ${rounds.length} · ${total} points`);
-    $('#pinAsk').innerHTML = `${p.photo ? `<img src="${esc(smart(p.photo.src, 168))}" alt="">` : ''}
-      <div><small>Where is…</small><h3>${esc(p.name)}</h3><p>${esc(p.subcategory || 'Heritage place')}${p.year ? ` · ${esc(p.year)}` : ''}</p></div>`;
-    $('#pinAsk img')?.addEventListener('error', (e) => e.target.remove());
-    $('#pinHelp').textContent = 'Tap the map where you think it is.';
-    box.classList.add('aim');
-    const guess = await new Promise((resolve) => {
-      const tap = (e) => {
-        const r = box.getBoundingClientRect();
-        box.removeEventListener('click', tap);
-        resolve(m.fromXY(e.clientX - r.left, e.clientY - r.top));
-      };
-      box.addEventListener('click', tap);
-      S.run.onLeave = () => box.removeEventListener('click', tap);
-    });
-    if (!alive()) return;
-    box.classList.remove('aim');
-    const real = [p.longitude, p.latitude], km = kmBetween(guess, real);
-    const pts = Math.round(100 * clamp(1 - (km - 0.3) / (m.spanKm * 0.33), 0, 1));
-    total += pts;
-    marks = [{ at: guess, cls: 'guess', line: real }, { at: real, cls: 'real', label: p.name }];
-    placeMarks();
-    pts >= 60 ? sound?.ding() : sound?.buzz();
-    const dist = km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
-    const word = pts >= 90 ? 'Bullseye!' : pts >= 60 ? 'Very close!' : pts >= 30 ? 'Close.' : 'Quite far off.';
-    $('#pinHelp').innerHTML = `<b>${word}</b> You were ${dist} away · <b>+${pts}</b> points
-      ${p.description ? `<span class="pin-about">${esc(p.description)}</span>` : ''}
-      <button class="btn primary" id="pinNext">${i === rounds.length - 1 ? 'See my score' : 'Next place'}</button>`;
-    score(`Place ${i + 1} of ${rounds.length} · ${total} points`);
-    $('#pinNext').focus({ preventScroll: true });
-    await new Promise((resolve) => $('#pinNext').addEventListener('click', resolve, { once: true }));
-    if (!alive()) return;
-  }
-  finish(total, { line: praise(total / 500) });
-}
-
-// ---------- 2. Time travel ----------
-// Four events, shuffled. Tap them oldest first; tap a numbered one to take it back. Then check: the cards slide
-// into the real order with their years, each marked right or wrong. Three rounds.
-async function playOrder({ area, alive, score, finish }) {
-  const { esc, sound } = S.ctx;
-  const pool = shuffle(S.run.gameData.events);
-  let total = 0;
-  for (let round = 0; round < 3; round++) {
-    // four events with different years, not used in an earlier round
-    const set = [];
-    for (let k = 0; k < pool.length && set.length < 4;) {
-      if (set.some((x) => yearNum(x.year) === yearNum(pool[k].year))) k++;
-      else set.push(...pool.splice(k, 1));
-    }
-    if (set.length < 4) break;
-    score(`Round ${round + 1} of 3 · ${total} right so far`);
-    const picks = [];
-    area.innerHTML = `
-      <p class="gm-help">Tap the events <b>oldest first</b>. Tap a numbered one to take it back.</p>
-      <ol class="ord-list" id="ordList">${set.map((e, k) => `
-        <li><button class="ord-card" data-k="${k}">
-          <span class="ord-n" aria-hidden="true"></span>
-          ${e.images?.[0]?.src ? `<img src="${esc(smart(e.images[0].src, 160))}" alt="">` : '<span class="ord-dot" aria-hidden="true">⏳</span>'}
-          <span class="ord-t"><b>${esc(e.title)}</b><small class="ord-year">${esc(e.year)}</small></span></button></li>`).join('')}</ol>
-      <div class="gm-row"><button class="btn primary" id="ordCheck" disabled>Check the order</button></div>`;
-    $$('#ordList img').forEach((img) => img.addEventListener('error', () => img.remove()));
-    const btns = $$('.ord-card', area);
-    const paint = () => {
-      btns.forEach((b) => {
-        const at = picks.indexOf(Number(b.dataset.k));
-        b.classList.toggle('picked', at >= 0);
-        $('.ord-n', b).textContent = at >= 0 ? at + 1 : '';
-        b.setAttribute('aria-label', `${set[b.dataset.k].title}${at >= 0 ? `, number ${at + 1}` : ''}`);
-      });
-      $('#ordCheck').disabled = picks.length < set.length;
-    };
-    btns.forEach((b) => b.addEventListener('click', () => {
-      const k = Number(b.dataset.k), at = picks.indexOf(k);
-      if (at >= 0) picks.splice(at); else picks.push(k);
-      sound?.tap();
-      paint();
-      if (picks.length === set.length) $('#ordCheck').focus({ preventScroll: true });
-    }));
-    paint();
-    await new Promise((resolve) => $('#ordCheck').addEventListener('click', resolve, { once: true }));
-    if (!alive()) return;
-    // the right order, by year (and by the team's own order for the same year)
-    const right = set.map((e, k) => k).sort((a, b) => yearNum(set[a].year) - yearNum(set[b].year));
-    const good = picks.filter((k, i) => right[i] === k).length;
-    total += good;
-    good === set.length ? sound?.ding() : sound?.buzz();
-    // slide the cards into the real order
-    const list = $('#ordList'), before = new Map(btns.map((b) => [b, b.getBoundingClientRect().top]));
-    right.forEach((k, i) => {
-      const li = btns[k].parentNode;
-      list.appendChild(li);
-      btns[k].classList.add(picks[i] === k ? 'right' : 'wrong', 'shown');
-      $('.ord-n', btns[k]).textContent = picks[i] === k ? '✓' : picks.indexOf(k) + 1;
-      btns[k].disabled = true;
-    });
-    if (!reduced()) btns.forEach((b) => { const dy = before.get(b) - b.getBoundingClientRect().top; if (dy) b.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: 450, easing: 'cubic-bezier(.3,.7,.2,1)' }); });
-    score(`Round ${round + 1} of 3 · ${total} right so far`);
-    $('.gm-help', area).innerHTML = good === set.length ? '<b>Perfect order!</b> Here they are with their years.'
-      : `<b>${good} of ${set.length}</b> in the right place. Here is the real order, oldest at the top.`;
-    $('#ordCheck').outerHTML = `<button class="btn primary" id="ordNext">${round === 2 ? 'See my score' : 'Next round'}</button>`;
-    $('#ordNext').focus({ preventScroll: true });
-    await new Promise((resolve) => $('#ordNext').addEventListener('click', resolve, { once: true }));
-    if (!alive()) return;
-  }
-  finish(total, { line: praise(total / 12) });
-}
-
-// ---------- 3. Picture this ----------
+// ---------- 1. Picture this ----------
 // A photo of a landmark, a dish, a festival or a place; four names to choose from, the others picked from
 // the same kind where possible (so a dish is mixed with other dishes).
 async function playPicture({ area, alive, score, finish }) {
@@ -308,7 +158,7 @@ async function playPicture({ area, alive, score, finish }) {
   finish(right, { line: praise(right / 8) });
 }
 
-// ---------- 4. Memory pairs ----------
+// ---------- 2. Memory pairs ----------
 // Twelve cards face down: six photos and their six names. Turn two; a photo and its own name stay up.
 // Fewer moves is better.
 async function playMemory({ area, score, finish }) {
@@ -352,7 +202,7 @@ async function playMemory({ area, score, finish }) {
   finish(moves, { lowerIsBetter: true, line: moves <= 9 ? 'What a memory!' : moves <= 13 ? 'Well played!' : 'All pairs found. Try again in fewer moves.' });
 }
 
-// ---------- 5. Sort the city ----------
+// ---------- 3. Sort the city ----------
 // One thing at a time, by name only (no photo): tap its basket (Landmarks, Festivals & Arts, Food). Nine things.
 async function playSort({ area, alive, score, finish }) {
   const { esc, sound } = S.ctx, baskets = S.run.gameData.baskets;
