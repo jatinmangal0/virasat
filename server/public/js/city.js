@@ -602,7 +602,10 @@ function drawStory() {
   const out = smooth(clamp((d - 0.05) / 0.25)), cross = smooth(clamp((d - 0.28) / 0.3));
   const evOpacity = N ? clamp((b - 0.55) / 0.4) * (1 - out) : 0;
   $('#ev').style.opacity = evOpacity;
-  $('#ev').style.visibility = evOpacity > 0 ? 'visible' : 'hidden';
+  // Set on the card and on both halves, not only inherited from #ev: Chrome can leave an animating child
+  // (showEvent fades them in) stuck on "hidden" after #ev turns visible again, which left the photo missing.
+  const vis = evOpacity > 0 ? 'visible' : 'hidden';
+  for (const el of [$('#ev'), $('#evInfo'), $('#evMedia')]) if (el.style.visibility !== vis) el.style.visibility = vis;
   if (N && b > 0.5) showEvent(Math.round(eEff));
   const endEl = $('#storyEnd'), endOp = N ? cross : clamp(b * 2);
   endEl.style.opacity = endOp;
@@ -700,7 +703,7 @@ function showEvent(i) {
     ? imgs.map((im, k) => {
       // a caption reads "What it shows. Photo: who, licence": the words in hand, the credit in small print
       const [what, credit] = String(im.caption || '').split(/\s*Photo:\s*/);
-      return `<figure class="snap m${k}"><img src="${esc(fit(im.src, 900))}" alt="${esc(what)}" loading="lazy">${im.caption ? `<figcaption>${what ? `<span>${esc(what)}</span>` : ''}${credit ? `<small>Photo: ${esc(credit)}</small>` : ''}</figcaption>` : ''}</figure>`;
+      return `<figure class="snap m${k}"><img src="${esc(fit(im.src, 900))}" alt="${esc(what)}" decoding="async">${im.caption ? `<figcaption>${what ? `<span>${esc(what)}</span>` : ''}${credit ? `<small>Photo: ${esc(credit)}</small>` : ''}</figcaption>` : ''}</figure>`;
     }).join('')
     : `<div class="ev-ghost" aria-hidden="true">${esc(e.year)}</div>
       ${motifSVG(e.motif) ? `<figure class="element"><div class="element-disc">${motifSVG(e.motif)}</div></figure>` : ''}
