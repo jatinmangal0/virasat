@@ -416,10 +416,10 @@ function makeSkies() {
     const el = document.createElement('div');
     el.className = 'ns-explore';
     explore.after(el);
-    // a page of maps and cards: the Moon keeps to the top corner, clear of the title
+    // a page of maps and cards: the Moon keeps to the top corner, under the day/night switch and clear of the title
     new NightSky(el, {
-      horizon: (H) => H, top: () => 12, floor: (H) => H * 0.8, corner: true,
-      avoid: () => [...explore.querySelectorAll('.ex-title > *, .ex-tabs, .post-back')].map((e) => e.getBoundingClientRect()),
+      horizon: (H) => H, top: () => 58, floor: (H) => H * 0.8, corner: true,
+      avoid: () => [...explore.querySelectorAll('.ex-title > *, .ex-tabs, .post-back, .post-night, .ex-tools')].map((e) => e.getBoundingClientRect()),
     });
     new MutationObserver(relayoutSoon).observe(explore, { attributes: true, attributeFilter: ['hidden'] });
   }

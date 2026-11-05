@@ -42,8 +42,6 @@ export function initCity(shared) {
   initQuiz({ ctx, cur: () => cur, relayout: () => layoutAfterOpen(), marks: SEAL_MARK });
   $('#pigeon').innerHTML = PIGEON;
   $('#cityBack').onclick = closeCity;
-  // the same switch as the moon in the top bar (night.js), which the city page covers
-  $('#cityNight').onclick = () => document.getElementById('nightBtn')?.click();
   $('#seal').addEventListener('click', () => {
     if (!cur) return;
     if ($('#city').classList.contains('locked')) askToOpen();

@@ -21,6 +21,9 @@
        Tiro is for reading the letter; Kalam is Gaju's handwriting (it has Devanagari too). Bowlby One is the logo. -->
   <link href="https://fonts.googleapis.com/css2?family=Anek+Latin:wdth,wght@100..125,400..800&family=Anek+Devanagari:wdth,wght@100..125,500..800&family=Anek+Bangla:wdth,wght@100..125,500..800&family=Tiro+Devanagari+Hindi:ital@0;1&family=Tiro+Bangla:ital@0;1&family=Kalam:wght@400;700&family=Bowlby+One&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/night.css">
+  <!-- dark or light, before the page is drawn (the choice is saved by night.js) -->
+  <script src="js/theme-early.js"></script>
   <!-- the dove that brings every city's scroll: fetch it early so it is ready the moment a city opens -->
   <link rel="preload" as="image" href="assets/dove.webp" type="image/webp">
 </head>
@@ -46,7 +49,7 @@
       <button class="icon-btn" id="journeyBtn" aria-label="My journey">
         <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="10" r="3.5"/><path d="M8 17h8"/></svg>
       </button>
-      <button class="icon-btn dn-btn" id="nightBtn" aria-label="Night mode" aria-pressed="false" title="Day or night" hidden></button>
+      <button class="icon-btn dn-btn" id="nightBtn" type="button"></button>
       <button class="icon-btn" id="soundBtn" aria-label="Turn sound on" aria-pressed="false">
         <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path class="wave" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/><path class="mute" d="M16 9l5 6M21 9l-5 6"/></svg>
       </button>
@@ -117,7 +120,7 @@
   <section class="city" id="city" role="dialog" aria-modal="true" aria-labelledby="letterTitle" tabindex="-1" hidden>
     <div class="city-sky" id="citySky" aria-hidden="true"></div>
     <button class="post-back" id="cityBack">← Back to the street</button>
-    <button class="post-night dn-btn" id="cityNight" aria-label="Night mode" aria-pressed="false" title="Day or night"></button>
+    <button class="post-night dn-btn" id="cityNight" type="button"></button>
     <div class="post-title" id="postTitle"></div>
 
     <div class="city-hero" id="cityHero" aria-hidden="true"></div>

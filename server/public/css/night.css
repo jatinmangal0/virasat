@@ -40,33 +40,33 @@
 @keyframes nt-twinkle { 50% { opacity: .25; } }
 .nt-bulb { filter: drop-shadow(0 0 3px #ffd27a); }
 
-/* the day/night switch (js/night.js draws it): a pill of sky, the knob slides from the sun's end to the moon's */
-.dn-btn { --w: 56px; --h: 28px; }
+/* the day/night switch (js/night.js draws it): a small cut-paper pill with an ink outline like the site's
+   buttons; the knob slides from the sun's end to the moon's, quickly, and the sun turns into the moon */
+.dn-btn { --w: 56px; --h: 28px; --dn-t: .35s; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .icon-btn.dn-btn { border-radius: 99px; padding: 8px 4px; }
 .icon-btn.dn-btn:hover { background: none; }
 .dn-track {
-  position: relative; display: block; width: var(--w); height: var(--h); border-radius: 99px; overflow: hidden;
-  background: #3d8fe0; box-shadow: inset 0 2px 4px #0005, 0 0 0 2px #fff, 0 1px 3px 2px #1c203033;
-  transition: background-color .5s ease;
+  position: relative; display: block; box-sizing: border-box; width: var(--w); height: var(--h); border-radius: 99px; overflow: hidden;
+  border: 2px solid var(--ink, #1d1714); background: #a9dcee; box-shadow: 0 2px 0 var(--ink, #1d1714);
+  transition: background-color var(--dn-t) ease;
 }
-.dn-track > svg { position: absolute; inset: 0; width: 100%; height: 100%; transition: opacity .5s ease; }
+.dn-track > svg { position: absolute; inset: 0; width: 100%; height: 100%; transition: opacity var(--dn-t) ease; }
 .dn-night { opacity: 0; }
 .dn-knob {
-  position: absolute; top: 2px; left: 2px; width: calc(var(--h) - 4px); height: calc(var(--h) - 4px); border-radius: 50%;
-  box-shadow: 0 2px 4px #0006; transition: transform .5s cubic-bezier(.5,0,.2,1.15);
+  position: absolute; top: 2px; left: 2px; width: calc(var(--h) - 8px); height: calc(var(--h) - 8px);
+  transition: transform var(--dn-t) cubic-bezier(.4,0,.2,1.2);
 }
-.dn-knob svg { position: absolute; inset: 0; width: 100%; height: 100%; transition: opacity .35s ease, transform .5s ease; }
-.dn-moon { opacity: 0; transform: rotate(-90deg); }
-.dn-btn[aria-pressed="true"] .dn-track { background: #1c2030; }
-.dn-btn[aria-pressed="true"] .dn-day { opacity: 0; }
-.dn-btn[aria-pressed="true"] .dn-night { opacity: 1; }
-.dn-btn[aria-pressed="true"] .dn-knob { transform: translateX(calc(var(--w) - var(--h))); }
-.dn-btn[aria-pressed="true"] .dn-sun { opacity: 0; transform: rotate(90deg); }
-.dn-btn[aria-pressed="true"] .dn-moon { opacity: 1; transform: none; }
-.dn-btn:active .dn-knob { width: calc(var(--h) + 2px); }
-.dn-btn[aria-pressed="true"]:active .dn-knob { transform: translateX(calc(var(--w) - var(--h) - 6px)); }
+.dn-knob svg { position: absolute; inset: -1px; width: calc(100% + 2px); height: calc(100% + 2px); overflow: visible; transition: opacity var(--dn-t) ease, transform var(--dn-t) ease; }
+.dn-moon { opacity: 0; transform: rotate(-120deg) scale(.6); }
+.dn-btn[aria-checked="true"] .dn-track { background: #232a5c; }
+.dn-btn[aria-checked="true"] .dn-day { opacity: 0; }
+.dn-btn[aria-checked="true"] .dn-night { opacity: 1; }
+.dn-btn[aria-checked="true"] .dn-knob { transform: translateX(calc(var(--w) - var(--h))); }
+.dn-btn[aria-checked="true"] .dn-sun { opacity: 0; transform: rotate(120deg) scale(.6); }
+.dn-btn[aria-checked="true"] .dn-moon { opacity: 1; transform: none; }
+.dn-btn:active .dn-track { transform: translateY(1px); box-shadow: 0 1px 0 var(--ink, #1d1714); }
 .dn-btn:focus-visible { outline: none; }
-.dn-btn:focus-visible .dn-track { box-shadow: inset 0 2px 4px #0005, 0 0 0 2px #fff, 0 0 0 5px var(--ink, #1c2030); }
+.dn-btn:focus-visible .dn-track { box-shadow: 0 2px 0 var(--ink, #1d1714), 0 0 0 3px #fff, 0 0 0 6px #e8730c; }
 
 /* with the extra button, give the right-hand icons room on phones */
 @media (max-width: 480px) {
@@ -85,14 +85,15 @@
   .street.night .nt-lamp { opacity: 1; }
 }
 
-/* ---------- the city page at night: the pigeon flies under the moon, the scroll is read by lamplight ---------- */
+/* the switch in the corner of the city page and of Explore: same place, same size on both */
 .post-night {
   position: fixed; top: 16px; right: 16px; z-index: 12; padding: 0; border: 0; background: none; border-radius: 99px;
   --w: 60px; --h: 30px;
 }
-.post-night .dn-track { box-shadow: inset 0 2px 4px #0005, 0 0 0 2px #fff, 0 3px 0 2px var(--ink); }
-body.is-night .post-night .dn-track { box-shadow: inset 0 2px 4px #0007, 0 0 0 2px #3a4060, 0 3px 0 2px #0a0d24, 0 0 18px #c9d6ff44; }
+.post-night .dn-track { box-shadow: 0 3px 0 var(--ink, #1d1714); }
+body.is-night .post-night .dn-track { border-color: #0a0d24; box-shadow: 0 3px 0 #0a0d24, 0 0 0 1.5px #f6ead255, 0 0 16px #c9d6ff33; }
 
+/* ---------- the city page at night: the pigeon flies under the moon, the scroll is read by lamplight ---------- */
 .city { transition: background-color var(--nt-fade); }
 body.is-night .city { --night: #050817; background: #050817; }
 /* the drawn arrival scene keeps its city but loses its daytime sky: the night sky (sky.js) shows through */
@@ -139,3 +140,13 @@ body.is-night .ns-city { opacity: 1; }
 .ns-explore { position: fixed; inset: 0; z-index: 69; display: none; }
 body.is-night #explore:not([hidden]) + .ns-explore { display: block; opacity: 1; }
 body.is-night .explore { background: transparent; }
+
+/* ---------- no flash of daylight when a page opens in dark mode ----------
+   theme-early.js marks the page dark before it is drawn; the street keeps its daytime drawing hidden until
+   night.js has lit it, and then shows it straight away, without the slow dusk fade (.nt-instant). */
+html.dark #street { background-color: #070b22; }
+html.dark #street:not(.night) .world { visibility: hidden; }
+.street.nt-instant, .street.nt-instant * { transition: none !important; }
+.street.nt-instant .nt-lamp { animation-duration: 1ms !important; animation-delay: 0s !important; }
+/* phones: the corner switch lines up with the round back arrow, clear of the city's name */
+@media (max-width: 720px) { .post-night { top: 12px; right: 12px; } }
