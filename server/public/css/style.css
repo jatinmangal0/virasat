@@ -1166,6 +1166,8 @@ body.is-night .mini-card { background: #2a2320; color: #f6ead2; box-shadow: 0 10
   background: #fbf3e0; box-shadow: 0 0 0 3px #d8a93b, 0 18px 40px -20px #000; transition: transform .2s, box-shadow .2s; font: inherit; }
 .gm-tile:hover { transform: translateY(-4px) rotate(-.5deg); box-shadow: 0 0 0 3px #f2b33d, 0 24px 46px -18px #000; }
 .gm-icon { font-size: 40px; line-height: 1; }
+/* a game can have a picture in place of its emoji (Picture this: Jatin's film camera, white cut away) */
+.gm-icon-img { height: 40px; width: auto; display: block; }
 .gm-tile b { font-family: var(--display); font-weight: 400; font-size: 22px; line-height: 1.1; color: color-mix(in srgb, var(--accent) 70%, #2a1d12); }
 .gm-tile span:not(.gm-icon) { font-size: 15px; line-height: 1.35; color: #5a4535; }
 .gm-tile small { margin-top: 6px; font-weight: 800; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: #8a5a17; }
@@ -1360,9 +1362,9 @@ body.is-night .mini-card { background: #2a2320; color: #f6ead2; box-shadow: 0 10
 .fc-kicker { margin-top: clamp(8px, 1.6vh, 14px); }
 .fc-ask { margin: 6px 18px clamp(8px, 1.6vh, 16px); font-size: clamp(16px, 2.2vh, 19px); }
 .fc-help { flex: none; margin: 8px 0 0; }
-/* games: the five games side by side on a wide screen, two by two on a phone */
+/* games: the three games side by side on a wide screen, two by two on a phone */
 .gm-intro { flex: none; margin: 0 0 12px; font-size: 16px; }
-.gm-hub { flex: 1 1 auto; min-height: 0; grid-template-columns: repeat(5, minmax(0, 1fr)); align-content: center; gap: 14px; }
+.gm-hub { flex: 1 1 auto; min-height: 0; grid-template-columns: repeat(3, minmax(0, 1fr)); align-content: center; gap: 14px; }
 .gm-tile { padding: 18px 16px 16px; }
 @media (max-width: 1100px) { .gm-hub { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .gm-bar { flex: none; margin-bottom: 10px; }
@@ -1398,6 +1400,7 @@ body.is-night .mini-card { background: #2a2320; color: #f6ead2; box-shadow: 0 10
   .gm-tile { padding: 12px 12px 10px; gap: 3px; border-radius: 14px; }
   .gm-tile:last-child:nth-child(odd) { grid-column: 1 / -1; }
   .gm-icon { font-size: 28px; }
+  .gm-icon-img { height: 28px; }
   .gm-tile b { font-size: 17px; }
   .gm-tile span:not(.gm-icon) { font-size: 13px; }
   .gm-tile small { margin-top: 2px; font-size: 10.5px; }
@@ -1416,7 +1419,7 @@ body.is-night .mini-card { background: #2a2320; color: #f6ead2; box-shadow: 0 10
   .pic-opts .q-opt { padding: 10px 12px; font-size: 14px; min-height: 48px; }
 }
 @media (max-width: 720px) {
-  /* a game's tile: its icon beside its name, so all five fit on a small phone */
+  /* a game's tile: its icon beside its name, so they all fit on a small phone */
   .gm-tile { grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 8px; }
   .gm-tile > :not(.gm-icon) { grid-column: 1 / -1; }
   .gm-tile .gm-icon { grid-column: 1; font-size: 24px; }
