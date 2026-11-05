@@ -82,17 +82,26 @@ test('demo mode lists places that went back to draft, and only those', async () 
   assert.ok(live.every((p) => p.source_url), 'every live place has a source');
 });
 
-test('the record and the memory: seeded on contested events, needs its own source, and is part of the wording', async () => {
+test('every event is one paragraph: the old record/memory boxes are merged in, and no source is dropped', async () => {
   const { body } = await asha('/api/demo');
+  const all = [...body.timeline.udaipur, ...body.timeline.kolkata];
+  assert.ok(all.every((e) => !('memory' in e) && !('argued' in e)), 'no event carries a second block of text');
   const hg = body.timeline.udaipur.find((e) => e.title === 'The Battle of Haldighati');
-  assert.match(hg.memory, /remembered/);
-  assert.match(hg.memorySrc, /^https:/);
-  assert.ok(hg.argued.length > 20);
+  assert.match(hg.text, /never bowed to Akbar/);
+  assert.match(hg.text, /2017/);
+  const tp = (await t.db.query("SELECT * FROM timeline_events WHERE city_id = 'kolkata' AND title = 'A trading post on the Hooghly'")).rows[0];
+  for (const fact of [/Sutanuti, Gobindapur and Kalikata/, /Job Charnock/, /24 August 1690/, /1495/, /2003 the Calcutta High Court/, /sole founder/]) assert.match(tp.body, fact);
+  assert.equal(tp.memory, '');
+  assert.match(tp.memory_source_url, /^https:/, 'both sources are kept');
+  // an editor can no longer add a second block, and a second source must be a link
   const ev = (await asha('/api/admin/cities/udaipur')).body.timeline.find((e) => e.title === 'The Battle of Haldighati');
   const save = (over) => asha(`/api/admin/timeline/${ev.id}`, { cityId: 'udaipur', year: ev.year_label, title: ev.title, text: ev.body,
-    images: [], motif: ev.motif, order: ev.sort_order, sourceUrl: ev.source_url, memory: ev.memory, memorySourceUrl: ev.memory_source_url, argued: ev.argued, ...over }, 'PUT');
-  assert.equal((await save({ memorySourceUrl: '' })).status, 400, 'the memory side needs a source');
-  assert.equal((await save({ argued: ev.argued + ' More.' })).status, 200);
+    images: [], motif: ev.motif, order: ev.sort_order, sourceUrl: ev.source_url, memorySourceUrl: ev.memory_source_url, ...over }, 'PUT');
+  assert.equal((await save({ memorySourceUrl: 'not a link' })).status, 400);
+  assert.equal((await save({ memory: 'A second box', argued: 'Why' })).status, 200);
+  const after = (await asha('/api/admin/cities/udaipur')).body.timeline.find((e) => e.id === ev.id);
+  assert.equal(after.memory, '');
+  assert.equal(after.argued, '');
 });
 
 test('only major events are shown: minor ones stay in the editor, hidden, and an editor can show one again', async () => {

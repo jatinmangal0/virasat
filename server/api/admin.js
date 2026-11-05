@@ -149,10 +149,11 @@ export default function admin(r, { db, adminSetupCode }) {
         const out = { year_label: text(b.year, 20), title: text(b.title, 120), body: text(b.text, 700), images,
           source_url: text(b.sourceUrl, 500), city_id: text(b.cityId, 40), sort_order: Number(b.order) || 0,
           motif: /^[a-z]{0,20}$/.test(b.motif || '') ? b.motif || '' : '',
-          memory: text(b.memory, 500), memory_source_url: text(b.memorySourceUrl, 500), argued: text(b.argued, 400),
+          // one paragraph per event: the old memory/argued boxes are gone; memory_source_url is now the optional second source
+          memory: '', memory_source_url: text(b.memorySourceUrl, 500), argued: '',
           hidden: b.hidden === true || b.hidden === 'true' };
         if (!out.year_label || !out.title || !out.body) return { error: 'An event needs a year, a title and a short paragraph.' };
-        if (out.memory && !/^https?:\/\//i.test(out.memory_source_url)) return { error: 'The memory side needs its own source link.' };
+        if (out.memory_source_url && !/^https?:\/\//i.test(out.memory_source_url)) return { error: 'The second source must be a link starting with https://' };
         if (images.some((im) => !/^https:\/\/[^\s]+$/i.test(im.src))) return { error: 'Photo links must start with https://' };
         if (!(await one('SELECT 1 FROM cities WHERE id = $1', [out.city_id], c))) return { error: 'Pick a city.' };
         return out;

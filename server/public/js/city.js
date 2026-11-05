@@ -12,6 +12,7 @@
 import { twineSVG, setTwine, Rope } from './twine.js';
 import { motifSVG } from './motifs.js';
 import { stampHTML } from './stamps.js';
+import { timelineEntryHTML, fitEntryOnPhone } from './timeline-entry.js';
 import { fit, smart } from './lib.js';
 import { heroSVG, archPath } from './hero.js';
 import { initQuiz } from './quiz.js';
@@ -50,7 +51,10 @@ export function initCity(shared) {
     else breakSeal(cur.my);
   });
   $('#city').addEventListener('scroll', () => cur?.story && requestStoryFrame());
-  addEventListener('resize', () => { if (cur?.opened) layoutAfterOpen(); });
+  addEventListener('resize', () => {
+    if (cur?.opened) layoutAfterOpen();
+    if (cur?.story && $('#evInfo')?.childElementCount) fitEntryOnPhone($('#evInfo'), $('#evMedia'), $('#cityBack'));
+  });
   $('#cpClose').onclick = () => { $('#checkpoint').hidden = true; };
   // the arrival scene leans a little with the pointer, each layer by its depth
   $('#city').addEventListener('pointermove', (e) => {
@@ -681,20 +685,10 @@ function showEvent(i) {
   const { esc, c } = { esc: ctx.esc, c: cur.c };
   const e = s.ev[i];
   const info = $('#evInfo'), media = $('#evMedia');
-  // When an event is remembered differently from what the sources show, both sides are shown.
-  info.classList.toggle('two-sides', !!e.memory);
   const from = s.ev[s.shown ?? i]?.year;
   s.shown = i;
-  info.innerHTML = `
-    <p class="ev-year${String(e.year).length > 5 ? ' long' : ''}">${esc(e.year)}</p>
-    <h3>${esc(e.title)}</h3>
-    ${e.memory ? `<div class="sides">
-        <div class="side record"><small>The record</small><p>${esc(e.text)}</p>${e.src ? `<a href="${esc(e.src)}" target="_blank" rel="noopener">Source</a>` : ''}</div>
-        <div class="side memory"><small>The memory</small><p>${esc(e.memory)}</p>${e.memorySrc ? `<a href="${esc(e.memorySrc)}" target="_blank" rel="noopener">Source</a>` : ''}</div>
-      </div>${e.argued ? `<p class="argued"><b>Why it is argued about:</b> ${esc(e.argued)}</p>` : ''}`
-    : `<p class="ev-text">${esc(e.text)}</p>
-    ${e.src ? `<a class="ev-src" href="${esc(e.src)}" target="_blank" rel="noopener">Source</a>` : ''}`}
-    <p class="ev-count">${i + 1} of ${s.ev.length}${e.draft ? ' · <span class="draft">draft, not yet checked</span>' : ''}</p>`;
+  // every entry, in every city, uses the one shared layout (timeline-entry.js)
+  info.innerHTML = timelineEntryHTML(e, i, s.ev.length, esc);
   const imgs = (e.images || []).slice(0, 4);
   media.innerHTML = imgs.length
     ? imgs.map((im, k) => {
@@ -705,6 +699,7 @@ function showEvent(i) {
     : `<div class="ev-ghost" aria-hidden="true">${esc(e.year)}</div>
       ${motifSVG(e.motif) ? `<figure class="element"><div class="element-disc">${motifSVG(e.motif)}</div></figure>` : ''}
       <figure class="snap ${motifSVG(e.motif) ? 'm1' : 'm0'} stamp">${stampHTML(c)}</figure>`;
+  fitEntryOnPhone(info, media, $('#cityBack'));
   for (const el of [info, media]) el.animate([{ opacity: 0, transform: 'translateY(14px)' }, { opacity: 1, transform: 'none' }], { duration: 420, easing: 'cubic-bezier(.2,.8,.2,1)' });
   rollYear($('.ev-year', info), from, e.year);
 }

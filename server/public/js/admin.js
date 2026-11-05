@@ -413,10 +413,10 @@ function renderTimeline() {
       <article class="item ${e.status === 'verified' ? 'verified' : ''}">
         <h4><span class="year">${esc(e.year_label)}</span> ${esc(e.title)} ${badge(e)} <span class="muted" style="font-weight:400;font-size:13px">place ${e.sort_order}</span>${e.hidden ? ' <span class="badge">Hidden from the timeline</span>' : ''}</h4>
         <p>${esc(e.body)}</p>
-        ${e.memory ? `<p class="memory"><b>Remembered as:</b> ${esc(e.memory)}${e.argued ? `<br><b>Why argued:</b> ${esc(e.argued)}` : ''}</p>` : ''}
         ${e.motif ? `<span class="motif">${motifSVG(e.motif)}</span>` : ''}
         ${e.images.length ? `<div class="thumbs">${e.images.map((im) => `<a href="${esc(im.src)}" target="_blank" rel="noopener"><img src="${esc(im.src)}" alt="${esc(im.caption)}" loading="lazy"></a>`).join('')}</div>` : '<span class="badge">No photos yet</span> '}
         ${e.source_url ? `<a class="src" href="${esc(e.source_url)}" target="_blank" rel="noopener">${esc(e.source_url)}</a>` : '<span class="badge">No source yet</span>'}
+        ${e.memory_source_url && e.memory_source_url !== e.source_url ? `<a class="src" href="${esc(e.memory_source_url)}" target="_blank" rel="noopener">${esc(e.memory_source_url)}</a>` : ''}
         <div class="meta">${people(e)}</div>
         ${itemButtons('timeline', e)}
       </article>`).join('') || '<p class="muted">Nothing here.</p>'}`;
@@ -430,7 +430,7 @@ function editEvent(e) {
   openForm(e ? 'Edit event' : 'Add an event', [
     { name: 'year', label: 'Year', type: 'text', value: e?.year_label ?? '', hint: 'as it should appear, e.g. 1559, 1620s or c. 1360' },
     { name: 'title', label: 'Title', type: 'text', value: e?.title ?? '' },
-    { name: 'text', label: 'Short paragraph', type: 'textarea', value: e?.body ?? '', hint: 'two or three sentences' },
+    { name: 'text', label: 'Short paragraph', type: 'textarea', value: e?.body ?? '', hint: 'two or three sentences. Every event is one paragraph: put everything worth saying here, there are no extra boxes' },
     { name: 'images', label: 'Photos', type: 'textarea', value: (e?.images ?? []).map((im) => `${im.src} | ${im.caption}`).join('\n'), upload: true,
       hint: 'up to 4, one per line: https://link-to-photo | caption. Upload adds a line for you. Use photos you may share (e.g. Wikimedia Commons) and put the credit in the caption.' },
     { name: 'motif', label: 'Drawing', type: 'select', value: e?.motif ?? '', options: [['', 'None (show the city stamp)'], ...MOTIF_NAMES.map((m) => [m, m])],
@@ -439,14 +439,12 @@ function editEvent(e) {
     { name: 'hidden', label: 'On the timeline', type: 'select', value: e?.hidden ? 'true' : 'false', options: [['false', 'Show it (a major event)'], ['true', 'Hide it (kept here, not shown)']],
       hint: 'the timeline shows only the major events of the city' },
     { name: 'sourceUrl', label: 'Source link', type: 'url', value: e?.source_url ?? '' },
-    { name: 'memory', label: 'How it is remembered (optional)', type: 'textarea', value: e?.memory ?? '',
-      hint: 'only when people remember this event differently from what the sources show. The paragraph above is the record; this is the memory. The page shows them side by side.' },
-    { name: 'memorySourceUrl', label: 'Source for how it is remembered', type: 'url', value: e?.memory_source_url ?? '' },
-    { name: 'argued', label: 'Why people disagree (one line)', type: 'text', value: e?.argued ?? '' },
+    { name: 'memorySourceUrl', label: 'Second source link (optional)', type: 'url', value: e?.memory_source_url ?? '',
+      hint: 'shown next to the first as "Sources: 1 · 2"' },
   ], async (v) => {
     const images = v.images.split('\n').map((l) => l.split('|').map((x) => x.trim())).filter((p) => p[0]).map((p) => ({ src: p[0], caption: p.slice(1).join(' | ') }));
     const body = { cityId: state.city, year: v.year, title: v.title, text: v.text, images, motif: v.motif, order: Number(v.order) || 0, hidden: v.hidden === 'true', sourceUrl: v.sourceUrl,
-      memory: v.memory, memorySourceUrl: v.memorySourceUrl, argued: v.argued };
+      memorySourceUrl: v.memorySourceUrl };
     const r = e ? await api(`/api/admin/timeline/${e.id}`, body, 'PUT') : await api('/api/admin/timeline', body);
     if (!r.ok) return r.data.error;
     toast(r.data.backToCheck ? 'Saved. Because the words changed, it needs to be checked again.' : e ? 'Saved.' : 'Added. A teammate now needs to verify it.');
