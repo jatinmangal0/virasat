@@ -13,7 +13,11 @@ let CITIES = {};
 const nextFrame = () => Promise.race([new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))), new Promise((r) => setTimeout(r, 60))]);
 const firstName = (n) => String(n || '').split(' ')[0] || 'Explorer';
 
-const state = { user: null, config: { googleClientId: null, smsMode: 'demo' }, busy: false, city: null, seq: 0, afterAuth: null, sound: false, fast: false };
+// Sound is on unless the visitor turned it off (remembered on this device). People who ask their device for
+// reduced motion start with it off, and can turn it on.
+const SOUND_KEY = 'virasat.sound';
+const soundSaved = (() => { try { return localStorage.getItem(SOUND_KEY); } catch { return null; } })();
+const state = { user: null, config: { googleClientId: null, smsMode: 'demo' }, busy: false, city: null, seq: 0, afterAuth: null, sound: soundSaved ? soundSaved === 'on' : !reduced(), fast: false };
 
 // Cities you have already flown into get the short version of the arrival: same beats, much faster.
 const WALK = 150; // Gaju's walking speed, in street units per second
@@ -40,29 +44,42 @@ function toast(msg) {
   toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
 }
 
-// ---------------- sound (synthesised, off until asked) ----------------
+// ---------------- sound (effects, Gaju's footsteps, background music) ----------------
 const sound = makeSound(() => state.sound);
+// browsers allow sound only after a click, tap or key press, so the first one anywhere starts it
+const unlockSound = () => { sound.unlock(); for (const e of ['pointerdown', 'keydown', 'touchend']) removeEventListener(e, unlockSound, true); };
+for (const e of ['pointerdown', 'keydown', 'touchend']) addEventListener(e, unlockSound, true);
+function showSoundBtn() {
+  $('#soundBtn').setAttribute('aria-pressed', state.sound);
+  $('#soundBtn').setAttribute('aria-label', state.sound ? 'Turn sound off' : 'Turn sound on');
+}
 
 // ---------------- ticker, drawer, header ----------------
 // Greetings from across India scroll in the top bar. They come from the database (checked by the
 // team like facts); until some are verified, the bar shows the site's own lines instead.
 // so the browser picks the right shaping and font for each script
-const LANG_CODES = { hindi: 'hi', tamil: 'ta', bengali: 'bn', rajasthani: 'raj', kannada: 'kn', punjabi: 'pa', telugu: 'te', gujarati: 'gu', marathi: 'mr', malayalam: 'ml', urdu: 'ur', odia: 'or', assamese: 'as', ladakhi: 'lbj', bhutia: 'sip' };
+const LANG_CODES = { hindi: 'hi', tamil: 'ta', bengali: 'bn', rajasthani: 'raj', kannada: 'kn', punjabi: 'pa', telugu: 'te', gujarati: 'gu', marathi: 'mr', malayalam: 'ml', urdu: 'ur', odia: 'or', assamese: 'as', ladakhi: 'lbj', bhutia: 'sip', khasi: 'kha', mizo: 'lus' };
 const langCode = (l = '') => LANG_CODES[l.toLowerCase().split(/[ (]/)[0]] || '';
+// The label beside a greeting written in the Latin alphabet: its language, and what it means where we know it.
+const LATIN_MEANINGS = { khasi: 'hello', mizo: 'hello' };
+const latinLabel = (l = '') => [l, LATIN_MEANINGS[l.toLowerCase().split(/[ (]/)[0]]].filter(Boolean).join(' · ');
 
 async function setupTicker() {
   const star = `<svg viewBox="0 0 32 32"><g fill="#8a4b1c">${Array.from({ length: 8 }, (_, i) => `<path transform="rotate(${i * 45} 16 16)" d="M16 16 L14 4 Q16 1 18 4 Z"/>`).join('')}<circle cx="16" cy="16" r="3.2" fill="#5a2e10"/></g></svg>`;
   const r = await api('/api/greetings');
   const greetings = [...(r.ok ? r.data.greetings : []), ...(state.demo?.greetings || [])];
   const items = greetings.length
-    ? greetings.map((g) => `${g.native ? `<b class="native" lang="${esc(langCode(g.language))}">${esc(g.native)}</b>` : ''}<b class="latin">${esc(g.word)}</b>`)
+    ? greetings.map((g) => (g.native
+      ? `<b class="native" lang="${esc(langCode(g.language))}">${esc(g.native)}</b><b class="latin">${esc(g.word)}</b>`
+      // Khasi and Mizo are written in the Latin alphabet, so instead of a second script they get a small label
+      : `<b class="latin" lang="${esc(langCode(g.language))}">${esc(g.word)}</b><small class="lang">${esc(latinLabel(g.language))}</small>`))
     : ['Walk into two cities with Gaju the elephant', 'Udaipur · City of Lakes', 'Kolkata · On the Hooghly', 'Collect stamps in your Virasat passport', 'Learn · Play · Explore'].map(esc);
   const run = items.map((t) => `<span>${t} ${star}</span>`).join('');
   const track = $('#ticker');
   track.classList.toggle('greetings', greetings.length > 0);
   // the other scripts' fonts load only when greetings in those scripts are live
   if (greetings.some((g) => g.native) && !$('#scriptFonts')) {
-    document.head.insertAdjacentHTML('beforeend', '<link id="scriptFonts" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anek+Tamil:wght@600&family=Anek+Kannada:wght@600&family=Anek+Telugu:wght@600&family=Anek+Malayalam:wght@600&family=Anek+Gujarati:wght@600&family=Anek+Gurmukhi:wght@600&family=Anek+Odia:wght@600&display=swap">');
+    document.head.insertAdjacentHTML('beforeend', '<link id="scriptFonts" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anek+Tamil:wght@600&family=Anek+Kannada:wght@600&family=Anek+Telugu:wght@600&family=Anek+Malayalam:wght@600&family=Anek+Gujarati:wght@600&family=Anek+Gurmukhi:wght@600&family=Anek+Odia:wght@600&family=Noto+Nastaliq+Urdu:wght@600&family=Noto+Serif+Tibetan:wght@600&display=swap">');
   }
   track.innerHTML = run + run;
   alignGreetings(track);
@@ -140,11 +157,14 @@ function setupChrome() {
 
   $('#accountBtn').onclick = () => (state.user ? openJourney() : openAuth());
   $('#journeyBtn').onclick = openJourney;
+  showSoundBtn();
   $('#soundBtn').onclick = () => {
     state.sound = !state.sound;
-    $('#soundBtn').setAttribute('aria-pressed', state.sound);
-    $('#soundBtn').setAttribute('aria-label', state.sound ? 'Turn sound off' : 'Turn sound on');
-    if (state.sound) { sound.ctx().resume?.(); sound.ding(); }
+    try { localStorage.setItem(SOUND_KEY, state.sound ? 'on' : 'off'); } catch { /* private mode: fine */ }
+    showSoundBtn();
+    sound.unlock();
+    sound.update();
+    if (state.sound) sound.ding();
   };
   // In a city, PageDown / Space / → move down a screen and PageUp / ← move back: classroom clickers send these.
   document.addEventListener('keydown', (e) => {
@@ -209,6 +229,12 @@ function setupStreet() {
   $$('.gate', world).forEach((g) => g.addEventListener('click', () => goToCity(g.dataset.city)));
 
   const gaju = $('#gaju');
+  // Footsteps follow the walk animation itself: one footfall each time a step cycle starts (every .42s, see the
+  // "walk" keyframes in style.css), so they start when he starts, stop when he stops, and stay in step.
+  const body = $('.gaju-body', gaju);
+  const step = (e) => { if (e.target === body && e.animationName === 'walk' && gaju.classList.contains('walking')) sound.footstep(); };
+  body.addEventListener('animationstart', step);
+  body.addEventListener('animationiteration', step);
   const tell = () => {
     if (state.busy) return;
     if (openFadingRecall()) return;

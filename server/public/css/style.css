@@ -50,8 +50,13 @@ a { color: inherit; }
 .ticker-track.greetings b { font-weight: 800; display: inline-block; line-height: 1; transform: translateY(var(--word-drop, 0)); }
 .ticker-track.greetings .latin { margin-right: 26px; }
 .ticker-track.greetings .native {
-  font-family: 'Anek Devanagari', 'Anek Bangla', 'Anek Tamil', 'Anek Kannada', 'Anek Telugu', 'Anek Malayalam', 'Anek Gujarati', 'Anek Gurmukhi', 'Anek Odia', system-ui, sans-serif;
+  font-family: 'Anek Devanagari', 'Anek Bangla', 'Anek Tamil', 'Anek Kannada', 'Anek Telugu', 'Anek Malayalam', 'Anek Gujarati', 'Anek Gurmukhi', 'Anek Odia', 'Noto Nastaliq Urdu', 'Noto Serif Tibetan', system-ui, sans-serif;
   font-weight: 600; font-size: 17px; margin-right: 10px; position: relative; top: var(--native-shift, 0);
+}
+/* Khasi and Mizo are written in the Latin alphabet: a small label with the language (and meaning) instead of a second script */
+.ticker-track.greetings .lang {
+  display: inline-block; transform: translateY(var(--word-drop, 0)); margin: 0 26px 0 -18px; padding: 2px 7px; border-radius: 99px;
+  font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; line-height: 1.2; background: #00000012;
 }
 @keyframes tick { to { transform: translateX(-50%); } }
 
