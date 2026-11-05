@@ -7,7 +7,7 @@ import { cardsOf, toldPlaces, shuffle, pick, store } from './explore-data.js';
 let S;   // { ctx, run, panel, showTab } from explore.js
 
 const GAMES = [
-  { id: 'picture', icon: '🖼️', title: 'Picture this', blurb: 'Look at the photo. Which of the four is it?', rounds: 8, max: 8, unit: 'right',
+  { id: 'picture', icon: '🖼️', img: 'assets/game-picture-this.webp', title: 'Picture this', blurb: 'Look at the photo. Which of the four is it?', rounds: 8, max: 8, unit: 'right',
     ok: (d) => d.photos.length >= 8, play: playPicture },
   { id: 'memory', icon: '🃏', title: 'Memory pairs', blurb: 'Turn two cards at a time. Match each photo to its name.', rounds: 6, max: null, unit: 'moves',
     ok: (d) => d.photos.length >= 6, play: playMemory },
@@ -52,7 +52,7 @@ function drawHub() {
     <div class="gm-hub">${ready.map((g) => {
       const best = store(bestKey(g));
       return `<button class="gm-tile" data-game="${g.id}">
-        <span class="gm-icon" aria-hidden="true">${g.icon}</span>
+        ${g.img ? `<img class="gm-icon gm-icon-img" src="${g.img}" alt="">` : `<span class="gm-icon" aria-hidden="true">${g.icon}</span>`}
         <b>${esc(g.title)}</b><span>${esc(g.blurb)}</span>
         <small>${best != null ? `Your best: ${best}${g.max ? ` of ${g.max}` : ''} ${g.unit}` : 'Not played yet'}</small></button>`;
     }).join('')}</div>`
