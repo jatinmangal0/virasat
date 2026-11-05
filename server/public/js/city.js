@@ -750,10 +750,15 @@ export async function closeCity() {
   $('#scroll').getAnimations({ subtree: true }).forEach((a) => a.cancel());
   pg.hidden = true;
   $('#checkpoint').hidden = true;
+  // the sign-in card was asking for this city's scroll; it goes with the city
+  const auth = $('#authModal');
+  if (auth && !auth.hidden) auth.hidden = true;
   ctx.sequenceDone();
   ctx.resetStreet();
   // step back out through the arch while the street pulls back
   if (id && !reduced()) await archTo(id, null, 'close', 650);
+  // a quick tap (Forward, or a gate) may have opened a city while the arch was closing: leave that one be
+  if (cur) return;
   $('#city').hidden = true;
   $('#city').style.clipPath = '';
   $('#archFrame').innerHTML = '';
