@@ -161,6 +161,7 @@ function setupChrome() {
     if (m) closeModal(m);
     else if (exploreIsOpen()) leaveExplore();
     else if (!$('#city').hidden) $('#cityBack').click();
+    else if (state.busy) cancelWalk();
     else closeDrawer();
   });
 }
@@ -424,6 +425,13 @@ async function goToCity(city, { quick = false } = {}) {
   openCity(city, my, from);
   await pace(2000);
   if (my === state.seq) scene.running = false; // the street is hidden behind the city; let it rest
+}
+
+// Stop Gaju's walk to a gate (Back or Escape before the city has opened), so no city opens after the visitor left.
+function cancelWalk() {
+  state.seq++;
+  state.afterAuth = null;
+  resetStreet();
 }
 
 function resetStreet() {
@@ -710,6 +718,7 @@ async function boot() {
     if (ex) { if (!exploreIsOpen()) openExplore(ex, { fromCity: !$('#city').hidden }); return; }
     if (exploreIsOpen()) closeExplore();
     if (!id && !$('#city').hidden) $('#cityBack').click();
+    else if (!id && state.busy) cancelWalk(); // Back while Gaju is still walking to a gate
     else if (id && $('#city').hidden) goToCity(id, { quick: true });
   });
 }

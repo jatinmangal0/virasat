@@ -40,12 +40,33 @@
 @keyframes nt-twinkle { 50% { opacity: .25; } }
 .nt-bulb { filter: drop-shadow(0 0 3px #ffd27a); }
 
-/* the toggle in the top bar: a moon by day, a sun by night */
-#nightBtn .nt-sun { display: none; }
-#nightBtn[aria-pressed="true"] .nt-sun { display: inline; }
-#nightBtn[aria-pressed="true"] .nt-moon { display: none; }
-#nightBtn svg { transition: transform .5s ease; }
-#nightBtn:active svg { transform: rotate(-25deg) scale(.9); }
+/* the day/night switch (js/night.js draws it): a pill of sky, the knob slides from the sun's end to the moon's */
+.dn-btn { --w: 56px; --h: 28px; }
+.icon-btn.dn-btn { border-radius: 99px; padding: 8px 4px; }
+.icon-btn.dn-btn:hover { background: none; }
+.dn-track {
+  position: relative; display: block; width: var(--w); height: var(--h); border-radius: 99px; overflow: hidden;
+  background: #3d8fe0; box-shadow: inset 0 2px 4px #0005, 0 0 0 2px #fff, 0 1px 3px 2px #1c203033;
+  transition: background-color .5s ease;
+}
+.dn-track > svg { position: absolute; inset: 0; width: 100%; height: 100%; transition: opacity .5s ease; }
+.dn-night { opacity: 0; }
+.dn-knob {
+  position: absolute; top: 2px; left: 2px; width: calc(var(--h) - 4px); height: calc(var(--h) - 4px); border-radius: 50%;
+  box-shadow: 0 2px 4px #0006; transition: transform .5s cubic-bezier(.5,0,.2,1.15);
+}
+.dn-knob svg { position: absolute; inset: 0; width: 100%; height: 100%; transition: opacity .35s ease, transform .5s ease; }
+.dn-moon { opacity: 0; transform: rotate(-90deg); }
+.dn-btn[aria-pressed="true"] .dn-track { background: #1c2030; }
+.dn-btn[aria-pressed="true"] .dn-day { opacity: 0; }
+.dn-btn[aria-pressed="true"] .dn-night { opacity: 1; }
+.dn-btn[aria-pressed="true"] .dn-knob { transform: translateX(calc(var(--w) - var(--h))); }
+.dn-btn[aria-pressed="true"] .dn-sun { opacity: 0; transform: rotate(90deg); }
+.dn-btn[aria-pressed="true"] .dn-moon { opacity: 1; transform: none; }
+.dn-btn:active .dn-knob { width: calc(var(--h) + 2px); }
+.dn-btn[aria-pressed="true"]:active .dn-knob { transform: translateX(calc(var(--w) - var(--h) - 6px)); }
+.dn-btn:focus-visible { outline: none; }
+.dn-btn:focus-visible .dn-track { box-shadow: inset 0 2px 4px #0005, 0 0 0 2px #fff, 0 0 0 5px var(--ink, #1c2030); }
 
 /* with the extra button, give the right-hand icons room on phones */
 @media (max-width: 480px) {
@@ -53,6 +74,11 @@
   .topbar .logo { justify-self: center; }
   .topbar-right { gap: 2px; }
   .topbar-right .icon-btn { padding: 5px; }
+  .topbar-right .dn-btn { --w: 46px; --h: 24px; padding: 5px 3px; }
+}
+/* small phones: the switch takes no more room than the old round button did */
+@media (max-width: 420px) {
+  .topbar-right .dn-btn { --w: 40px; --h: 22px; padding: 5px 1px; min-width: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -61,12 +87,11 @@
 
 /* ---------- the city page at night: the pigeon flies under the moon, the scroll is read by lamplight ---------- */
 .post-night {
-  position: fixed; top: 16px; right: 16px; z-index: 12; width: 42px; height: 42px; display: grid; place-items: center;
-  border: 2px solid var(--ink); background: #fff; color: var(--ink); border-radius: 50%; box-shadow: 0 3px 0 var(--ink);
+  position: fixed; top: 16px; right: 16px; z-index: 12; padding: 0; border: 0; background: none; border-radius: 99px;
+  --w: 60px; --h: 30px;
 }
-.post-night .nt-sun, body.is-night .post-night .nt-moon { display: none; }
-body.is-night .post-night .nt-sun { display: inline; }
-body.is-night .post-night { background: #1b2148; color: #ffe7a3; border-color: #0a0d24; box-shadow: 0 3px 0 #0a0d24, 0 0 18px #ffd56a55; }
+.post-night .dn-track { box-shadow: inset 0 2px 4px #0005, 0 0 0 2px #fff, 0 3px 0 2px var(--ink); }
+body.is-night .post-night .dn-track { box-shadow: inset 0 2px 4px #0007, 0 0 0 2px #3a4060, 0 3px 0 2px #0a0d24, 0 0 18px #c9d6ff44; }
 
 .city { transition: background-color var(--nt-fade); }
 body.is-night .city { --night: #050817; background: #050817; }

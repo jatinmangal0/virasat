@@ -1,4 +1,4 @@
-// Night mode for the street. The moon button in the top bar turns the sky to night and switches on
+// Night mode for the street. The day/night switch in the top bar turns the sky to night and switches on
 // the street lamps, the shop lights, a few windows upstairs and the headlamps of the auto, scooter
 // and taxi. Each light source gets a soft pool of light that falls off around it.
 //
@@ -18,7 +18,33 @@ const WARM = '#ffd58a';
 document.head.insertAdjacentHTML('beforeend', '<link rel="stylesheet" href="css/night.css">');
 const street = document.getElementById('street');
 const btn = document.getElementById('nightBtn');
+const cityBtn = document.getElementById('cityNight');
 let built = false;
+
+// The day/night switch (top bar, and the city page's corner): a pill of sky with a knob that slides across.
+// Day: a sun on blue sky with layered clouds. Night: a cratered moon on dark sky with stars.
+// Flat shapes only (no gradients or ids), so the same drawing can sit in two buttons at once.
+const ring = (cx, fill, op) => [21, 29, 38].map((r) => `<circle cx="${cx}" cy="16" r="${r}" fill="${fill}" fill-opacity="${op}"/>`).join('');
+const puffs = (list, fill) => list.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${fill}"/>`).join('');
+const spark = (x, y, s = 1) => `<path transform="translate(${x} ${y}) scale(${s})" d="M0-2.6L.6-.6 2.6 0 .6.6 0 2.6-.6.6-2.6 0-.6-.6Z"/>`;
+const TOGGLE = `<span class="dn-track" aria-hidden="true">
+    <svg class="dn-day" viewBox="0 0 64 32" preserveAspectRatio="xMidYMid slice">
+      <rect width="64" height="32" fill="#3d8fe0"/>${ring(16, '#fff', 0.1)}
+      ${puffs([[30, 34, 7], [38, 28, 7], [46, 24, 8], [55, 18, 8], [63, 12, 8], [64, 26, 10]], '#a9d4f5')}
+      ${puffs([[26, 36, 6], [34, 32, 6], [42, 30, 7], [51, 27, 7], [59, 23, 7], [66, 22, 7], [44, 38, 8]], '#f4faff')}
+    </svg>
+    <svg class="dn-night" viewBox="0 0 64 32" preserveAspectRatio="xMidYMid slice">
+      <rect width="64" height="32" fill="#1c2030"/>${ring(48, '#c9d2ff', 0.07)}
+      <g fill="#fff">${spark(10, 9)}${spark(26, 13, 0.8)}${spark(19, 24, 0.9)}
+        <circle cx="5" cy="17" r=".8"/><circle cx="15" cy="15" r=".6"/><circle cx="31" cy="6" r=".7"/><circle cx="12" cy="27" r=".7" fill-opacity=".7"/><circle cx="29" cy="23" r=".6"/><circle cx="35" cy="17" r=".5" fill-opacity=".7"/></g>
+    </svg>
+    <span class="dn-knob">
+      <svg class="dn-sun" viewBox="0 0 24 24"><circle cx="12" cy="12.6" r="11.4" fill="#e9a21a"/><circle cx="12" cy="11.6" r="11" fill="#ffcf2e"/></svg>
+      <svg class="dn-moon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11.4" fill="#cfd3dc"/>
+        <circle cx="14.8" cy="6.4" r="2.1" fill="#a8b1c3"/><circle cx="8.6" cy="12.6" r="3.4" fill="#a8b1c3"/><circle cx="16.4" cy="16.2" r="2.6" fill="#a8b1c3"/></svg>
+    </span>
+  </span>`;
+for (const b of [btn, cityBtn]) if (b) b.innerHTML = TOGGLE;
 
 // a small seeded random so the stars and lit windows are the same on every visit
 let seed = 7;
@@ -218,9 +244,7 @@ function setNight(on, save = true) {
   if (on && !built) build();
   street.classList.toggle('night', on);
   document.body.classList.toggle('is-night', on);
-  btn.setAttribute('aria-pressed', on);
-  btn.setAttribute('aria-label', on ? 'Turn off night mode' : 'Turn on night mode');
-  btn.title = on ? 'Day' : 'Night';
+  for (const b of [btn, cityBtn]) b?.setAttribute('aria-pressed', on);
   nightSky(on);
   if (save) try { localStorage.setItem(KEY, on ? '1' : '0'); } catch {}
 }
