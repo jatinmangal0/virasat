@@ -126,6 +126,12 @@ export default function admin(r, { db, adminSetupCode }) {
       },
       columns: ['section_id', 'title', 'body', 'source_url', 'image'],
       wording: ['section_id', 'title', 'body', 'source_url', 'image'],
+      photos: {
+        max: 1,
+        list: (row) => (row.image?.src ? [row.image] : []),
+        // a new object, so the old photo's `original` (its Commons page) is not carried over to the new one
+        put: (row, i, im) => ({ image: { src: im.src, page: im.page, credit: im.credit, caption: im.caption } }),
+      },
     },
     quiz: {
       table: 'quiz_questions', path: 'quiz',
@@ -160,6 +166,18 @@ export default function admin(r, { db, adminSetupCode }) {
       // sort_order is set by the editor here (the place on the timeline), and moving or hiding an event is not a rewording.
       columns: ['city_id', 'year_label', 'title', 'body', 'images', 'source_url', 'sort_order', 'motif', 'memory', 'memory_source_url', 'argued', 'hidden'],
       wording: ['city_id', 'year_label', 'title', 'body', 'images', 'source_url', 'memory', 'memory_source_url', 'argued'],
+      // Timeline photos carry their credit inside the caption ("What it shows. Photo: author, licence"),
+      // which is how the website shows it; the other photos of the event are left exactly as they are.
+      photos: {
+        max: 4,
+        list: (row) => row.images || [],
+        put: (row, i, im) => {
+          const images = [...(row.images || [])];
+          const caption = [im.caption.replace(/[.\s]+$/, ''), `Photo: ${im.credit}`].filter(Boolean).join('. ');
+          images[i] = { src: im.src, caption: caption.slice(0, 300) };
+          return { images };
+        },
+      },
     },
     greeting: {
       table: 'greetings', path: 'greetings',
@@ -187,9 +205,20 @@ export default function admin(r, { db, adminSetupCode }) {
       },
       columns: ['city_id', 'name', 'subcategory', 'description', 'latitude', 'longitude', 'source_url'],
       wording: ['city_id', 'name', 'subcategory', 'description', 'latitude', 'longitude', 'source_url'],
+      // A place has one photo: image_url, its credit in image_license, and the page the credit links to in
+      // details.image_original (where the Cloudinary copy keeps it too). An old page link is removed, never
+      // left pointing at the old photo.
+      photos: {
+        max: 1,
+        list: (row) => (row.image_url ? [{ src: row.image_url, credit: row.image_license, page: row.details?.image_original || '' }] : []),
+        put: (row, i, im) => {
+          const { image_original, ...details } = row.details || {};
+          return { image_url: im.src, image_license: im.credit, details: im.page ? { ...details, image_original: im.page } : details };
+        },
+      },
     },
   };
-  const JSON_COLUMNS = ['options', 'images', 'image'];
+  const JSON_COLUMNS = ['options', 'images', 'image', 'details'];
   const changed = () => err(409, 'This changed after you opened it. Reload the page and check the new version.');
 
   for (const [entity, k] of Object.entries(kinds)) {
@@ -268,6 +297,38 @@ export default function admin(r, { db, adminSetupCode }) {
         return updated;
       });
       return json(200, { [entity]: row });
+    });
+
+    // Replace one photo (or add one where there is room), keeping the item's words as they are.
+    // body: { src, page, credit, caption, updatedAt }. A new photo and its credit are new content, so a live item
+    // goes back to 'needs_check', and the person who swapped the photo cannot be the one to verify it.
+    if (k.photos) r.put(`/api/admin/${k.path}/:id/photo/:index`, { role: 'editor' }, async ({ params, body, user }) => {
+      const before = await one(`SELECT * FROM ${k.table} WHERE id = $1`, [Number(params.id)]);
+      if (!before) return err(404, 'Not found.');
+      const index = Number(params.index), have = k.photos.list(before).length;
+      if (!Number.isInteger(index) || index < 0 || index > have || index >= k.photos.max) return err(400, 'There is no such photo to replace.');
+      if (body.updatedAt) {
+        const seen = new Date(body.updatedAt);
+        if (Number.isNaN(seen.getTime()) || Math.abs(seen - before.updated_at) >= 1) return changed();
+      }
+      const im = { src: text(body.src, 500), page: text(body.page, 500), credit: text(body.credit, 200), caption: text(body.caption, 160) };
+      if (!/^https:\/\/[^\s]+$/i.test(im.src)) return err(400, 'Upload a photo, or paste a link that starts with https://');
+      if (im.page && !isUrl(im.page)) return err(400, "The photo's page must be a link starting with http:// or https://");
+      if (!im.credit) return err(400, 'Add the credit for the new photo: who took or made it, and its licence.');
+      const set = k.photos.put(before, index, im);
+      const cols = Object.keys(set);
+      if (same(before, set, cols)) return json(200, { [entity]: before });
+      const reword = before.status === 'verified';
+      const authors = reword ? [user.id] : [...new Set([...(before.authors || []), user.id])];
+      const row = await transaction(db, async (c) => {
+        const updated = await one(`UPDATE ${k.table} SET ${cols.map((col, i) => `${col} = $${i + 2}`).join(', ')},
+          updated_by = $${cols.length + 2}, authors = $${cols.length + 3}, updated_at = now()
+          ${reword ? ", status = 'needs_check', verified_by = NULL, verified_at = NULL" : ''}
+          WHERE id = $1 RETURNING *`, [before.id, ...cols.map((col) => val(set, col)), user.id, authors], c);
+        await log(c, user.id, 'update', entity, before.id, before, updated);
+        return updated;
+      });
+      return json(200, { [entity]: row, backToCheck: reword });
     });
 
     r.delete(`/api/admin/${k.path}/:id`, { role: 'editor' }, async ({ params, user }) => {
