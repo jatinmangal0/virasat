@@ -306,22 +306,26 @@ a { color: inherit; }
 .roll {
   position: relative; height: var(--roll); z-index: 2;
   /* the paper rolled up: the same aged paper as the sheet, shaded like a cylinder */
+  /* the same aged paper rolled up: the photo at its own scale, shaded like a cylinder, with a couple of soft
+     creases and the outer edge of the sheet showing where it wraps round */
   background:
-    linear-gradient(#2a180a80, #fff3d81a 22%, #fff3d808 42%, #2a180a2e 68%, #2a180a99),
-    url("../assets/paper-roll.webp") center / cover, #d8bd8f;
-  box-shadow: 0 8px 14px -6px #0009;
+    linear-gradient(90deg, #0000 0 17%, #3a24101a 21%, #0000 25% 58%, #fff3d814 61%, #3a24141f 63%, #0000 67%),
+    linear-gradient(#1e1206b3, #1e120647 11%, #fff6e024 27%, #fff6e008 40%, #0000 52%, #2a180a24 61%, #2a180a70 64.5%,
+      #fff3d82e 66.5%, #2a180a2e 74%, #1e1206c2),
+    url("../assets/paper.webp") center 38% / 760px auto, #d8bd8f;
+  filter: drop-shadow(0 6px 6px #0008);
 }
-/* the ends of the roll: the layers of paper wound round each other (assets/paper-roll-end.svg) */
+/* the ends of the roll: the layers of paper wound round each other (assets/paper-roll-end.webp) */
 .roll::before, .roll::after {
-  content: ''; position: absolute; top: -1px; bottom: -1px; width: calc(var(--roll) * .42); z-index: 1;
-  background: url("../assets/paper-roll-end.svg") center / 100% 100% no-repeat;
-  filter: drop-shadow(0 2px 2px #0005);
+  content: ''; position: absolute; top: -1px; bottom: -1px; width: calc(var(--roll) * .48); z-index: 1;
+  background: url("../assets/paper-roll-end.webp") center / 100% 100% no-repeat;
 }
-.roll::before { left: calc(var(--roll) * -.21); } .roll::after { right: calc(var(--roll) * -.21); }
-/* the brass end-caps on the rod, coming out of the middle of each roll end (assets/finial.svg) */
+.roll::before { left: calc(var(--roll) * -.24); } .roll::after { right: calc(var(--roll) * -.24); }
+/* the brass end-caps on the rod, coming out of the middle of each roll end (assets/finial.webp, rendered as lit,
+   slightly tarnished brass) */
 .knob {
   position: absolute; top: 50%; width: calc(var(--roll) * 1.25); height: calc(var(--roll) * .94); z-index: 0;
-  background: url("../assets/finial.svg") center / contain no-repeat; filter: drop-shadow(0 3px 3px #0007);
+  background: url("../assets/finial.webp") center / contain no-repeat; filter: drop-shadow(0 3px 3px #0007);
 }
 .knob.r { left: calc(100% + var(--roll) * .02); transform: translateY(-50%); }
 .knob.l { right: calc(100% + var(--roll) * .02); transform: translateY(-50%) scaleX(-1); }
