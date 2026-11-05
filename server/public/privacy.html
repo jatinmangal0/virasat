@@ -4,26 +4,38 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Privacy · Virasat</title>
-  <meta name="description" content="What Virasat keeps when you sign in, why, and how to have it deleted.">
+  <meta name="description" content="What Virasat keeps when you sign in, why, who handles it, how long we keep it, and how to have it deleted.">
   <link rel="icon" href="/assets/favicon.svg">
   <link rel="canonical" href="https://www.virasatinfo.in/privacy">
-  <link href="https://fonts.googleapis.com/css2?family=Anek+Latin:wdth,wght@100..125,400..800&family=Bowlby+One&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/fonts.css">
   <style>
-    :root { --ink: #1d1714; --paper: #fbf3e4; --muted: #5f544b; --sun: #f7c744; --line: #e6d8c0; }
-    @media (prefers-color-scheme: dark) { :root { --ink: #f3e9d8; --paper: #1d1916; --muted: #c3b6a5; --line: #3a322b; } }
+    :root { --ink: #1d1714; --paper: #fbf3e4; --muted: #5f544b; --sun: #f7c744; --line: #e6d8c0; --sky: #cfe6e3; }
+    @media (prefers-color-scheme: dark) { :root { --ink: #f3e9d8; --paper: #1d1916; --muted: #c3b6a5; --line: #3a322b; --sky: #22403d; } }
     * { box-sizing: border-box; }
     body { margin: 0; background: var(--paper); color: var(--ink); font: 18px/1.6 'Anek Latin', system-ui, sans-serif; }
     main { max-width: 720px; margin: 0 auto; padding: 32px 16px 64px; }
     .top { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
     .top img { width: 72px; height: auto; }
     h1 { font-family: 'Bowlby One', sans-serif; font-weight: 400; font-size: clamp(30px, 6vw, 44px); line-height: 1.1; margin: 0; }
-    .updated { color: var(--muted); margin: 4px 0 28px; font-size: 16px; }
-    h2 { font-size: 22px; font-weight: 800; margin: 32px 0 6px; padding-top: 18px; border-top: 1px solid var(--line); }
+    .updated { color: var(--muted); margin: 4px 0 20px; font-size: 16px; }
+    h2 { font-size: 22px; font-weight: 800; margin: 32px 0 6px; padding-top: 18px; border-top: 1px solid var(--line); scroll-margin-top: 12px; }
+    h3 { font-size: 18px; font-weight: 800; margin: 18px 0 2px; }
     ul { padding-left: 22px; margin: 6px 0; }
     li { margin: 4px 0; }
     a { color: inherit; font-weight: 700; }
-    .short { background: color-mix(in srgb, var(--sun) 22%, transparent); border: 2px solid var(--ink); border-radius: 14px; padding: 14px 18px; }
-    .short p { margin: 4px 0; }
+    .box { border: 2px solid var(--ink); border-radius: 14px; padding: 14px 18px; margin: 14px 0; }
+    .box p { margin: 4px 0; }
+    .short { background: color-mix(in srgb, var(--sun) 22%, transparent); }
+    .kids { background: var(--sky); }
+    .kids h2 { border: 0; margin: 0 0 4px; padding: 0; font-size: 20px; }
+    .toc { columns: 2 220px; font-size: 16px; padding-left: 20px; }
+    .toc a { font-weight: 600; }
+    dl { margin: 6px 0; display: grid; grid-template-columns: max-content 1fr; gap: 2px 14px; }
+    dt { font-weight: 800; }
+    dd { margin: 0; }
+    @media (max-width: 480px) { dl { grid-template-columns: 1fr; } dd { margin-bottom: 6px; } }
+    /* Details still to be filled in by the site owner. Remove every .todo before this page goes live. */
+    .todo { background: #ffd9d2; color: #6b1607; border: 1px dashed #b3361f; border-radius: 6px; padding: 0 5px; font-weight: 700; }
     .back { display: inline-block; margin-top: 36px; border: 2px solid var(--ink); border-radius: 12px; background: var(--sun); color: #1d1714; padding: 10px 18px; font-weight: 800; text-decoration: none; box-shadow: 0 3px 0 var(--ink); }
   </style>
 </head>
@@ -33,63 +45,170 @@
     <img src="/assets/gaju.webp" alt="Gaju the elephant">
     <h1>Privacy</h1>
   </div>
-  <p class="updated">Last updated 1 November 2026</p>
+  <p class="updated">Last updated 5 November 2026</p>
 
-  <div class="short">
-    <p><b>In short:</b> you can walk the street, pick a city and watch Gaju without signing in. When you sign in, Virasat keeps your name, email and profile photo, plus your stamps, scores and points, so they follow you to any device. We never see your Google password, we show no ads, and we sell nothing. You can delete your account and everything in it at any time.</p>
+  <div class="box short">
+    <p><b>In short:</b> you can walk the street, pick a city and watch Gaju without signing in, and then we keep nothing about you. When you sign in, Virasat keeps your name, email and profile photo, plus your stamps, scores and points, so they follow you to any device. We never see your Google password, we show no ads, we do no tracking, and we sell nothing. You can withdraw your consent by deleting your account, and everything in it, at any time.</p>
   </div>
 
-  <h2>Who runs Virasat</h2>
-  <p>Virasat is a small learning website about the heritage of Indian cities, made by Jatin Mangal and a student team. For anything about your data, write to <a href="mailto:jatinmangal001@gmail.com">jatinmangal001@gmail.com</a>.</p>
+  <div class="box kids">
+    <h2>For students</h2>
+    <ul>
+      <li>You do not need an account to explore. Just pick a city.</li>
+      <li>Joining your class? Use a nickname, like "Riya S", not your full name.</li>
+      <li>Your teacher sees your nickname, which cities you opened, your best scores and your stamps. Nothing else.</li>
+      <li>Under 18 and want your own account? A parent or guardian has to say yes first.</li>
+      <li>Want it all gone? Press <b>Delete my account</b> in your passport, or ask a grown-up to write to us.</li>
+    </ul>
+  </div>
 
-  <h2>What we keep when you sign in</h2>
+  <ol class="toc">
+    <li><a href="#who">Who is responsible</a></li>
+    <li><a href="#law">The law we follow</a></li>
+    <li><a href="#keep">What we keep, and why</a></li>
+    <li><a href="#consent">Your consent, and taking it back</a></li>
+    <li><a href="#children">Children</a></li>
+    <li><a href="#classes">Classes and teachers</a></li>
+    <li><a href="#browser">Cookies and your browser</a></li>
+    <li><a href="#others">Who else handles it, and where</a></li>
+    <li><a href="#how-long">How long we keep it</a></li>
+    <li><a href="#safe">Keeping it safe, and breaches</a></li>
+    <li><a href="#rights">Your rights</a></li>
+    <li><a href="#complain">Questions and complaints</a></li>
+    <li><a href="#changes">Changes to this page</a></li>
+  </ol>
+
+  <h2 id="who">Who is responsible</h2>
+  <p>Virasat is a small learning website about the heritage of Indian cities. Under India's data protection law, the person responsible for your data (the "Data Fiduciary") is:</p>
+  <dl>
+    <dt>Run by</dt><dd><span class="todo">[Legal name of the owner or organisation]</span></dd>
+    <dt>Postal address</dt><dd><span class="todo">[Postal address in India]</span></dd>
+    <dt>Email</dt><dd><span class="todo">[privacy@virasatinfo.in, or the site's own address]</span></dd>
+    <dt>Grievance contact</dt><dd><span class="todo">[Full name]</span>, who answers privacy questions and complaints at the email above</dd>
+  </dl>
+  <p>Virasat is made by Jatin Mangal and a student team.</p>
+
+  <h2 id="law">The law we follow</h2>
+  <p>We handle personal data under India's <b>Digital Personal Data Protection Act, 2023</b> and the <b>Digital Personal Data Protection Rules, 2025</b>. Many parts of these Rules come into force in stages up to May 2027; we follow them now anyway.</p>
+  <p>The basis for keeping your data is your <b>consent</b>, which you give when you sign in or join a class. We keep only what we need to run your passport, your stamps and your class, and we use it for nothing else.</p>
+
+  <h2 id="keep">What we keep, and why</h2>
+  <h3>If you only look around</h3>
+  <p>Nothing about you goes into our database. Our web host's server logs see your IP address (see <a href="#how-long">How long we keep it</a>).</p>
+
+  <h3>When you sign in</h3>
   <ul>
     <li><b>With Google:</b> your name, email address, profile photo, and the account number Google gives us for this site. Google checks your password; we only receive a signed note from Google saying who you are. We ask for nothing else from your Google account.</li>
     <li><b>With email and password:</b> your name, email address, and your password in scrambled form (a one-way hash), so even we cannot read it.</li>
     <li><b>Joining a class with a code:</b> only the nickname you type. No email or phone number is needed.</li>
+    <li><b>With a phone number:</b> for a few days during an early test (31 October to 1 November 2026) the site asked for a phone number. That sign-in is switched off. If you used it, we still hold that number with your account until you delete it.</li>
     <li>When your account was made and when you last signed in.</li>
   </ul>
 
-  <h2>What we keep while you learn</h2>
+  <h3>While you learn</h3>
   <ul>
     <li>Which cities you opened and which parts you read.</li>
-    <li>Your quiz answers' scores, your stamps and how well inked they are, and your points.</li>
-    <li>Which classes you joined. Your teacher sees your nickname, stamps and scores for their class.</li>
+    <li>Your quiz scores, your stamps and how well inked they are, and your points.</li>
+    <li>Which classes you joined, and any classes you teach.</li>
   </ul>
-  <p>We use this only to run the site for you: your passport, your stamps, and your class.</p>
 
-  <h2>Cookies and your browser</h2>
+  <h3>How we use it</h3>
   <ul>
-    <li>One cookie keeps you signed in. Page scripts cannot read it, it is only sent over a secure connection, and it ends after 30 days or when you log out.</li>
-    <li>Your browser also remembers which cities you have already seen and whether night mode is on. That stays on your device and is never sent to us.</li>
+    <li>To keep your passport, stamps, scores and points, and show them to you on any device.</li>
+    <li>To greet you by your first name, for example when Gaju says "Namaste" or the site welcomes you back. Only you see this greeting.</li>
+    <li>To show your class's teacher how the class is doing (see <a href="#classes">Classes and teachers</a>).</li>
+    <li>If you are on the editing team: to record which facts you wrote or checked.</li>
+  </ul>
+  <p>We do not use your data for advertising, profiling, or any purpose not listed here.</p>
+
+  <h2 id="consent">Your consent, and taking it back</h2>
+  <ul>
+    <li><b>Giving it:</b> the sign-in box tells you what we keep and links to this page. By pressing <b>Sign in with Google</b>, <b>Create account</b>, or <b>Join</b> for a class, you agree to us keeping that data for the reasons above. Nothing is kept before you press.</li>
+    <li><b>Taking it back:</b> this is as easy as giving it. Sign in, open <b>My passport</b>, and press <b>Delete my account</b>. Or write to the email in <a href="#who">Who is responsible</a>.</li>
+    <li><b>What happens then:</b> your account, progress, stamps, scores, points and class places are deleted straight away, and you are signed out. Anything we did with your data before that stays lawful, but we stop.</li>
+    <li>If you signed in with Google, you can also remove Virasat from your Google account settings, under "Third-party apps and services". That stops Google sign-in, but it does not delete your Virasat account, so delete that too.</li>
+  </ul>
+
+  <h2 id="children">Children</h2>
+  <p>Many of our learners are school students. The law treats everyone under 18 as a child, and a child's own account needs the consent of a parent or lawful guardian, which we must be able to check.</p>
+  <ul>
+    <li><b>No account needed:</b> children can use the whole street, every city's letter, the timeline, and the Explore page without signing in.</li>
+    <li><b>Own account:</b> <span class="todo">[How a parent gives consent, for example a confirmation email sent to the parent before the account opens. To be decided and built.]</span> Until that is in place, please do not make an account if you are under 18.</li>
+    <li><b>Through a class:</b> a class account keeps only a nickname. <span class="todo">[Whether the teacher or school confirms parents' consent for the class, and how.]</span></li>
+    <li>We never track children's behaviour, build profiles of them, or show them advertising.</li>
+    <li>A parent, guardian or teacher can ask us to delete a child's account by writing to the email in <a href="#who">Who is responsible</a>.</li>
+  </ul>
+
+  <h2 id="classes">Classes and teachers</h2>
+  <h3>For students</h3>
+  <ul>
+    <li>Use a nickname your teacher will recognise, like your first name and an initial ("Riya S"). Please do not type your full name, phone number or anything else about yourself.</li>
+    <li>A class account made with just a code and nickname stays signed in on that device for 30 days. After that it cannot be opened again, so make a full account if you want to keep your stamps longer (with a parent's consent if you are under 18).</li>
+  </ul>
+  <h3>What a teacher can see and do</h3>
+  <ul>
+    <li><b>Can see,</b> for their own class only: each student's nickname, when they joined, how many times they opened each city, how many parts they read, their best quiz score and their stamps.</li>
+    <li><b>Can do:</b> set a city as homework, with a due date.</li>
+    <li><b>Cannot see</b> a student's email, phone number, photo, password or points, or anything from other classes.</li>
+    <li><b>Cannot change</b> or delete a student's work or account.</li>
+  </ul>
+  <h3>If a teacher leaves</h3>
+  <p>If the teacher deletes their account, the class goes with it: its code, its list of members and its homework are deleted. Students' own accounts and progress stay theirs.</p>
+
+  <h2 id="browser">Cookies and your browser</h2>
+  <ul>
+    <li><b>One cookie</b> keeps you signed in. Page scripts cannot read it, it is only sent over a secure connection, and it ends after 30 days or when you log out.</li>
+    <li><b>Your browser's own storage</b> remembers things on your device only, and they are never sent to us: which cities you have already seen, whether night mode is on, which flashcards you have learned, and your best score in each Explore game. Clearing your browser's site data removes them.</li>
+    <li><b>Sound</b> is off until you turn it on, and the choice is not saved: it is off again on your next visit. If we ever save it, or add music, we will list it here.</li>
     <li>We do not use advertising or tracking cookies, and we do not run any analytics.</li>
   </ul>
 
-  <h2>Who else handles it</h2>
+  <h2 id="others">Who else handles it, and where</h2>
   <p>A few services help run the site. They handle data only to do that job for us:</p>
   <ul>
     <li><b>Neon</b> stores the database, in Singapore.</li>
-    <li><b>Vercel</b> hosts the website, also in Singapore. Like any web host, it keeps short-lived server logs that include your IP address.</li>
-    <li><b>Google</b> handles "Sign in with Google" and serves the fonts.</li>
-    <li><b>Cloudinary</b> serves the city photos and artwork.</li>
+    <li><b>Vercel</b> hosts the website and runs our server code in Singapore. Pages may be delivered from the Vercel location nearest you. Like any web host, it keeps short-lived server logs that include your IP address.</li>
+    <li><b>Google</b> runs "Sign in with Google", on servers in the United States and other countries. Google's sign-in code loads only when you open the sign-in box.</li>
+    <li><b>Cloudinary</b> serves the city photos and artwork from servers mainly in the United States. Your browser asks it for each picture, so it sees your IP address.</li>
+    <li><b>OpenStreetMap</b> supplies the street map on each city's Explore page, from servers in Europe. Your browser asks it for the map pieces, so it sees your IP address.</li>
+    <li><b>Wikimedia Commons</b> supplies a few place photos, so it may see your IP address when you open them.</li>
   </ul>
-  <p>We do not sell or share your data with anyone else.</p>
+  <p>Our fonts are kept on our own server, so loading a page does not contact Google.</p>
+  <p>Some of this data is handled outside India. The law allows this, except to countries the Government of India restricts; none of the places above is restricted today. We do not sell or share your data with anyone else.</p>
 
-  <h2>How long we keep it</h2>
-  <p>Until you delete your account. If you are part of the editing team, the facts you wrote or checked stay on the site after you leave, without your name.</p>
-
-  <h2>Deleting your data, or seeing what we have</h2>
+  <h2 id="how-long">How long we keep it</h2>
   <ul>
-    <li><b>Do it yourself:</b> sign in, open <b>My passport</b>, and press <b>Delete my account</b>. Your account, progress, stamps, scores, points and class places are deleted straight away.</li>
-    <li><b>Or write to us</b> at <a href="mailto:jatinmangal001@gmail.com">jatinmangal001@gmail.com</a> from the email you signed in with. We can delete your account, tell you what we hold about you, or correct it. We reply within 7 days.</li>
-    <li>If you signed in with Google, you can also remove Virasat's access from your Google account settings, under "Third-party apps and services".</li>
+    <li><b>Your account and progress:</b> until you delete your account. <span class="todo">[Accounts with no sign-in for 3 years: we email you, if we have your email, 48 hours before deleting them. To be confirmed and built.]</span></li>
+    <li><b>Server logs</b> (IP address, page asked for, time): kept by our host for a short time, at most a few days, to keep the site running and safe. <span class="todo">[Check the log retention the DPDP Rules ask for.]</span></li>
+    <li><b>Backups:</b> our database host keeps a short rolling history so we can undo mistakes. Deleted accounts drop out of it within 7 days.</li>
+    <li><b>Editing team:</b> the facts you wrote or checked stay on the site after you leave, without your name.</li>
   </ul>
 
-  <h2>Children</h2>
-  <p>Many of our learners are school students. If you are under 18, please ask a parent, guardian or teacher before you sign in. Joining a class with a code needs only a nickname. A parent or teacher can ask us to delete a child's account by writing to the address above.</p>
+  <h2 id="safe">Keeping it safe, and breaches</h2>
+  <ul>
+    <li>Every page and request uses a secure (HTTPS) connection.</li>
+    <li>Passwords are stored only as a salted one-way hash. Sign-in tokens are stored only as a hash, so a copy of the database cannot be used to sign in as you.</li>
+    <li>Sign-in and sign-up are rate-limited to slow down guessing.</li>
+    <li>Only a small, named group of editors can open the editing tools, and they cannot see passwords.</li>
+    <li>The database is reachable only by our server and by the site's owners.</li>
+  </ul>
+  <p><b>If something goes wrong:</b> if your data is ever exposed, we will tell you without delay, by email if we have it and with a notice on the site, saying what happened, what it means for you and what you can do. We will also report it to the Data Protection Board of India as the law requires.</p>
 
-  <h2>Changes</h2>
-  <p>If we change what we keep, we will update this page and the date at the top.</p>
+  <h2 id="rights">Your rights</h2>
+  <ul>
+    <li><b>See it:</b> ask us for a summary of what we hold about you and who handled it.</li>
+    <li><b>Fix it:</b> ask us to correct or complete it.</li>
+    <li><b>Delete it:</b> do it yourself in your passport, or ask us.</li>
+    <li><b>Nominate someone:</b> you can name a person to use these rights for you if you die or become unable to. Write to us with their name and email.</li>
+    <li><b>Complain:</b> to us first, and then, if you are not happy with our answer, to the Data Protection Board of India.</li>
+  </ul>
+  <p>Write from the email you signed in with, so we know it is you. A class account has no email: tell us the class code and nickname.</p>
+
+  <h2 id="complain">Questions and complaints</h2>
+  <p>Write to our grievance contact at <span class="todo">[site email]</span>. We will reply within 7 days and settle it within 30 days at most. If we cannot settle it, or you are not happy with the answer, you can complain to the <b>Data Protection Board of India</b>.</p>
+
+  <h2 id="changes">Changes to this page</h2>
+  <p>If we change what we keep or how we use it, we will update this page and the date at the top. For a big change, we will show a notice on the site for at least 30 days and email everyone whose account has an email, before the change starts. If it needs new consent, we will ask for it.</p>
 
   <a class="back" href="/">Back to the street</a>
 </main>
