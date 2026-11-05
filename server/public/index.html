@@ -15,11 +15,10 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="theme-color" content="#f7c744">
   <link rel="icon" href="assets/favicon.svg">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- Anek covers Latin, Devanagari and Bengali in one design, so a city's own script sits beside English as an equal.
-       Tiro is for reading the letter; Kalam is Gaju's handwriting (it has Devanagari too). Bowlby One is the logo. -->
-  <link href="https://fonts.googleapis.com/css2?family=Anek+Latin:wdth,wght@100..125,400..800&family=Anek+Devanagari:wdth,wght@100..125,500..800&family=Anek+Bangla:wdth,wght@100..125,500..800&family=Tiro+Devanagari+Hindi:ital@0;1&family=Tiro+Bangla:ital@0;1&family=Kalam:wght@400;700&family=Bowlby+One&display=swap" rel="stylesheet">
+       Tiro is for reading the letter; Kalam is Gaju's handwriting (it has Devanagari too). Bowlby One is the logo.
+       They are copies of Google Fonts kept on our own server (scripts/self-host-fonts.js), so visitors never contact Google for them. -->
+  <link rel="stylesheet" href="css/fonts.css">
   <link rel="stylesheet" href="css/style.css">
   <!-- the dove that brings every city's scroll: fetch it early so it is ready the moment a city opens -->
   <link rel="preload" as="image" href="assets/dove.webp" type="image/webp">
@@ -34,7 +33,7 @@
       <nav class="topnav">
         <a href="#" data-go="udaipur">Udaipur</a>
         <a href="#" data-go="kolkata">Kolkata</a>
-        <a href="#about">Our Story</a>
+        <a href="/our-story">Our Story</a>
       </nav>
     </div>
     <a class="logo" href="/" aria-label="Virasat home">VIRASAT</a>
@@ -63,7 +62,7 @@
     <a href="#" data-go="kolkata">Visit Kolkata</a>
     <a href="#" data-open="journey">My Journey</a>
     <a href="#" data-open="class">Join a class</a>
-    <a href="#about" data-close>Our Story</a>
+    <a href="/our-story">Our Story</a>
     <a href="/admin" id="drawerAdmin" hidden>Admin page</a>
     <a href="#" data-open="auth" id="drawerAuth">Log in / Sign up</a>
     <a href="/privacy">Privacy</a>
@@ -225,7 +224,7 @@
       </form>
 
       <p class="form-error" id="authError" role="alert"></p>
-      <p class="auth-privacy">We keep your name, email and photo to save your passport. <a href="/privacy" target="_blank" rel="noopener">Privacy</a></p>
+      <p class="auth-privacy">By signing in, you agree that we keep your name, email and photo to save your passport. Under 18? A parent or guardian must agree first. You can delete it all any time. <a href="/privacy" target="_blank" rel="noopener">Privacy</a></p>
     </div>
   </div>
 
@@ -237,10 +236,11 @@
       <p class="auth-sub">Your teacher has a six-letter code. No email or phone number needed.</p>
       <form class="pane" id="classForm" novalidate>
         <label>Class code <input name="code" autocomplete="off" autocapitalize="characters" maxlength="8" placeholder="K7Q2MX" required></label>
-        <label class="nick">Your name in class <input name="nickname" autocomplete="nickname" maxlength="40" placeholder="Your first name, or first name and initial"></label>
+        <label class="nick">Your name in class <input name="nickname" autocomplete="nickname" maxlength="40" placeholder="A nickname, like Riya S"></label>
         <button class="btn primary wide" type="submit">Join</button>
       </form>
       <p class="form-error" id="classError" role="alert"></p>
+      <p class="auth-privacy">Use a nickname, not your full name. Your teacher will see it with your stamps and scores. <a href="/privacy#classes" target="_blank" rel="noopener">Privacy</a></p>
     </div>
   </div>
 
