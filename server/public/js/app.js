@@ -62,7 +62,7 @@ async function setupTicker() {
   track.classList.toggle('greetings', greetings.length > 0);
   // the other scripts' fonts load only when greetings in those scripts are live
   if (greetings.some((g) => g.native) && !$('#scriptFonts')) {
-    document.head.insertAdjacentHTML('beforeend', '<link id="scriptFonts" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anek+Tamil:wght@600&family=Anek+Kannada:wght@600&family=Anek+Telugu:wght@600&family=Anek+Malayalam:wght@600&family=Anek+Gujarati:wght@600&family=Anek+Gurmukhi:wght@600&family=Anek+Odia:wght@600&display=swap">');
+    document.head.insertAdjacentHTML('beforeend', '<link id="scriptFonts" rel="stylesheet" href="/css/fonts-scripts.css">');
   }
   track.innerHTML = run + run;
   alignGreetings(track);
