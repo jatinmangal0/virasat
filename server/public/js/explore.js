@@ -10,6 +10,7 @@ import { initPlaces, loadPlaces, placePins, showPlace, isBare } from './places.j
 import { fitCity, cityMapSVG, cityTilesHTML, mountTiles, streetMapOn, MAP_CREDIT } from './citymap.js';
 import { renderCards } from './explore-cards.js';
 import { renderGames } from './explore-games.js';
+import { mountSwitch } from './night.js';
 
 let ctx;          // what app.js shares: state, CITIES, esc, sound, onClose
 let run = null;   // the open page: { id, c, places, history, tab, view, story: { outline, g, place } }
@@ -35,6 +36,7 @@ export function openExplore(id, { fromCity = false } = {}) {
   page.innerHTML = `
     <header class="ex-top">
       <button class="post-back" id="exBack">← ${fromCity ? `Back to ${esc(c.name)}'s letter` : 'Back to the street'}</button>
+      <button class="post-night ex-night" id="exNight" type="button"></button>
       <div class="ex-title"><small>Virasat Dak · Explore</small><h1 id="exTitle">${esc(c.name)}${c.native ? ` <span class="native">${esc(c.native)}</span>` : ''}</h1></div>
       <nav class="ex-tabs" role="tablist" aria-label="Explore ${esc(c.name)}">
         ${TABS.map(([t, label]) => `<button class="ex-tab" role="tab" id="exTab-${t}" data-tab="${t}" aria-controls="exPanel-${t}">${label}</button>`).join('')}
@@ -76,6 +78,8 @@ export function openExplore(id, { fromCity = false } = {}) {
   page.scrollTop = 0;
   document.body.classList.add('locked');
   $('#exBack').addEventListener('click', () => ctx.onClose());
+  // the same day/night switch as the top bar and the city page (night.js); it sits in the top-right corner
+  mountSwitch($('#exNight'));
   $$('.ex-tab', page).forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab, true)));
   $('.ex-tabs', page).addEventListener('keydown', (e) => {
     const i = TABS.findIndex(([t]) => t === run.tab), d = { ArrowRight: 1, ArrowLeft: -1 }[e.key];

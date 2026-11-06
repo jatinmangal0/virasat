@@ -1435,3 +1435,75 @@ body.is-night .mini-card { background: #2a2320; color: #f6ead2; box-shadow: 0 10
   .explore .place-legend { padding: 4px 0 6px; }
   .explore .place-card { max-height: 52%; }
 }
+
+/* ---------- Explore in light mode (5 Nov) ----------
+   Explore was drawn for the dark only. Dark mode (body.is-night) keeps that look, over the real night sky;
+   light mode is the same page on cream paper with ink text. Only colours change here: no sizes or places. */
+body:not(.is-night) .explore {
+  color: var(--ink);
+  background: radial-gradient(ellipse at 50% 0%, #fffaf0 0%, #0000 60%), radial-gradient(#1d171412 1px, #0000 1.4px) 0 0 / 22px 22px, #f7eedb;
+}
+body:not(.is-night) .ex-title small { color: #8a5a17; }
+body:not(.is-night) .ex-title h1 { color: var(--ink); }
+body:not(.is-night) .ex-title h1 .native { color: color-mix(in srgb, var(--accent) 70%, #2a1d12); }
+body:not(.is-night) .ex-tabs { background: #fffdf6; border-color: #1d171433; }
+body:not(.is-night) .ex-tab { color: #5a4a42; }
+body:not(.is-night) .ex-tab.on { background: var(--ink); color: #f6ead2; }
+body:not(.is-night) .explore :is(.ex-tab, .gm-tile, .fc-card, .ex-zoom button):focus-visible { outline-color: #b5530a; }
+/* search, Surprise me and the filter chips */
+body:not(.is-night) .ex-search input { background-color: #fffdf6; border-color: #1d171440; color: var(--ink);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239a4508' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6.5'/%3E%3Cpath d='M15.5 15.5 21 21'/%3E%3C/svg%3E"); }
+body:not(.is-night) .ex-search input::placeholder { color: #7a5c3c; }
+body:not(.is-night) .ex-search input:focus { border-color: #b5530a; box-shadow: 0 0 0 3px #e8730c33; }
+body:not(.is-night) .ex-found { box-shadow: 0 0 0 1.5px #1d171426, 0 20px 40px -14px #0005; }
+body:not(.is-night) .explore .chip { background: #fffdf6; border-color: #1d171433; color: var(--ink); }
+body:not(.is-night) .explore .chip b { color: #5a4a42; }
+body:not(.is-night) .explore .chip i { box-shadow: 0 0 0 1.5px #1d171440; }
+body:not(.is-night) .chip.ex-surprise { color: #8a5a17; border-color: #8a5a1766; }
+/* the map frame, its buttons and notes (the drawn map is for when the street map cannot load) */
+body:not(.is-night) .ex-map, body:not(.is-night) .gm-map { background: radial-gradient(ellipse at 50% 45%, #fbf3e0, #eadfc6 75%); box-shadow: inset 0 0 0 1.5px #1d171433, 0 24px 50px -34px #0006; }
+body:not(.is-night) .ex-map.street, body:not(.is-night) .gm-map.street { background: #f2efe9; }
+body:not(.is-night) .ex-land:not(.street) { fill: color-mix(in srgb, var(--accent) 16%, #e8dcc2); }
+body:not(.is-night) .ex-svg .lake { fill: #8fb3e6; stroke: #3f63b8; }
+body:not(.is-night) .ex-svg .river { stroke: #8fa6dc; }
+body:not(.is-night) .ex-svg .water-name { fill: #2a4a8a; stroke: #fbf3e0; }
+body:not(.is-night) .ex-zoom button { background: #fffdf6; border-color: #1d171440; color: var(--ink); box-shadow: 0 4px 10px #0003; }
+body:not(.is-night) .ex-zoom button:hover { border-color: #b5530a; color: #9a4508; }
+body:not(.is-night) .ex-hint { color: #5a4a42; }
+body:not(.is-night) .explore .place-card { box-shadow: 0 0 0 4px #d8a93b, 0 0 0 6px #6b4a12, 0 24px 50px -24px #0007; }
+body:not(.is-night) .ex-note { color: #5a4a42; }
+body:not(.is-night) .ex-src { color: #6b5a50; }
+/* flashcards */
+body:not(.is-night) .chip.fc-deck[aria-pressed="true"] { background: var(--ink); color: #f6ead2; border-color: var(--ink); }
+body:not(.is-night) .chip.fc-deck[aria-pressed="true"] b { color: #e9c46a; }
+body:not(.is-night) .chip.fc-deck[aria-pressed="false"] { opacity: .75; }
+body:not(.is-night) .fc-progress { background: #1d17141a; }
+body:not(.is-night) .fc-count, body:not(.is-night) .fc-help { color: #5a4a42; }
+body:not(.is-night) .fc-face { box-shadow: 0 0 0 4px #d8a93b, 0 0 0 6px #6b4a12, 0 24px 50px -24px #0007; }
+body:not(.is-night) .fc-card.lean-got .fc-face { box-shadow: 0 0 0 4px #6fbf73, 0 0 0 6px #2f6b33, 0 24px 50px -24px #0007; }
+body:not(.is-night) .fc-card.lean-again .fc-face { box-shadow: 0 0 0 4px #e48a78, 0 0 0 6px #7a2d20, 0 24px 50px -24px #0007; }
+body:not(.is-night) :is(.fc-done, .gm-end) { background: #fffdf6; border-color: #1d171426; }
+body:not(.is-night) :is(.fc-done, .gm-end) p { color: #5a4a42; }
+/* games */
+body:not(.is-night) .gm-intro, body:not(.is-night) .gm-help { color: #5a4a42; }
+body:not(.is-night) .gm-help b, body:not(.is-night) .gm-score, body:not(.is-night) .sb-n { color: #8a5a17; }
+body:not(.is-night) .gm-tile { background: #fffdf6; box-shadow: 0 0 0 3px #d8a93b, 0 14px 30px -20px #0008; }
+body:not(.is-night) .gm-tile:hover { box-shadow: 0 0 0 3px #e0901c, 0 20px 36px -18px #0008; }
+body:not(.is-night) .gm-flowers i { color: #1d171426; }
+body:not(.is-night) .explore .q-opt { border-color: #1d171433; background: #fffdf6; color: var(--ink); }
+body:not(.is-night) .explore .q-opt:hover:not([disabled]) { border-color: #b5530a; background: #fff6dc; }
+body:not(.is-night) .explore .q-opt.right { border-color: #3f8a3a; background: #d9efcf; }
+body:not(.is-night) .explore .q-opt.wrong { border-color: #b5281c; background: #f8d8d0; }
+body:not(.is-night) .pic-frame img { background-color: #e8dcc2; box-shadow: 0 0 0 4px #d8a93b, 0 0 0 6px #6b4a12, 0 24px 50px -24px #0007; }
+body:not(.is-night) .pic-frame figcaption { color: #6b5a50; }
+body:not(.is-night) .mem-face { box-shadow: inset 0 0 0 3px #d8a93b; }
+body:not(.is-night) .sort-item { box-shadow: 0 0 0 3px #d8a93b, 0 14px 30px -20px #0008; }
+body:not(.is-night) .sort-basket { border-color: #1d171433; background: #fffdf6; color: var(--ink); }
+body:not(.is-night) .sort-basket:hover:not([disabled]) { border-color: #b5530a; }
+body:not(.is-night) .sort-basket.right { border-color: #3f8a3a; background: #d9efcf; }
+body:not(.is-night) .sort-basket.wrong { border-color: #b5281c; background: #f8d8d0; }
+
+/* Explore in dark mode: the street map is a light map, so only its base layer is dimmed. The city outline,
+   pins, cluster numbers, labels, photos and the OpenStreetMap credit stay at full brightness. */
+body.is-night .ex-tiles .tile-layer { filter: brightness(.72) saturate(.85); }
+body.is-night .ex-map.street, body.is-night .gm-map.street { background: #3d3a35; }

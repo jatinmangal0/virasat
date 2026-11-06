@@ -15,36 +15,80 @@ const NS = 'http://www.w3.org/2000/svg';
 const KEY = 'virasat-night';
 const WARM = '#ffd58a';
 
-document.head.insertAdjacentHTML('beforeend', '<link rel="stylesheet" href="css/night.css">');
 const street = document.getElementById('street');
-const btn = document.getElementById('nightBtn');
-const cityBtn = document.getElementById('cityNight');
+const html = document.documentElement;
 let built = false;
+let night = html.classList.contains('dark'); // theme-early.js has already chosen, before the page was drawn
 
-// The day/night switch (top bar, and the city page's corner): a pill of sky with a knob that slides across.
-// Day: a sun on blue sky with layered clouds. Night: a cratered moon on dark sky with stars.
-// Flat shapes only (no gradients or ids), so the same drawing can sit in two buttons at once.
-const ring = (cx, fill, op) => [21, 29, 38].map((r) => `<circle cx="${cx}" cy="16" r="${r}" fill="${fill}" fill-opacity="${op}"/>`).join('');
-const puffs = (list, fill) => list.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${fill}"/>`).join('');
-const spark = (x, y, s = 1) => `<path transform="translate(${x} ${y}) scale(${s})" d="M0-2.6L.6-.6 2.6 0 .6.6 0 2.6-.6.6-2.6 0-.6-.6Z"/>`;
-const TOGGLE = `<span class="dn-track" aria-hidden="true">
+// ---------- the day/night switch ----------
+// One drawing for every page (the top bar, the city page's corner, Explore's corner): a small pill of sky
+// with a knob that slides across. Day: a warm sun with two paper-cut clouds. Night: a moon and a few stars.
+// Flat cut-paper shapes in the site's colours and ink outline, like Gaju (no gradients and no ids, so the
+// same drawing can sit in several buttons at once).
+const INK = '#1d1714';
+const star = (x, y, r) => {
+  const pts = [];
+  for (let i = 0; i < 10; i++) {
+    const a = (Math.PI / 5) * i - Math.PI / 2, k = i % 2 ? r * 0.45 : r;
+    pts.push(`${(x + k * Math.cos(a)).toFixed(2)},${(y + k * Math.sin(a)).toFixed(2)}`);
+  }
+  return `<polygon points="${pts.join(' ')}"/>`;
+};
+// a cut-paper cloud: flat bottom, three bumps; drawn twice, the darker copy a little lower, like a layer under it
+const cloud = (x, y, s) => {
+  const d = `M${x},${y}h${16 * s}a${3 * s},${3 * s} 0 0 0 -${3 * s},-${4.6 * s}a${4 * s},${4 * s} 0 0 0 -${6.4 * s},-${2.6 * s}a${3.4 * s},${3.4 * s} 0 0 0 -${6 * s},${2.4 * s}a${2.6 * s},${2.6 * s} 0 0 0 -${0.6 * s},${4.8 * s}z`;
+  return `<path d="${d}" transform="translate(0 1.3)" fill="${INK}" fill-opacity=".18"/><path d="${d}" fill="#fffaf0" stroke="${INK}" stroke-width=".9" stroke-linejoin="round"/>`;
+};
+const rays = (() => {
+  const pts = [];
+  for (let i = 0; i < 24; i++) {
+    const a = (Math.PI / 12) * i, k = i % 2 ? 9.2 : 11.6;
+    pts.push(`${(12 + k * Math.cos(a)).toFixed(2)},${(12 + k * Math.sin(a)).toFixed(2)}`);
+  }
+  return pts.join(' ');
+})();
+const SWITCH = `<span class="dn-track" aria-hidden="true">
     <svg class="dn-day" viewBox="0 0 64 32" preserveAspectRatio="xMidYMid slice">
-      <rect width="64" height="32" fill="#3d8fe0"/>${ring(16, '#fff', 0.1)}
-      ${puffs([[30, 34, 7], [38, 28, 7], [46, 24, 8], [55, 18, 8], [63, 12, 8], [64, 26, 10]], '#a9d4f5')}
-      ${puffs([[26, 36, 6], [34, 32, 6], [42, 30, 7], [51, 27, 7], [59, 23, 7], [66, 22, 7], [44, 38, 8]], '#f4faff')}
+      <rect width="64" height="32" fill="#a9dcee"/>
+      <path d="M0,27 Q16,23 32,27 T64,26 V32 H0Z" fill="#8fcbe2"/>
+      ${cloud(44, 13, 0.95)}${cloud(34, 25, 1.25)}
     </svg>
     <svg class="dn-night" viewBox="0 0 64 32" preserveAspectRatio="xMidYMid slice">
-      <rect width="64" height="32" fill="#1c2030"/>${ring(48, '#c9d2ff', 0.07)}
-      <g fill="#fff">${spark(10, 9)}${spark(26, 13, 0.8)}${spark(19, 24, 0.9)}
-        <circle cx="5" cy="17" r=".8"/><circle cx="15" cy="15" r=".6"/><circle cx="31" cy="6" r=".7"/><circle cx="12" cy="27" r=".7" fill-opacity=".7"/><circle cx="29" cy="23" r=".6"/><circle cx="35" cy="17" r=".5" fill-opacity=".7"/></g>
+      <rect width="64" height="32" fill="#232a5c"/>
+      <path d="M0,27 Q16,23 32,27 T64,26 V32 H0Z" fill="#1a2049"/>
+      <g fill="#f7c744" stroke="${INK}" stroke-width=".6" stroke-linejoin="round">${star(12, 10, 4.2)}${star(27, 19, 3.2)}${star(19, 4.5, 2.2)}</g>
+      <g fill="#f6ead2"><circle cx="6" cy="19" r=".9"/><circle cx="33" cy="8" r=".8"/><circle cx="17" cy="24" r=".7"/></g>
     </svg>
     <span class="dn-knob">
-      <svg class="dn-sun" viewBox="0 0 24 24"><circle cx="12" cy="12.6" r="11.4" fill="#e9a21a"/><circle cx="12" cy="11.6" r="11" fill="#ffcf2e"/></svg>
-      <svg class="dn-moon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11.4" fill="#cfd3dc"/>
-        <circle cx="14.8" cy="6.4" r="2.1" fill="#a8b1c3"/><circle cx="8.6" cy="12.6" r="3.4" fill="#a8b1c3"/><circle cx="16.4" cy="16.2" r="2.6" fill="#a8b1c3"/></svg>
+      <svg class="dn-sun" viewBox="0 0 24 24">
+        <polygon points="${rays}" fill="#e8730c" stroke="${INK}" stroke-width=".8" stroke-linejoin="round"/>
+        <circle cx="12" cy="12.8" r="7.6" fill="${INK}" fill-opacity=".22"/>
+        <circle cx="12" cy="12" r="7.6" fill="#f7c744" stroke="${INK}" stroke-width=".9"/>
+        <path d="M8.2,10.6a4.4,4.4 0 0 1 3.6,-3" fill="none" stroke="#fff3c4" stroke-width="1.3" stroke-linecap="round"/>
+      </svg>
+      <svg class="dn-moon" viewBox="0 0 24 24">
+        <circle cx="12" cy="12.9" r="10.6" fill="${INK}" fill-opacity=".3"/>
+        <circle cx="12" cy="12" r="10.6" fill="#f6ead2" stroke="${INK}" stroke-width=".9"/>
+        <g fill="#ddd0b6" stroke="${INK}" stroke-width=".6"><circle cx="15.2" cy="7.6" r="2"/><circle cx="8.6" cy="12.4" r="3"/><circle cx="15.6" cy="15.8" r="2.2"/></g>
+      </svg>
     </span>
   </span>`;
-for (const b of [btn, cityBtn]) if (b) b.innerHTML = TOGGLE;
+
+const tip = () => (night ? 'Switch to light mode' : 'Switch to dark mode');
+function paint(b) {
+  b.setAttribute('aria-checked', String(night));
+  b.title = tip();
+}
+// Any page part can have a switch: give it this drawing and the current state. Clicks are handled below,
+// once for the whole page, so a switch drawn later (Explore draws its page each time it opens) just works.
+export function mountSwitch(b) {
+  if (!b) return;
+  b.innerHTML = SWITCH;
+  b.classList.add('dn-btn');
+  b.setAttribute('role', 'switch');
+  b.setAttribute('aria-label', 'Dark mode');
+  paint(b);
+}
 
 // a small seeded random so the stars and lit windows are the same on every visit
 let seed = 7;
@@ -240,12 +284,21 @@ function build() {
   built = true;
 }
 
-function setNight(on, save = true) {
-  if (on && !built) build();
-  street.classList.toggle('night', on);
+// Dark or light for the whole site. The choice is saved, and every open tab and page follows it.
+function setNight(on, { save = true, instant = false } = {}) {
+  night = on;
+  html.classList.toggle('dark', on);
   document.body.classList.toggle('is-night', on);
-  for (const b of [btn, cityBtn]) b?.setAttribute('aria-pressed', on);
+  document.querySelectorAll('.dn-btn').forEach(paint);
   nightSky(on);
+  // the street's own lamps and lights need its drawing, which may still be on its way
+  whenSceneReady(() => {
+    if (night && !built) build();
+    // on page load go straight to the right look, without the fade
+    if (instant) street.classList.add('nt-instant');
+    street.classList.toggle('night', night);
+    if (instant) requestAnimationFrame(() => requestAnimationFrame(() => street.classList.remove('nt-instant')));
+  });
   if (save) try { localStorage.setItem(KEY, on ? '1' : '0'); } catch {}
 }
 
@@ -258,10 +311,17 @@ function whenSceneReady(fn) {
   mo.observe(world, { childList: true });
 }
 
-whenSceneReady(() => {
-  btn.hidden = false;
-  btn.addEventListener('click', () => setNight(!street.classList.contains('night')));
-  let saved = null;
-  try { saved = localStorage.getItem(KEY); } catch {}
-  if (saved === '1') setNight(true, false);
-});
+mountSwitch(document.getElementById('nightBtn'));
+mountSwitch(document.getElementById('cityNight'));
+document.addEventListener('click', (e) => { if (e.target.closest?.('.dn-btn')) setNight(!night); });
+if (night) setNight(true, { save: false, instant: true });
+// another tab or page switched: follow it
+addEventListener('storage', (e) => { if (e.key === KEY && e.newValue) setNight(e.newValue === '1', { save: false }); });
+// until the visitor chooses, the site follows the device's own setting, also when that changes
+try {
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+    let saved = null;
+    try { saved = localStorage.getItem(KEY); } catch {}
+    if (saved === null) setNight(e.matches, { save: false });
+  });
+} catch {}
